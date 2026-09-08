@@ -46,7 +46,14 @@ const DashboardPage = () => {
 
         if (summaryRes.status === 401 || summaryRes.status === 403) {
           clearAuthTokens();
-          navigate('/admin/login');
+          navigate('/admin/login', {
+            state: {
+              error: summaryRes.status === 403
+                ? "Acesso negado. Esta conta não possui permissão de administrador."
+                : "Sua sessão expirou. Faça login novamente."
+            },
+            replace: true
+          });
           return;
         }
 
