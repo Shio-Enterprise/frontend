@@ -1,6 +1,10 @@
-import { createContext, useState, useContext, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode';
-import { clearAuthTokens, getAccessToken, setAuthTokens } from '../lib/authToken';
+import { createContext, useState, useContext, useEffect } from "react";
+import { jwtDecode } from "jwt-decode";
+import {
+  clearAuthTokens,
+  getAccessToken,
+  setAuthTokens,
+} from "../lib/authToken";
 
 const AuthContext = createContext(null);
 
@@ -16,17 +20,22 @@ export const AuthProvider = ({ children }) => {
       try {
         const decodedToken = jwtDecode(token);
         if (decodedToken.exp * 1000 > Date.now()) {
-          const storedUser = JSON.parse(localStorage.getItem('user'));
+          const storedUser = JSON.parse(localStorage.getItem("user"));
           if (storedUser) {
             setUser(storedUser);
-            setIsAdmin(storedUser.is_staff || false);
+            setIsAdmin(
+              storedUser.is_admin ||
+                storedUser.is_staff ||
+                storedUser.is_superuser ||
+                false,
+            );
           }
           setAccessToken(token);
         } else {
           logout();
         }
       } catch (error) {
-        console.error('Token inválido:', error);
+        console.error("Token inválido:", error);
         logout();
       }
     }
@@ -36,15 +45,17 @@ export const AuthProvider = ({ children }) => {
   const login = (authData) => {
     const { user: userData, access, refresh } = authData;
     setAuthTokens({ access, refresh });
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem("user", JSON.stringify(userData));
     setAccessToken(access);
     setUser(userData);
-    setIsAdmin(userData.is_staff || false);
+    setIsAdmin(
+      userData.is_admin || userData.is_staff || userData.is_superuser || false,
+    );
   };
 
   const logout = () => {
     clearAuthTokens();
-    localStorage.removeItem('user');
+    localStorage.removeItem("user");
     setAccessToken(null);
     setUser(null);
     setIsAdmin(false);
@@ -58,7 +69,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined || context === null) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
