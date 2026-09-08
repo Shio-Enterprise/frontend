@@ -13,8 +13,8 @@ const Router = () => {
               key={route.path}
               path={route.path}
               element={
-                route.isPrivate
-                  ? <ProtectedRoute>{route.component}</ProtectedRoute>
+                (route.isPrivate || route.isAdmin)
+                  ? <ProtectedRoute requireAdmin={route.isAdmin}>{route.component}</ProtectedRoute>
                   : route.component
               }
             />

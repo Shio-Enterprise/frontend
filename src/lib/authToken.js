@@ -19,6 +19,15 @@ export const getAccessToken = () => {
   return null;
 };
 
+export const getRefreshToken = () => {
+  for (const key of REFRESH_TOKEN_KEYS) {
+    const token = localStorage.getItem(key);
+    if (token && !isJwtExpired(token)) return token;
+    if (token) localStorage.removeItem(key);
+  }
+  return null;
+};
+
 export const setAuthTokens = ({ access, refresh }) => {
   if (access) {
     ACCESS_TOKEN_KEYS.forEach((key) => localStorage.setItem(key, access));

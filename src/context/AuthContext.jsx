@@ -1,10 +1,7 @@
-import { createContext, useState, useContext, useEffect } from "react";
-import { jwtDecode } from "jwt-decode";
-import {
-  clearAuthTokens,
-  getAccessToken,
-  setAuthTokens,
-} from "../lib/authToken";
+import { createContext, useState, useContext, useEffect } from 'react';
+import { jwtDecode } from 'jwt-decode';
+import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from '../lib/authToken';
+import apiClient from '../lib/axios';
 
 const AuthContext = createContext(null);
 
@@ -20,14 +17,14 @@ export const AuthProvider = ({ children }) => {
       try {
         const decodedToken = jwtDecode(token);
         if (decodedToken.exp * 1000 > Date.now()) {
-          const storedUser = JSON.parse(localStorage.getItem("user"));
+          const storedUser = JSON.parse(localStorage.getItem('user'));
           if (storedUser) {
             setUser(storedUser);
             setIsAdmin(
               storedUser.is_admin ||
-                storedUser.is_staff ||
-                storedUser.is_superuser ||
-                false,
+              storedUser.is_staff ||
+              storedUser.is_superuser ||
+              false
             );
           }
           setAccessToken(token);
@@ -35,7 +32,7 @@ export const AuthProvider = ({ children }) => {
           logout();
         }
       } catch (error) {
-        console.error("Token inválido:", error);
+        console.error('Token inválido:', error);
         logout();
       }
     }
@@ -45,23 +42,46 @@ export const AuthProvider = ({ children }) => {
   const login = (authData) => {
     const { user: userData, access, refresh } = authData;
     setAuthTokens({ access, refresh });
-    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem('user', JSON.stringify(userData));
     setAccessToken(access);
     setUser(userData);
     setIsAdmin(
-      userData.is_admin || userData.is_staff || userData.is_superuser || false,
+      userData.is_admin || 
+      userData.is_staff || 
+      userData.is_superuser || 
+      false
     );
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refresh = getRefreshToken();
+    if (refresh) {
+      try {
+        await apiClient.post('/auth/logout/', { refresh });
+      } catch (err) {
+        console.error('Erro ao fazer logout no servidor', err);
+      }
+    }
     clearAuthTokens();
-    localStorage.removeItem("user");
+    localStorage.removeItem('user');
     setAccessToken(null);
     setUser(null);
     setIsAdmin(false);
   };
 
-  const value = { user, accessToken, isAdmin, isAuthLoading, login, logout };
+  const loginWithPassword = async (email, password) => {
+    const response = await apiClient.post('/auth/login/', { email, password });
+    login(response.data);
+    return response.data;
+  };
+
+  const registerWithPassword = async (name, email, password) => {
+    const response = await apiClient.post('/auth/register/', { name, email, password });
+    login(response.data);
+    return response.data;
+  };
+
+  const value = { user, accessToken, isAdmin, isAuthLoading, login, logout, loginWithPassword, registerWithPassword };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
@@ -69,7 +89,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined || context === null) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
