@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
@@ -54,11 +54,9 @@ function StepCard({ number, title, active, onClick, children }) {
 // ─── PaymentPage ──────────────────────────────────────────────────────────────
 
 const PaymentPage = () => {
-  const navigate = useNavigate();
   const { refreshCart } = useCart();
 
   const [activeStep, setActiveStep] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('pix');
 
   // Cart
   const [cart, setCart] = useState(null);
@@ -71,9 +69,9 @@ const PaymentPage = () => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
 
   // Freight
-  const [freightLoading, setFreightLoading] = useState(false);
   const [freightData, setFreightData] = useState(null);
-  const [freightError, setFreightError] = useState(null);
+  const [calculationError, setCalculationError] = useState(null);
+  const [cartUpdating, setCartUpdating] = useState(false);
 
   // Profile
   const [userProfile, setUserProfile] = useState(null);
@@ -82,13 +80,12 @@ const PaymentPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
 
-  const fetchCart = useCallback(async () => {
+  const fetchCart = useCallback(() => {
     const token = getAccessToken();
-    try {
-      const r = await fetch(`${API_BASE_URL}/api/orders/cart/`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!r.ok) return;
+    return fetch(`${API_BASE_URL}/api/orders/cart/`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).then(async (r) => {
+      if (!r.ok) throw new Error('Não foi possível carregar o carrinho.');
       const data = await r.json();
       setCart(data);
       const ids = [...new Set((data?.items ?? []).map((i) => i.product_id).filter(Boolean))];
@@ -102,16 +99,18 @@ const PaymentPage = () => {
       const map = {};
       results.forEach((p) => { if (p?.id && p.images?.[0]?.image) map[p.id] = p.images[0].image; });
       setProductImages(map);
-    } catch {}
+    }).catch(() => {
+      setCheckoutError('Não foi possível carregar o carrinho.');
+      setCart(null);
+    });
   }, []);
 
-  const fetchAddresses = useCallback(async () => {
+  const fetchAddresses = useCallback(() => {
     const token = getAccessToken();
-    if (!token) { setAddressesLoading(false); return; }
-    try {
-      const r = await fetch(`${API_BASE_URL}/api/auth/addresses/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    if (!token) return Promise.resolve();
+    return fetch(`${API_BASE_URL}/api/auth/addresses/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (r) => {
       if (r.ok) {
         const data = await r.json();
         const list = Array.isArray(data) ? data : (data.results ?? []);
@@ -119,80 +118,103 @@ const PaymentPage = () => {
         const def = list.find((a) => a.is_default) ?? list[0] ?? null;
         if (def) setSelectedAddressId(def.id);
       }
-    } catch {}
-    finally {
-      setAddressesLoading(false);
-    }
+    }).catch(() => {
+      setCheckoutError('Não foi possível carregar os endereços.');
+    });
   }, []);
 
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = useCallback(() => {
     const token = getAccessToken();
     if (!token) return;
-    try {
-      const r = await fetch(`${API_BASE_URL}/api/auth/me/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    return fetch(`${API_BASE_URL}/api/auth/me/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (r) => {
       if (r.ok) setUserProfile(await r.json());
-    } catch {}
+    }).catch(() => {
+      setCheckoutError('Não foi possível carregar o perfil.');
+    });
   }, []);
 
   useEffect(() => {
     fetchCart().finally(() => setCartLoading(false));
-    fetchAddresses();
+    fetchAddresses().finally(() => setAddressesLoading(false));
     fetchProfile();
   }, [fetchCart, fetchAddresses, fetchProfile]);
 
-  const fetchFreight = useCallback(async (addressId) => {
-    const addr = addresses.find((a) => a.id === addressId);
-    if (!addr) return;
-    const cep = addr.zip_code.replace(/\D/g, '');
-    setFreightLoading(true);
-    setFreightError(null);
-    setFreightData(null);
-    try {
-      const token = getAccessToken();
-      const r = await fetch(
-        `${API_BASE_URL}/api/orders/correios/frete/?cep_destino=${cep}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  useEffect(() => {
+    if (!selectedAddressId || !cart?.items?.length || cartUpdating) return;
+    let cancelled = false;
+    const token = getAccessToken();
+    fetch(
+      `${API_BASE_URL}/api/orders/checkout/calculate/`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ address_id: selectedAddressId }),
+      }
+    ).then(async (r) => {
       const data = await r.json();
-      if (!r.ok) throw new Error(data.message || 'Frete indisponível.');
-      setFreightData(data);
-    } catch (e) {
-      setFreightError(e.message);
-    } finally {
-      setFreightLoading(false);
-    }
-  }, [addresses]);
+      if (!r.ok) throw new Error(data.message || data.detail || 'Cálculo indisponível.');
+      if (!cancelled) {
+        setFreightData({ ...data, addressId: selectedAddressId, cartSnapshot: cart });
+        setCalculationError(null);
+      }
+    }).catch((error) => {
+      if (!cancelled) setCalculationError({ message: error.message, addressId: selectedAddressId, cartSnapshot: cart });
+    });
+    return () => { cancelled = true; };
+  }, [selectedAddressId, cart, cartUpdating]);
 
   const handleSelectAddress = (id) => {
     setSelectedAddressId(id);
-    fetchFreight(id);
   };
 
   const handleQtyChange = async (itemId, newQty) => {
+    if (cartUpdating || submitting) return;
     if (newQty < 1) { handleRemove(itemId); return; }
     const token = getAccessToken();
-    await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ quantity: newQty }),
-    }).catch(() => {});
-    fetchCart();
-    refreshCart();
+    setCartUpdating(true);
+    setFreightData(null);
+    setCalculationError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ quantity: newQty }),
+      });
+      if (!response.ok) throw new Error('Não foi possível atualizar a quantidade.');
+      await fetchCart();
+      refreshCart();
+    } catch (error) {
+      setCheckoutError(error.message);
+    } finally {
+      setCartUpdating(false);
+    }
   };
 
   const handleRemove = async (itemId) => {
+    if (cartUpdating || submitting) return;
     const token = getAccessToken();
-    await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {});
-    fetchCart();
-    refreshCart();
+    setCartUpdating(true);
+    setFreightData(null);
+    setCalculationError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Não foi possível remover o produto.');
+      await fetchCart();
+      refreshCart();
+    } catch (error) {
+      setCheckoutError(error.message);
+    } finally {
+      setCartUpdating(false);
+    }
   };
 
   const handleCheckout = async () => {
+    if (!hasCalculation || freightLoading || cartUpdating || submitting) return;
     setCheckoutError(null);
     if (!selectedAddressId) {
       setCheckoutError('Selecione um endereço de entrega.');
@@ -208,22 +230,15 @@ const PaymentPage = () => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           address_id: selectedAddressId,
-          shipping_cost: FRETE,
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Falha ao processar o pedido.');
+      if (!res.ok) throw new Error(data.message || data.detail || 'Falha ao processar o pedido.');
       refreshCart();
       if (data.checkout_url) {
-        window.location.href = data.checkout_url;
+        window.location.assign(data.checkout_url);
       } else {
-        navigate('/pix', {
-          state: {
-            orderNumber: data.order_nsu ?? data.id ?? 'SH-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
-            total: total,
-            paymentMethod,
-          },
-        });
+        throw new Error('Não foi possível abrir o pagamento.');
       }
     } catch (e) {
       setCheckoutError(e.message);
@@ -232,11 +247,15 @@ const PaymentPage = () => {
     }
   };
 
-  const items = cart?.items ?? [];
-  const subtotal = parseFloat(cart?.subtotal ?? 0);
-  const FRETE = freightData ? parseFloat(freightData.preco_final ?? 0) : 0;
-  const pixDiscount = paymentMethod === 'pix' ? +(subtotal * 0.05).toFixed(2) : 0;
-  const total = subtotal + FRETE - pixDiscount;
+  const hasCalculation = freightData?.addressId === selectedAddressId
+    && freightData?.cartSnapshot === cart && !cartUpdating;
+  const freightError = calculationError?.addressId === selectedAddressId
+    && calculationError?.cartSnapshot === cart ? calculationError.message : null;
+  const freightLoading = Boolean(selectedAddressId && cart?.items?.length && !hasCalculation && !freightError);
+  const items = (hasCalculation ? freightData.items : cart?.items) ?? [];
+  const subtotal = hasCalculation ? Number(freightData.subtotal) : null;
+  const FRETE = hasCalculation ? Number(freightData.shipping_cost) : null;
+  const total = hasCalculation ? Number(freightData.total_amount) : null;
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
 
   return (
@@ -287,6 +306,7 @@ const PaymentPage = () => {
                       }`}>
                       <input
                         type="radio"
+                        disabled={submitting || cartUpdating}
                         name="address"
                         checked={selectedAddressId === addr.id}
                         onChange={() => handleSelectAddress(addr.id)}
@@ -323,7 +343,7 @@ const PaymentPage = () => {
                     <span className="text-black/45">Calculando frete...</span>
                   ) : freightError ? (
                     <span className="text-[#cc0000]">{freightError}</span>
-                  ) : freightData ? (
+                  ) : hasCalculation ? (
                     <div className="flex items-center justify-between">
                       <span className="text-black/55">
                         Frete estimado
@@ -338,7 +358,7 @@ const PaymentPage = () => {
               )}
 
               <button type="button"
-                disabled={!selectedAddressId || addresses.length === 0}
+                disabled={!hasCalculation || freightLoading || cartUpdating || submitting}
                 onClick={() => setActiveStep(1)}
                 className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/35">
                 Continuar para Pagamento
@@ -350,23 +370,17 @@ const PaymentPage = () => {
           <StepCard number={2} title="Pagamento" active={activeStep === 1} onClick={() => setActiveStep(1)}>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <button type="button" onClick={() => setPaymentMethod('pix')}
-                  className={`flex flex-col items-center gap-2 rounded-[14px] border-2 py-6 transition ${
-                    paymentMethod === 'pix' ? 'border-black' : 'border-black/10 hover:border-black/30'
-                  }`}>
+                <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-black/10 py-6">
                   <PixLogo />
                   <span className="text-[15px] font-bold text-black">PIX</span>
-                  <span className="text-[12px] font-semibold text-[#c8970a]">5% OFF</span>
-                </button>
-                <button type="button" onClick={() => setPaymentMethod('card')}
-                  className={`flex flex-col items-center gap-2 rounded-[14px] border-2 py-6 transition ${
-                    paymentMethod === 'card' ? 'border-black' : 'border-black/10 hover:border-black/30'
-                  }`}>
+                </div>
+                <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-black/10 py-6">
                   <CreditCardIcon />
                   <span className="text-[15px] font-bold text-black">Cartão</span>
                   <span className="text-[12px] text-black/45">ATÉ 12X</span>
-                </button>
+                </div>
               </div>
+              <p className="text-[13px] text-black/55">Escolha PIX ou cartão na página de pagamento da InfinitePay.</p>
               <button type="button" onClick={() => setActiveStep(2)}
                 className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85">
                 Revisar Pedido
@@ -409,6 +423,8 @@ const PaymentPage = () => {
                         <div className="flex items-start justify-between gap-2">
                           <p className="truncate text-[14px] font-bold text-black">{item.product_name}</p>
                           <button onClick={() => handleRemove(item.variation_id ?? item.id)}
+                            aria-label={`Remover ${item.product_name}`}
+                            disabled={submitting || cartUpdating}
                             className="shrink-0 text-[#cc0000] transition hover:text-[#990000]">
                             <Icon name="trash" className="h-4 w-4" />
                           </button>
@@ -418,11 +434,15 @@ const PaymentPage = () => {
                           <p className="text-[15px] font-bold text-black">R$ {Number(item.unit_price).toFixed(2)}</p>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity - 1)}
+                              aria-label={`Diminuir quantidade de ${item.product_name}`}
+                              disabled={submitting || cartUpdating}
                               className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5">
                               <Icon name="minus" className="h-3 w-3" />
                             </button>
                             <span className="w-5 text-center text-[14px] font-medium text-black">{item.quantity}</span>
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity + 1)}
+                              aria-label={`Aumentar quantidade de ${item.product_name}`}
+                              disabled={submitting || cartUpdating}
                               className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5">
                               <Icon name="plus" className="h-3 w-3" />
                             </button>
@@ -437,7 +457,7 @@ const PaymentPage = () => {
                 <div className="space-y-2 text-[14px]">
                   <div className="flex justify-between text-black/55">
                     <span>Subtotal</span>
-                    <span className="font-medium text-black">R$ {subtotal.toFixed(2)}</span>
+                    <span className="font-medium text-black">{subtotal === null ? 'A calcular' : `R$ ${subtotal.toFixed(2)}`}</span>
                   </div>
                   <div className="flex justify-between text-black/55">
                     <span>
@@ -445,21 +465,16 @@ const PaymentPage = () => {
                       {freightData?.prazo_dias && <span className="ml-1 text-[12px]">({freightData.prazo_dias} dias úteis)</span>}
                     </span>
                     <span className="font-medium text-black">
-                      {freightLoading ? '...' : FRETE === 0 ? 'Grátis' : `R$ ${FRETE.toFixed(2)}`}
+                      {FRETE === null ? 'A calcular' : FRETE === 0 ? 'Grátis' : `R$ ${FRETE.toFixed(2)}`}
                     </span>
                   </div>
-                  {paymentMethod === 'pix' && (
-                    <div className="flex justify-between text-[#c8970a]">
-                      <span className="font-semibold">Desconto PIX (5%)</span>
-                      <span className="font-semibold">- R$ {pixDiscount.toFixed(2)}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between border-t border-black/10 pt-3 text-[17px] font-black text-black">
                     <span>Total</span>
-                    <span>R$ {total.toFixed(2)}</span>
+                    <span>{total === null ? 'A calcular' : `R$ ${total.toFixed(2)}`}</span>
                   </div>
                 </div>
 
+                {freightError && <p role="alert" className="text-[13px] text-[#cc0000]">{freightError}</p>}
                 {checkoutError && (
                   <p className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-[#cc0000]">{checkoutError}</p>
                 )}
@@ -472,7 +487,7 @@ const PaymentPage = () => {
                   </p>
                 )}
                 <button type="button" onClick={handleCheckout}
-                  disabled={submitting || items.length === 0 || !selectedAddressId || (userProfile && !userProfile.phone_number)}
+                  disabled={submitting || cartUpdating || freightLoading || !hasCalculation || items.length === 0 || !selectedAddressId || (userProfile && !userProfile.phone_number)}
                   className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/40">
                   {submitting ? 'Processando...' : 'Finalizar Compra'}
                 </button>
