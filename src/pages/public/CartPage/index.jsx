@@ -13,7 +13,7 @@ const getAuthHeaders = () => {
 };
 
 const CartPage = () => {
-  const { cartItems, setCartData, refreshCart } = useCart();
+  const { cartItems, welcomeDiscountEligible, welcomeDiscountAmount, setCartData, refreshCart } = useCart();
   const [updating, setUpdating] = useState(null);
   const [productImages, setProductImages] = useState({});
 
@@ -71,6 +71,8 @@ const CartPage = () => {
 
   const items = cartItems;
   const subtotal = items.reduce((s, i) => s + i.quantity * parseFloat(i.unit_price ?? 0), 0);
+  const discount = welcomeDiscountEligible ? parseFloat(welcomeDiscountAmount) : 0;
+  const total = subtotal - discount;
 
   return (
     <PublicLayout>
@@ -144,13 +146,19 @@ const CartPage = () => {
                   <span>Subtotal</span>
                   <strong className="text-black">R$ {subtotal.toFixed(2)}</strong>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-[#10a545]">
+                    <span>Desconto de boas-vindas</span>
+                    <strong>- R$ {discount.toFixed(2)}</strong>
+                  </div>
+                )}
                 <div className="flex justify-between border-b border-black/10 pb-5 text-black/60">
                   <span>Entrega</span>
                   <strong className="text-black">A calcular</strong>
                 </div>
                 <div className="flex justify-between text-[24px] text-black">
                   <span>Total</span>
-                  <strong>R$ {subtotal.toFixed(2)}</strong>
+                  <strong>R$ {total.toFixed(2)}</strong>
                 </div>
               </div>
 

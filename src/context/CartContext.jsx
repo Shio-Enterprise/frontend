@@ -3,21 +3,27 @@ import { getAccessToken } from '../lib/authToken';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-const CartContext = createContext({ cartCount: 0, cartItems: [], refreshCart: () => {}, setCartData: () => {} });
-
-const toCount = (data) => {
-  const items = Array.isArray(data) ? data : (data.items ?? []);
-  return items.reduce((s, item) => s + (item.quantity ?? 1), 0);
-};
+const CartContext = createContext({
+  cartCount: 0,
+  cartItems: [],
+  welcomeDiscountEligible: false,
+  welcomeDiscountAmount: '0.00',
+  refreshCart: () => {},
+  setCartData: () => {},
+});
 
 export function CartProvider({ children }) {
   const [cartCount, setCartCount] = useState(0);
   const [cartItems, setCartItems] = useState([]);
+  const [welcomeDiscountEligible, setWelcomeDiscountEligible] = useState(false);
+  const [welcomeDiscountAmount, setWelcomeDiscountAmount] = useState('0.00');
 
   const setCartData = useCallback((data) => {
     const items = Array.isArray(data) ? data : (data.items ?? []);
     setCartItems(items);
     setCartCount(items.reduce((s, item) => s + (item.quantity ?? 1), 0));
+    setWelcomeDiscountEligible(Boolean(data?.eligible_for_welcome_discount));
+    setWelcomeDiscountAmount(data?.welcome_discount_amount ?? '0.00');
   }, []);
 
   const refreshCart = useCallback(async () => {
@@ -41,7 +47,16 @@ export function CartProvider({ children }) {
   }, [refreshCart]);
 
   return (
-    <CartContext.Provider value={{ cartCount, cartItems, refreshCart, setCartData }}>
+    <CartContext.Provider
+      value={{
+        cartCount,
+        cartItems,
+        welcomeDiscountEligible,
+        welcomeDiscountAmount,
+        refreshCart,
+        setCartData,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );

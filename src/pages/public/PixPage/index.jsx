@@ -25,6 +25,7 @@ const PixPage = () => {
   const navState = location.state ?? {};
   const orderNumber = navState.orderNumber ?? orderNsu ?? '—';
   const total = navState.total ?? null;
+  const discount = navState.discount ?? 0;
   const paymentLabel = navState.paymentMethod === 'card' ? 'Cartão' : 'PIX';
 
   const [status, setStatus] = useState('loading'); // loading | confirmed | error
@@ -165,6 +166,12 @@ const PixPage = () => {
                 <span className="text-black/50">Forma de Pagamento</span>
                 <span className="font-semibold text-black">{paymentLabel}</span>
               </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-[13px] text-[#10a545]">
+                  <span>Desconto de boas-vindas</span>
+                  <span>- R$ {discount.toFixed(2)}</span>
+                </div>
+              )}
             </div>
           </div>
 
