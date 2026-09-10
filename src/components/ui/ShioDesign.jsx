@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import apiClient from '../../lib/axios';
 
 export function PageMarker({ name }) {
   return <span className="sr-only">{name}</span>;
@@ -96,18 +97,39 @@ export function ViewAllButton({ to = '/category/all' }) {
 
 export function NewsletterBand() {
   const [email, setEmail] = useState('');
+  const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState(null); // 'success' | 'error'
+  const [errorMessage, setErrorMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isEmailValid || !consent) return;
+
+    setSubmitting(true);
+    setErrorMessage('');
+    try {
+      await apiClient.post('/auth/newsletter/subscribe/', {
+        email,
+        consent_lgpd: consent,
+      });
+      setStatus('success');
+      setEmail('');
+      setConsent(false);
+      setTimeout(() => setStatus(null), 4000);
+    } catch (err) {
       setStatus('error');
-      setTimeout(() => setStatus(null), 3000);
-      return;
+      setErrorMessage(
+        err.response?.data?.email?.[0] ??
+        err.response?.data?.consent_lgpd?.[0] ??
+        'Não foi possível concluir a inscrição.'
+      );
+      setTimeout(() => setStatus(null), 4000);
+    } finally {
+      setSubmitting(false);
     }
-    setStatus('success');
-    setEmail('');
-    setTimeout(() => setStatus(null), 4000);
   };
 
   return (
@@ -134,11 +156,24 @@ export function NewsletterBand() {
               </p>
             ) : (
               <>
-                <button type="submit" className="h-12 rounded-full bg-white text-sm font-medium text-black transition hover:bg-[#f2f2f2]">
+                <label className="flex items-start gap-2 text-xs text-white/70">
+                  <input
+                    type="checkbox"
+                    checked={consent}
+                    onChange={(e) => setConsent(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  Aceito receber comunicações da Shio por e-mail, conforme a Política de Privacidade.
+                </label>
+                <button
+                  type="submit"
+                  disabled={!isEmailValid || !consent || submitting}
+                  className="h-12 rounded-full bg-white text-sm font-medium text-black transition hover:bg-[#f2f2f2] disabled:opacity-40"
+                >
                   Inscrever-se
                 </button>
                 {status === 'error' && (
-                  <p className="text-center text-xs text-red-400">Informe um e-mail válido.</p>
+                  <p className="text-center text-xs text-red-400">{errorMessage}</p>
                 )}
               </>
             )}
