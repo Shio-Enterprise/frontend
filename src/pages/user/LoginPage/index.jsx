@@ -77,7 +77,7 @@ const LoginPage = () => {
         </p>
 
         <p className="mt-14 text-[11px] text-gray-400 text-center leading-relaxed max-w-[320px]">
-          Ao continuar você concorda com nossos <Link to="/termos" className="font-semibold text-gray-500 hover:text-black transition-colors">Termos de uso</Link> e <Link to="/privacidade" className="font-semibold text-gray-500 hover:text-black transition-colors">Política de Privacidade</Link>
+          Ao continuar você concorda com nossos Termos de uso e Política de Privacidade
         </p>
       </div>
     </div>

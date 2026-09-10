@@ -18,7 +18,6 @@ const columns = [
       { label: 'Suporte ao cliente', to: '/' },
       { label: 'Prazo de entrega', to: '/' },
       { label: 'Trocas e devoluções', to: '/' },
-      { label: 'Política de privacidade', to: '/' },
     ],
   },
   {
@@ -36,7 +35,6 @@ const columns = [
       { label: 'Instagram', to: '/' },
       { label: 'WhatsApp', to: '/' },
       { label: 'TikTok', to: '/' },
-      { label: 'Termos de uso', to: '/' },
     ],
   },
 ];
