@@ -26,6 +26,13 @@ export function CartProvider({ children }) {
     setWelcomeDiscountAmount(data?.welcome_discount_amount ?? '0.00');
   }, []);
 
+  const clearCartData = useCallback(() => {
+    setCartCount(0);
+    setCartItems([]);
+    setWelcomeDiscountEligible(false);
+    setWelcomeDiscountAmount('0.00');
+  }, []);
+
   const refreshCart = useCallback(async () => {
     const token = getAccessToken();
     try {
@@ -34,13 +41,13 @@ export function CartProvider({ children }) {
         headers,
         credentials: 'include',
       });
-      if (!res.ok) { setCartCount(0); setCartItems([]); return; }
+      if (!res.ok) { clearCartData(); return; }
       const data = await res.json();
       setCartData(data);
     } catch {
-      setCartCount(0);
+      clearCartData();
     }
-  }, [setCartData]);
+  }, [setCartData, clearCartData]);
 
   useEffect(() => {
     refreshCart();
