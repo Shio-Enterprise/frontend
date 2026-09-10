@@ -139,7 +139,7 @@ const PixPage = () => {
               Pedido Confirmado!
             </h2>
             <p className="mt-2 text-[13px] text-black/50">
-              Enviamos os detalhes da sua compra para o seu e-mail.
+              Guarde o número do pedido para acompanhar o status em Meus Pedidos.
             </p>
           </div>
 
