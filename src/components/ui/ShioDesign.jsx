@@ -64,9 +64,6 @@ export function ProductCard({ product }) {
         <div className={`aspect-square w-full bg-[#f0efed] ${product.image ? 'hidden' : 'block'}`} />
       </Link>
       <h3 className="mt-4 text-[16px] font-semibold leading-tight text-black">{product.name}</h3>
-      <div className="mt-1">
-        <Rating value={product.rating} />
-      </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-[20px] font-bold text-black">{product.price}</span>
         {product.oldPrice && <span className="text-[18px] font-bold text-black/35 line-through">{product.oldPrice}</span>}
