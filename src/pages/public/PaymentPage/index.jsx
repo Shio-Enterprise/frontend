@@ -72,6 +72,9 @@ const PaymentPage = () => {
   const [freightData, setFreightData] = useState(null);
   const [calculationError, setCalculationError] = useState(null);
   const [cartUpdating, setCartUpdating] = useState(false);
+  const [quoteRequest, setQuoteRequest] = useState(0);
+  const [expiredQuoteId, setExpiredQuoteId] = useState(null);
+  const [confirmedQuoteId, setConfirmedQuoteId] = useState(null);
 
   // Profile
   const [userProfile, setUserProfile] = useState(null);
@@ -111,15 +114,16 @@ const PaymentPage = () => {
     return fetch(`${API_BASE_URL}/api/auth/addresses/`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(async (r) => {
-      if (r.ok) {
-        const data = await r.json();
-        const list = Array.isArray(data) ? data : (data.results ?? []);
-        setAddresses(list);
-        const def = list.find((a) => a.is_default) ?? list[0] ?? null;
-        if (def) setSelectedAddressId(def.id);
-      }
+      if (!r.ok) throw new Error('Não foi possível carregar os endereços.');
+      const data = await r.json();
+      const list = Array.isArray(data) ? data : (data.results ?? []);
+      setAddresses(list);
+      const def = list.find((a) => a.is_default) ?? list[0] ?? null;
+      setSelectedAddressId((current) => list.some((address) => address.id === current) ? current : def?.id ?? null);
     }).catch(() => {
       setCheckoutError('Não foi possível carregar os endereços.');
+      setAddresses([]);
+      setSelectedAddressId(null);
     });
   }, []);
 
@@ -155,17 +159,51 @@ const PaymentPage = () => {
     ).then(async (r) => {
       const data = await r.json();
       if (!r.ok) throw new Error(data.message || data.detail || 'Cálculo indisponível.');
+      if (!data.shipping_quote_id || !Number.isFinite(Date.parse(data.expires_at))) {
+        throw new Error('Não foi possível validar a cotação. Calcule novamente.');
+      }
       if (!cancelled) {
         setFreightData({ ...data, addressId: selectedAddressId, cartSnapshot: cart });
         setCalculationError(null);
+        setConfirmedQuoteId(null);
       }
     }).catch((error) => {
       if (!cancelled) setCalculationError({ message: error.message, addressId: selectedAddressId, cartSnapshot: cart });
     });
     return () => { cancelled = true; };
-  }, [selectedAddressId, cart, cartUpdating]);
+  }, [selectedAddressId, cart, cartUpdating, quoteRequest]);
+
+  useEffect(() => {
+    if (!freightData?.shipping_quote_id) return;
+    const expire = () => setExpiredQuoteId(freightData.shipping_quote_id);
+    const timer = window.setTimeout(expire, Math.max(0, Date.parse(freightData.expires_at) - Date.now()));
+    const checkExpiry = () => {
+      if (Date.parse(freightData.expires_at) <= Date.now()) expire();
+    };
+    window.addEventListener('focus', checkExpiry);
+    document.addEventListener('visibilitychange', checkExpiry);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', checkExpiry);
+      document.removeEventListener('visibilitychange', checkExpiry);
+    };
+  }, [freightData]);
+
+  const recalculateQuote = async () => {
+    if (cartUpdating || submitting) return;
+    setFreightData(null);
+    setCalculationError(null);
+    setConfirmedQuoteId(null);
+    setCartUpdating(true);
+    await Promise.all([fetchCart(), fetchAddresses()]);
+    setCartUpdating(false);
+    setQuoteRequest((value) => value + 1);
+  };
 
   const handleSelectAddress = (id) => {
+    setFreightData(null);
+    setCalculationError(null);
+    setConfirmedQuoteId(null);
     setSelectedAddressId(id);
   };
 
@@ -214,7 +252,11 @@ const PaymentPage = () => {
   };
 
   const handleCheckout = async () => {
-    if (!hasCalculation || freightLoading || cartUpdating || submitting) return;
+    if (!hasCalculation || !quoteConfirmed || freightLoading || cartUpdating || submitting) return;
+    if (Date.parse(freightData.expires_at) <= Date.now()) {
+      setExpiredQuoteId(freightData.shipping_quote_id);
+      return;
+    }
     setCheckoutError(null);
     if (!selectedAddressId) {
       setCheckoutError('Selecione um endereço de entrega.');
@@ -230,9 +272,20 @@ const PaymentPage = () => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           address_id: selectedAddressId,
+          shipping_quote_id: freightData.shipping_quote_id,
         }),
       });
       const data = await res.json().catch(() => ({}));
+      if (!res.ok && data.shipping_quote_id) {
+        setFreightData(null);
+        setConfirmedQuoteId(null);
+        setCalculationError({
+          message: 'A cotação não é mais válida. Recalcule e confirme os valores antes de finalizar.',
+          addressId: selectedAddressId,
+          cartSnapshot: cart,
+        });
+        return;
+      }
       if (!res.ok) throw new Error(data.message || data.detail || 'Falha ao processar o pedido.');
       refreshCart();
       if (data.checkout_url) {
@@ -247,16 +300,22 @@ const PaymentPage = () => {
     }
   };
 
-  const hasCalculation = freightData?.addressId === selectedAddressId
-    && freightData?.cartSnapshot === cart && !cartUpdating;
-  const freightError = calculationError?.addressId === selectedAddressId
-    && calculationError?.cartSnapshot === cart ? calculationError.message : null;
+  const quoteExpired = freightData?.shipping_quote_id && expiredQuoteId === freightData.shipping_quote_id;
+  const hasCalculation = Boolean(freightData?.shipping_quote_id && freightData?.addressId === selectedAddressId
+    && freightData?.cartSnapshot === cart && !cartUpdating && !quoteExpired);
+  const quoteConfirmed = hasCalculation && confirmedQuoteId === freightData.shipping_quote_id;
+  const freightError = quoteExpired ? 'Cotação expirada. Recalcule e confirme os valores novamente.'
+    : calculationError?.addressId === selectedAddressId
+      && calculationError?.cartSnapshot === cart ? calculationError.message : null;
   const freightLoading = Boolean(selectedAddressId && cart?.items?.length && !hasCalculation && !freightError);
   const items = (hasCalculation ? freightData.items : cart?.items) ?? [];
   const subtotal = hasCalculation ? Number(freightData.subtotal) : null;
   const FRETE = hasCalculation ? Number(freightData.shipping_cost) : null;
   const total = hasCalculation ? Number(freightData.total_amount) : null;
-  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+  const selectedAddress = selectedAddressId ? {
+    ...addresses.find((a) => a.id === selectedAddressId),
+    ...(hasCalculation ? freightData.address : {}),
+  } : null;
 
   return (
     <PublicLayout>
@@ -382,6 +441,7 @@ const PaymentPage = () => {
               </div>
               <p className="text-[13px] text-black/55">Escolha PIX ou cartão na página de pagamento da InfinitePay.</p>
               <button type="button" onClick={() => setActiveStep(2)}
+                disabled={!hasCalculation || cartUpdating || submitting}
                 className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85">
                 Revisar Pedido
               </button>
@@ -462,7 +522,7 @@ const PaymentPage = () => {
                   <div className="flex justify-between text-black/55">
                     <span>
                       Frete
-                      {freightData?.prazo_dias && <span className="ml-1 text-[12px]">({freightData.prazo_dias} dias úteis)</span>}
+                      {hasCalculation && freightData.prazo_dias && <span className="ml-1 text-[12px]">({freightData.prazo_dias} dias úteis)</span>}
                     </span>
                     <span className="font-medium text-black">
                       {FRETE === null ? 'A calcular' : FRETE === 0 ? 'Grátis' : `R$ ${FRETE.toFixed(2)}`}
@@ -475,6 +535,16 @@ const PaymentPage = () => {
                 </div>
 
                 {freightError && <p role="alert" className="text-[13px] text-[#cc0000]">{freightError}</p>}
+                {hasCalculation && (
+                  <div className="space-y-3 text-[13px] text-black/60">
+                    <p>Cotação válida até {new Date(freightData.expires_at).toLocaleTimeString('pt-BR')}.</p>
+                    <label className="flex items-start gap-2">
+                      <input type="checkbox" checked={quoteConfirmed} disabled={submitting}
+                        onChange={(event) => setConfirmedQuoteId(event.target.checked ? freightData.shipping_quote_id : null)} />
+                      Conferi os itens, o endereço e o total desta compra.
+                    </label>
+                  </div>
+                )}
                 {checkoutError && (
                   <p className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-[#cc0000]">{checkoutError}</p>
                 )}
@@ -487,7 +557,7 @@ const PaymentPage = () => {
                   </p>
                 )}
                 <button type="button" onClick={handleCheckout}
-                  disabled={submitting || cartUpdating || freightLoading || !hasCalculation || items.length === 0 || !selectedAddressId || (userProfile && !userProfile.phone_number)}
+                  disabled={submitting || cartUpdating || freightLoading || !hasCalculation || !quoteConfirmed || items.length === 0 || !selectedAddressId || (userProfile && !userProfile.phone_number)}
                   className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/40">
                   {submitting ? 'Processando...' : 'Finalizar Compra'}
                 </button>
@@ -496,6 +566,12 @@ const PaymentPage = () => {
           </StepCard>
 
         </div>
+        {freightError && (
+          <button type="button" onClick={recalculateQuote} disabled={cartUpdating || submitting}
+            className="mt-4 h-12 w-full rounded-full border border-black/20 text-[14px] font-bold disabled:opacity-50">
+            Recalcular cotação
+          </button>
+        )}
       </section>
     </PublicLayout>
   );
