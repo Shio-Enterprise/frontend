@@ -4,6 +4,7 @@ import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, AdminTitle, PageMarker } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
 
+const SALES_ORDER_STATUSES = new Set(['PAID', 'PREPARING', 'SHIPPED', 'DELIVERED']);
 
 function buildChartData(orders) {
   const days = [];
@@ -17,6 +18,7 @@ function buildChartData(orders) {
     });
   }
   for (const order of orders) {
+    if (!SALES_ORDER_STATUSES.has(order.status)) continue;
     const day = order.created_at?.slice(0, 10);
     const slot = days.find((d) => d.key === day);
     if (slot) slot.total += parseFloat(order.total_amount || 0);
@@ -67,7 +69,7 @@ const DashboardPage = () => {
     };
 
     fetchAll();
-  }, []);
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -134,7 +136,7 @@ const DashboardPage = () => {
           <div className="mt-4 space-y-3">
             {low_stock_alerts.map((alert) => (
               <div key={alert.id} className="flex justify-between border-b border-black/10 pb-2 text-[14px] last:border-0 last:pb-0 md:text-base">
-                <span className="text-black/80">{alert.product_name} — {alert.variation_size}</span>
+                <span className="text-black/80">{alert.product_name} — {alert.size}</span>
                 <span className="font-bold text-[#ff3333]">{alert.stock_quantity} un.</span>
               </div>
             ))}

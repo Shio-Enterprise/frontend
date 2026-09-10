@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
@@ -38,7 +38,7 @@ function CustomerProfileDrawer({ id }) {
                 </div>
                 <span className="text-[16px] font-semibold text-black">{customer.name || '—'}</span>
               </div>
-              <span className="rounded-full bg-[#d4f7e2] px-3 py-1 text-[12px] font-semibold text-[#1da64a]">Ativo</span>
+              <span className="rounded-full bg-black/5 px-3 py-1 text-[12px] font-semibold text-black/55">Cadastrado</span>
             </div>
 
             {/* Info grid */}
@@ -120,8 +120,18 @@ function CustomerProfileDrawer({ id }) {
 // ─── CustomersPage ────────────────────────────────────────────────────────────
 
 const CustomersPage = () => {
-  const { data: apiResponse, loading, error } = useApi('/api/auth/crm/customers/');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  const customersUrl = debouncedSearch
+    ? `/api/auth/crm/customers/?search=${encodeURIComponent(debouncedSearch)}`
+    : '/api/auth/crm/customers/';
+  const { data: apiResponse, loading, error } = useApi(customersUrl);
 
   const customerMatch = useMatch('/admin/customers/:id');
   const selectedId = customerMatch?.params?.id ?? null;
@@ -141,14 +151,7 @@ const CustomersPage = () => {
       ? Array.isArray(apiResponse) ? apiResponse : apiResponse.results ?? []
       : [];
 
-    const customers = search.trim()
-      ? allCustomers.filter((c) =>
-          c.name?.toLowerCase().includes(search.toLowerCase()) ||
-          c.email?.toLowerCase().includes(search.toLowerCase())
-        )
-      : allCustomers;
-
-    if (customers.length === 0) return <div className="p-10 text-center text-black/55">Nenhum cliente encontrado.</div>;
+    if (allCustomers.length === 0) return <div className="p-10 text-center text-black/55">Nenhum cliente encontrado.</div>;
 
     return (
       <div className="overflow-x-auto">
@@ -164,7 +167,7 @@ const CustomersPage = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-black/10">
-            {customers.map((customer) => (
+            {allCustomers.map((customer) => (
               <tr key={customer.id} className={selectedId === customer.id ? 'bg-[#f9f9f9]' : ''}>
                 <td className="px-10 py-8 text-[20px] font-semibold text-black">
                   {customer.name || '—'}
@@ -210,7 +213,7 @@ const CustomersPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-transparent text-[20px] outline-none placeholder:text-black/35"
-              placeholder="Buscar por E-mail..."
+              placeholder="Buscar por nome ou e-mail..."
             />
           </label>
         </div>
