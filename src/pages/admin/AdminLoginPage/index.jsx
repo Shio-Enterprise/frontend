@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
+import { useGoogleAuth } from '../../../context/useGoogleAuth';
+import { GoogleLoginButton } from '../../../context/GoogleLoginButton';
 import logo from '../../../assets/logo/logo.svg';
 
 const AdminLoginPage = () => {
@@ -8,12 +10,16 @@ const AdminLoginPage = () => {
   const navigate = useNavigate();
   const from = location.state?.from?.pathname ?? '/admin/dashboard';
   const { loginWithPassword } = useAuth();
+  const { handleGoogleLogin, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth({
+    onSuccessRedirect: from,
+    requireAdmin: true,
+  });
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const displayedError = error || location.state?.error;
+  const displayedError = error || googleError || location.state?.error;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,6 +51,18 @@ const AdminLoginPage = () => {
           <p className="text-gray-400 text-[12px] font-semibold tracking-wider uppercase">Painel de Controle</p>
         </div>
 
+        <GoogleLoginButton
+          onSuccess={handleGoogleLogin}
+          disabled={isLoading || isGoogleLoading}
+          onError={() => console.error("Google Login falhou a partir do componente.")}
+        />
+
+        <div className="flex w-full items-center gap-3 my-6">
+          <hr className="w-full border-gray-200" />
+          <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">ou</span>
+          <hr className="w-full border-gray-200" />
+        </div>
+
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 text-left">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">E-mail Corporativo</label>
@@ -68,7 +86,7 @@ const AdminLoginPage = () => {
           </div>
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isGoogleLoading}
             className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 mt-4"
           >
             {isLoading ? 'Autenticando...' : 'Entrar no Admin'}
