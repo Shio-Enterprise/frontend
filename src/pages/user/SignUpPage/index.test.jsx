@@ -5,6 +5,9 @@ import SignUpPage from './index';
 import { useAuth } from '../../../context/AuthContext';
 
 vi.mock('../../../context/AuthContext');
+vi.mock('@react-oauth/google', () => ({
+  GoogleLogin: () => <div data-testid="google-login-mock" />,
+}));
 
 describe('SignUpPage', () => {
   beforeEach(() => {
