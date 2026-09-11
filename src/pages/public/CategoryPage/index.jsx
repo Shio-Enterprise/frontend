@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import PublicLayout from "../../../components/layout/public/PublicLayout";
 import {
   Icon,
@@ -25,6 +25,13 @@ const toCardShape = (p) => {
 };
 
 const PAGE_SIZE = 9;
+const MAX_PAGE_SIZE = 50;
+const ORDERING = {
+  recent: "-created_at",
+  "price-asc": "base_price",
+  "price-desc": "-base_price",
+  sales: "-sales_count",
+};
 
 const COLOR_HEX = {
   Verde: "#22c55e",
@@ -279,8 +286,67 @@ const CategoryCatalog = ({ category, search }) => {
   const [filterOptions, setFilterOptions] = useState(null);
   const [filterOptionsError, setFilterOptionsError] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState("recent");
+  const [urlParams, setUrlParams] = useSearchParams();
+  const location = useLocation();
+  const queryString = urlParams.toString();
+  const page = Number(urlParams.get("page") ?? 1);
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Number(urlParams.get("page_size") ?? PAGE_SIZE),
+  );
+  const ordering = urlParams.get("ordering") ?? "-created_at";
+  const sortBy =
+    Object.keys(ORDERING).find((key) => ORDERING[key] === ordering) ?? "recent";
+  const appliedSize = urlParams.get("size");
+  const appliedColors = useMemo(
+    () => new URLSearchParams(queryString).getAll("color"),
+    [queryString],
+  );
+  const appliedPrice = useMemo(() => {
+    const params = new URLSearchParams(queryString);
+    const min = params.get("min_price");
+    const max = params.get("max_price");
+    return min !== null || max !== null ? [min, max] : null;
+  }, [queryString]);
+
+  // A URL é a fonte dos filtros aplicados.
+  const [draft, setDraft] = useState(null);
+  const pending =
+    draft?.locationKey === location.key
+      ? draft
+      : {
+          locationKey: location.key,
+          price: appliedPrice,
+          size: appliedSize,
+          colors: appliedColors,
+        };
+  const pendingPrice = pending.price;
+  const pendingSize = pending.size;
+  const pendingColors = pending.colors;
+  const setPendingPrice = (price) => setDraft({ ...pending, price });
+  const setPendingSize = (size) => setDraft({ ...pending, size });
+  const setPendingColors = (colors) =>
+    setDraft({
+      ...pending,
+      colors: typeof colors === "function" ? colors(pending.colors) : colors,
+    });
+
+  const updateQuery = (changes) => {
+    const next = new URLSearchParams(urlParams);
+    next.delete("q");
+    Object.entries(changes).forEach(([key, value]) => {
+      next.delete(key);
+      if (value !== null) {
+        (Array.isArray(value) ? value : [value]).forEach((item) =>
+          next.append(key, String(item)),
+        );
+      }
+    });
+    setDraft(null);
+    setUrlParams(next);
+  };
+  const setPage = (value) =>
+    updateQuery({ page: typeof value === "function" ? value(page) : value });
 
   // Desktop sidebar open state
   const [priceOpen, setPriceOpen] = useState(true);
@@ -289,16 +355,6 @@ const CategoryCatalog = ({ category, search }) => {
 
   // Mobile modal
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [pendingColors, setPendingColors] = useState([]);
-  const [appliedColors, setAppliedColors] = useState([]);
-
-  // Pending filters (shared between desktop inline and mobile modal)
-  const [pendingPrice, setPendingPrice] = useState(null);
-  const [pendingSize, setPendingSize] = useState(null);
-
-  // Applied filters (what actually filters the list)
-  const [appliedPrice, setAppliedPrice] = useState(null);
-  const [appliedSize, setAppliedSize] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -322,21 +378,19 @@ const CategoryCatalog = ({ category, search }) => {
     const controller = new AbortController();
     const params = new URLSearchParams({
       page: String(page),
-      page_size: String(PAGE_SIZE),
+      page_size: String(pageSize),
       is_active: "true",
-      ordering: {
-        recent: "-created_at",
-        "price-asc": "base_price",
-        "price-desc": "-base_price",
-      }[sortBy],
+      ordering,
     });
     if (category) params.set("category", category);
     if (search) params.set("search", search);
     if (appliedSize) params.set("size", appliedSize);
     appliedColors.forEach((color) => params.append("color", color));
     if (appliedPrice) {
-      params.set("min_price", String(appliedPrice[0]));
-      params.set("max_price", String(appliedPrice[1]));
+      if (appliedPrice[0] !== null)
+        params.set("min_price", String(appliedPrice[0]));
+      if (appliedPrice[1] !== null)
+        params.set("max_price", String(appliedPrice[1]));
     }
     async function loadProducts() {
       setLoading(true);
@@ -371,7 +425,8 @@ const CategoryCatalog = ({ category, search }) => {
     category,
     search,
     page,
-    sortBy,
+    ordering,
+    pageSize,
     appliedPrice,
     appliedSize,
     appliedColors,
@@ -379,51 +434,51 @@ const CategoryCatalog = ({ category, search }) => {
 
   const priceMin = Math.floor(Number(filterOptions?.min_price ?? 0));
   const priceMax = Math.ceil(Number(filterOptions?.max_price ?? 0));
-  const priceValue = pendingPrice ?? [priceMin, priceMax];
+  const priceValue = [
+    Number(pendingPrice?.[0] ?? priceMin),
+    Number(pendingPrice?.[1] ?? priceMax),
+  ];
   const allSizes = filterOptions?.sizes ?? [];
   const allColors = (filterOptions?.colors ?? []).map((name) => ({
     name,
     hex: COLOR_HEX[name] ?? "#cccccc",
   }));
-  const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
   const currentPage = page;
 
   const handleDesktopApply = () => {
-    setAppliedPrice(pendingPrice);
-    setAppliedSize(pendingSize);
-    setAppliedColors(pendingColors);
-    setPage(1);
+    updateQuery({
+      min_price: pendingPrice?.[0] ?? null,
+      max_price: pendingPrice?.[1] ?? null,
+      size: pendingSize,
+      color: pendingColors,
+      page: 1,
+    });
   };
 
   const handleMobileApply = () => {
-    setAppliedPrice(pendingPrice);
-    setAppliedSize(pendingSize);
-    setAppliedColors(pendingColors);
-    setPage(1);
+    handleDesktopApply();
     setFiltersOpen(false);
   };
 
   const handleOpenMobileFilters = () => {
-    setPendingPrice(appliedPrice);
-    setPendingSize(appliedSize);
-    setPendingColors(appliedColors);
+    setDraft({
+      locationKey: location.key,
+      price: appliedPrice,
+      size: appliedSize,
+      colors: appliedColors,
+    });
     setFiltersOpen(true);
   };
 
   const clearPrice = () => {
-    setAppliedPrice(null);
-    setPendingPrice(null);
-    setPage(1);
+    updateQuery({ min_price: null, max_price: null, page: 1 });
   };
   const clearSize = () => {
-    setAppliedSize(null);
-    setPendingSize(null);
-    setPage(1);
+    updateQuery({ size: null, page: 1 });
   };
   const clearColors = () => {
-    setAppliedColors([]);
-    setPendingColors([]);
-    setPage(1);
+    updateQuery({ color: null, page: 1 });
   };
 
   const priceActive = appliedPrice !== null;
@@ -436,14 +491,14 @@ const CategoryCatalog = ({ category, search }) => {
       <select
         value={sortBy}
         onChange={(e) => {
-          setSortBy(e.target.value);
-          setPage(1);
+          updateQuery({ ordering: ORDERING[e.target.value], page: 1 });
         }}
         className="bg-transparent font-semibold text-black outline-none cursor-pointer"
       >
         <option value="recent">Mais recentes</option>
         <option value="price-asc">Menor preço</option>
         <option value="price-desc">Maior preço</option>
+        <option value="sales">Mais vendidos</option>
       </select>
     </div>
   );
@@ -560,9 +615,13 @@ const CategoryCatalog = ({ category, search }) => {
             {hasActiveFilters && (
               <button
                 onClick={() => {
-                  clearPrice();
-                  clearSize();
-                  clearColors();
+                  updateQuery({
+                    min_price: null,
+                    max_price: null,
+                    size: null,
+                    color: null,
+                    page: 1,
+                  });
                 }}
                 className="text-[13px] font-medium text-black/45 underline hover:text-black"
               >
@@ -763,7 +822,7 @@ export default function CategoryPage() {
   const { name } = useParams();
   const [params] = useSearchParams();
   const category = name === "all" ? "" : (name ?? "");
-  const search = params.get("search") ?? params.get("q") ?? "";
+  const search = params.get("search") ?? "";
   // Uma nova categoria/busca reinicia filtros e página sem consultar a página anterior.
   return (
     <CategoryCatalog
