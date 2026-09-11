@@ -27,7 +27,7 @@ export default function Navbar() {
       {showBanner && (
         <div className="relative flex h-9 items-center justify-center bg-black px-10 text-center text-[13px] text-white">
           <p>
-            Cadastre-se e ganhe 20% de desconto no seu primeiro pedido.{' '}
+            Cadastre-se e ganhe 10% de desconto no seu primeiro pedido.{' '}
             <Link to="/signup" className="font-semibold underline underline-offset-2">
               Cadastre-se agora
             </Link>

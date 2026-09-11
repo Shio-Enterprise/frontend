@@ -13,7 +13,7 @@ const getAuthHeaders = () => {
 };
 
 const CartPage = () => {
-  const { cartItems, setCartData, refreshCart } = useCart();
+  const { cartItems, welcomeDiscountEligible, welcomeDiscountAmount, setCartData, refreshCart } = useCart();
   const [updating, setUpdating] = useState(null);
   const [productImages, setProductImages] = useState({});
 
@@ -71,6 +71,8 @@ const CartPage = () => {
 
   const items = cartItems;
   const subtotal = items.reduce((s, i) => s + i.quantity * parseFloat(i.unit_price ?? 0), 0);
+  const discount = welcomeDiscountEligible ? parseFloat(welcomeDiscountAmount) : 0;
+  const total = subtotal - discount;
 
   return (
     <PublicLayout>
@@ -144,22 +146,20 @@ const CartPage = () => {
                   <span>Subtotal</span>
                   <strong className="text-black">R$ {subtotal.toFixed(2)}</strong>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-[#10a545]">
+                    <span>Desconto de boas-vindas</span>
+                    <strong>- R$ {discount.toFixed(2)}</strong>
+                  </div>
+                )}
                 <div className="flex justify-between border-b border-black/10 pb-5 text-black/60">
                   <span>Entrega</span>
                   <strong className="text-black">A calcular</strong>
                 </div>
                 <div className="flex justify-between text-[24px] text-black">
                   <span>Total</span>
-                  <strong>R$ {subtotal.toFixed(2)}</strong>
+                  <strong>R$ {total.toFixed(2)}</strong>
                 </div>
-              </div>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_120px]">
-                <label className="flex h-12 items-center gap-3 rounded-full bg-[#f0f0f0] px-5 text-black/40">
-                  <Icon name="tag" className="h-5 w-5 shrink-0" />
-                  <input className="w-full bg-transparent text-sm outline-none placeholder:text-black/35" placeholder="Código promocional" />
-                </label>
-                <button className="h-12 rounded-full bg-black text-sm font-medium text-white">Aplicar</button>
               </div>
 
               <Link to="/payment"

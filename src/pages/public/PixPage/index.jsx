@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { getAccessToken } from '../../../lib/authToken';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -24,8 +25,13 @@ const PixPage = () => {
   // Data passed via navigation state (from PaymentPage)
   const navState = location.state ?? {};
   const orderNumber = navState.orderNumber ?? orderNsu ?? '—';
-  const total = navState.total ?? null;
   const paymentLabel = navState.paymentMethod === 'card' ? 'Cartão' : 'PIX';
+
+  // Values come from navigation state when the user arrives straight from
+  // PaymentPage; on the real InfinitePay redirect the state is empty, so they
+  // are overwritten by the authoritative order detail fetched below.
+  const [total, setTotal] = useState(navState.total ?? null);
+  const [discount, setDiscount] = useState(Number(navState.discount ?? 0));
 
   const [status, setStatus] = useState('loading'); // loading | confirmed | error
   const [copied, setCopied] = useState(false);
@@ -68,6 +74,29 @@ const PixPage = () => {
       })
       .catch(() => setStatus('error'));
   }, [orderNsu, transactionNsu, slug]);
+
+  // Real redirect flow: the navigation state is empty, so pull the authoritative
+  // totals from the order detail endpoint. Display-only — failures keep the
+  // navigation-state fallback and never break the confirmation screen.
+  useEffect(() => {
+    if (!orderNsu) return;
+    const token = getAccessToken();
+    if (!token) return;
+
+    let cancelled = false;
+    fetch(`${API_BASE_URL}/api/orders/my-orders/${orderNsu}/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('order detail unavailable'))))
+      .then((order) => {
+        if (cancelled || !order) return;
+        if (order.total_amount != null) setTotal(order.total_amount);
+        if (order.discount_amount != null) setDiscount(Number(order.discount_amount));
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [orderNsu]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText('00020126580014BR.GOV.BCB.PIX01361234-5678-9012-FAKE-CODE-FOR-DEMO').catch(() => {});
@@ -139,7 +168,7 @@ const PixPage = () => {
               Pedido Confirmado!
             </h2>
             <p className="mt-2 text-[13px] text-black/50">
-              Enviamos os detalhes da sua compra para o seu e-mail.
+              Guarde o número do pedido para acompanhar o status em Meus Pedidos.
             </p>
           </div>
 
@@ -165,6 +194,12 @@ const PixPage = () => {
                 <span className="text-black/50">Forma de Pagamento</span>
                 <span className="font-semibold text-black">{paymentLabel}</span>
               </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-[13px] text-[#10a545]">
+                  <span>Desconto de boas-vindas</span>
+                  <span>- R$ {Number(discount).toFixed(2)}</span>
+                </div>
+              )}
             </div>
           </div>
 

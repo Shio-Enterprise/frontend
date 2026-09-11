@@ -5,6 +5,9 @@ import LoginPage from './index';
 import { useAuth } from '../../../context/AuthContext';
 
 vi.mock('../../../context/AuthContext');
+vi.mock('@react-oauth/google', () => ({
+  GoogleLogin: () => <div data-testid="google-login-mock" />,
+}));
 
 describe('LoginPage', () => {
   const loginWithPasswordMock = vi.fn();
