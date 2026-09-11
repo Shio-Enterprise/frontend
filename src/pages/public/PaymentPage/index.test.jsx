@@ -16,7 +16,7 @@ const addresses = [
   { id: 'address-1', title: 'Casa', zip_code: '71000000', street: 'Rua A', address_number: '1', is_default: true },
   { id: 'address-2', title: 'Trabalho', zip_code: '72000000', street: 'Rua B', address_number: '2' },
 ];
-const jsonResponse = (data, ok = true) => ({ ok, json: async () => data });
+const jsonResponse = (data, ok = true, status = ok ? 200 : 400) => ({ ok, status, json: async () => data });
 
 const renderPage = () => render(<BrowserRouter><PaymentPage /></BrowserRouter>);
 
@@ -44,7 +44,7 @@ beforeEach(() => {
     if (url.endsWith('/cart/')) return jsonResponse(currentCart);
     if (url.includes('/cart/items/')) return jsonResponse({});
     if (url.endsWith('/addresses/')) return jsonResponse(addresses);
-    if (url.endsWith('/me/')) return jsonResponse({ phone_number: '61999999999', cpf: '00000000000' });
+    if (url.endsWith('/me/')) return jsonResponse({ id: 1, phone_number: '61999999999', cpf: '00000000000' });
     if (url.endsWith('/products/product-1/')) return jsonResponse({ id: 'product-1', images: [] });
     return jsonResponse([]);
   }));
@@ -52,6 +52,7 @@ beforeEach(() => {
 
 afterEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -87,7 +88,7 @@ describe('PaymentPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));
     expect(await screen.findByText('Gateway indisponível.')).toBeInTheDocument();
     const call = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
-    expect(JSON.parse(call[1].body)).toEqual({ address_id: 'address-1', shipping_quote_id: 'quote-1' });
+    expect(JSON.parse(call[1].body)).toEqual({ address_id: 'address-1', shipping_quote_id: 'quote-1', idempotency_key: expect.any(String) });
   });
 
   it('não apresenta frete grátis nem permite finalizar quando o cálculo falha', async () => {
@@ -210,7 +211,7 @@ describe('PaymentPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));
     await screen.findByText('Gateway indisponível.');
     const call = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
-    expect(JSON.parse(call[1].body)).toEqual({ address_id: 'address-2', shipping_quote_id: 'quote-2' });
+    expect(JSON.parse(call[1].body)).toEqual({ address_id: 'address-2', shipping_quote_id: 'quote-2', idempotency_key: expect.any(String) });
   });
 
   it('remoção do último item bloqueia a finalização', async () => {
@@ -228,5 +229,96 @@ describe('PaymentPage', () => {
     renderPage();
     await screen.findByText(/Não foi possível validar a cotação/);
     expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeDisabled();
+  });
+
+  it('persiste a chave antes do envio e reutiliza após perder a resposta', async () => {
+    const sent = [];
+    checkoutResponse = async (options) => {
+      const payload = JSON.parse(options.body);
+      expect(JSON.parse(sessionStorage.getItem('checkout-attempt:1'))).toEqual(payload);
+      sent.push(payload);
+      throw new TypeError('Conexão interrompida');
+    };
+    renderPage();
+    await showReview();
+    confirmQuote();
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));
+    await screen.findByText('Conexão interrompida');
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar tentativa' }));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toEqual(sent[0]);
+    expect(sent[0].idempotency_key).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(screen.getByRole('button', { name: 'Aumentar quantidade de Camiseta' })).toBeDisabled();
+  });
+
+  it('recupera tentativa após recarregar mesmo com carrinho vazio e cotação expirada', async () => {
+    const saved = { address_id: 'old-address', shipping_quote_id: 'old-quote', idempotency_key: 'saved-key' };
+    sessionStorage.setItem('checkout-attempt:1', JSON.stringify(saved));
+    currentCart = { items: [], subtotal: '0.00' };
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Consultar tentativa' }));
+    await screen.findByText('Gateway indisponível.');
+    const call = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
+    expect(JSON.parse(call[1].body)).toEqual(saved);
+  });
+
+  it('não recupera tentativa de outra conta', async () => {
+    sessionStorage.setItem('checkout-attempt:2', JSON.stringify({ idempotency_key: 'other-key' }));
+    renderPage();
+    await showReview();
+    expect(screen.queryByRole('button', { name: 'Consultar tentativa' })).not.toBeInTheDocument();
+  });
+
+  it('bloqueia clique repetido enquanto a primeira requisição está pendente', async () => {
+    let resolveCheckout;
+    checkoutResponse = () => new Promise((resolve) => { resolveCheckout = resolve; });
+    renderPage();
+    await showReview();
+    confirmQuote();
+    const button = screen.getByRole('button', { name: 'Finalizar Compra' });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(fetch.mock.calls.filter(([url]) => url.endsWith('/checkout/'))).toHaveLength(1);
+    await act(async () => { resolveCheckout(jsonResponse({ message: 'Processando', status: 'PROCESSING' }, true, 202)); });
+    expect(screen.getByRole('button', { name: 'Consultar tentativa' })).toBeDisabled();
+  });
+
+  it('respeita espera de processamento sem polling automático', async () => {
+    checkoutResponse = async () => ({ ...jsonResponse({ status: 'PROCESSING', message: 'Processando' }, true, 202), headers: { get: () => '3' } });
+    renderPage();
+    await showReview();
+    confirmQuote();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' })); });
+    expect(screen.getByRole('button', { name: 'Consultar tentativa' })).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    expect(screen.getByRole('button', { name: 'Consultar tentativa' })).toBeEnabled();
+    expect(fetch.mock.calls.filter(([url]) => url.endsWith('/checkout/'))).toHaveLength(1);
+  });
+
+  it('não envia checkout se o navegador não consegue persistir a tentativa', async () => {
+    renderPage();
+    await showReview();
+    confirmQuote();
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Armazenamento indisponível'); });
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));
+    await screen.findByText('Armazenamento indisponível');
+    expect(fetch.mock.calls.filter(([url]) => url.endsWith('/checkout/'))).toHaveLength(0);
+  });
+
+  it('recupera tentativa original quando outra aba já iniciou o checkout', async () => {
+    const original = { address_id: 'address-1', shipping_quote_id: 'quote-1', idempotency_key: 'original-key' };
+    checkoutResponse = async () => jsonResponse({ code: 'checkout_already_started', attempt: original, message: 'Consulte a tentativa original.' }, false, 409);
+    renderPage();
+    await showReview();
+    confirmQuote();
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));
+    await screen.findByText('Consulte a tentativa original.');
+    expect(JSON.parse(sessionStorage.getItem('checkout-attempt:1'))).toEqual(original);
+    checkoutResponse = async () => jsonResponse({ message: 'Conferência necessária.', status: 'UNCERTAIN' }, false, 503);
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar tentativa' }));
+    await screen.findByText('Conferência necessária.');
+    const calls = fetch.mock.calls.filter(([url]) => url.endsWith('/checkout/'));
+    expect(JSON.parse(calls[1][1].body)).toEqual(original);
   });
 });

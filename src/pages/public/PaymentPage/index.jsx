@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
@@ -82,6 +82,13 @@ const PaymentPage = () => {
   // Checkout
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const [checkoutAttempt, setCheckoutAttempt] = useState(null);
+  const [retryReady, setRetryReady] = useState(true);
+  const [quoteInvalidated, setQuoteInvalidated] = useState(false);
+  const checkoutInFlight = useRef(false);
+  const retryTimer = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(retryTimer.current), []);
 
   const fetchCart = useCallback(() => {
     const token = getAccessToken();
@@ -133,7 +140,12 @@ const PaymentPage = () => {
     return fetch(`${API_BASE_URL}/api/auth/me/`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(async (r) => {
-      if (r.ok) setUserProfile(await r.json());
+      if (r.ok) {
+        const profile = await r.json();
+        setUserProfile(profile);
+        const saved = sessionStorage.getItem(`checkout-attempt:${profile.id}`);
+        if (saved) setCheckoutAttempt(JSON.parse(saved));
+      }
     }).catch(() => {
       setCheckoutError('Não foi possível carregar o perfil.');
     });
@@ -146,7 +158,7 @@ const PaymentPage = () => {
   }, [fetchCart, fetchAddresses, fetchProfile]);
 
   useEffect(() => {
-    if (!selectedAddressId || !cart?.items?.length || cartUpdating) return;
+    if (!selectedAddressId || !cart?.items?.length || cartUpdating || checkoutAttempt || quoteInvalidated) return;
     let cancelled = false;
     const token = getAccessToken();
     fetch(
@@ -171,7 +183,7 @@ const PaymentPage = () => {
       if (!cancelled) setCalculationError({ message: error.message, addressId: selectedAddressId, cartSnapshot: cart });
     });
     return () => { cancelled = true; };
-  }, [selectedAddressId, cart, cartUpdating, quoteRequest]);
+  }, [selectedAddressId, cart, cartUpdating, quoteRequest, checkoutAttempt, quoteInvalidated]);
 
   useEffect(() => {
     if (!freightData?.shipping_quote_id) return;
@@ -190,25 +202,28 @@ const PaymentPage = () => {
   }, [freightData]);
 
   const recalculateQuote = async () => {
-    if (cartUpdating || submitting) return;
+    if (cartUpdating || submitting || checkoutAttempt) return;
     setFreightData(null);
     setCalculationError(null);
     setConfirmedQuoteId(null);
     setCartUpdating(true);
+    setQuoteInvalidated(false);
     await Promise.all([fetchCart(), fetchAddresses()]);
     setCartUpdating(false);
     setQuoteRequest((value) => value + 1);
   };
 
   const handleSelectAddress = (id) => {
+    if (checkoutAttempt || checkoutInFlight.current) return;
     setFreightData(null);
+    setQuoteInvalidated(false);
     setCalculationError(null);
     setConfirmedQuoteId(null);
     setSelectedAddressId(id);
   };
 
   const handleQtyChange = async (itemId, newQty) => {
-    if (cartUpdating || submitting) return;
+    if (cartUpdating || submitting || checkoutAttempt || checkoutInFlight.current) return;
     if (newQty < 1) { handleRemove(itemId); return; }
     const token = getAccessToken();
     setCartUpdating(true);
@@ -231,7 +246,7 @@ const PaymentPage = () => {
   };
 
   const handleRemove = async (itemId) => {
-    if (cartUpdating || submitting) return;
+    if (cartUpdating || submitting || checkoutAttempt || checkoutInFlight.current) return;
     const token = getAccessToken();
     setCartUpdating(true);
     setFreightData(null);
@@ -252,31 +267,41 @@ const PaymentPage = () => {
   };
 
   const handleCheckout = async () => {
-    if (!hasCalculation || !quoteConfirmed || freightLoading || cartUpdating || submitting) return;
-    if (Date.parse(freightData.expires_at) <= Date.now()) {
+    if (checkoutInFlight.current || !retryReady || cartUpdating || !userProfile?.id) return;
+    if (!checkoutAttempt && (!hasCalculation || !quoteConfirmed || freightLoading)) return;
+    if (!checkoutAttempt && Date.parse(freightData.expires_at) <= Date.now()) {
       setExpiredQuoteId(freightData.shipping_quote_id);
       return;
     }
     setCheckoutError(null);
-    if (!selectedAddressId) {
+    if (!checkoutAttempt && !selectedAddressId) {
       setCheckoutError('Selecione um endereço de entrega.');
       return;
     }
+    checkoutInFlight.current = true;
     setSubmitting(true);
     try {
       const token = getAccessToken();
       if (!token) throw new Error('Você precisa estar logado.');
+      const payload = checkoutAttempt ?? {
+        address_id: selectedAddressId,
+        shipping_quote_id: freightData.shipping_quote_id,
+        idempotency_key: crypto.randomUUID(),
+      };
+      // Persistir antes do envio permite recuperar a mesma tentativa após perder a resposta.
+      sessionStorage.setItem(`checkout-attempt:${userProfile.id}`, JSON.stringify(payload));
+      setCheckoutAttempt(payload);
 
       const res = await fetch(`${API_BASE_URL}/api/orders/checkout/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          address_id: selectedAddressId,
-          shipping_quote_id: freightData.shipping_quote_id,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok && data.shipping_quote_id) {
+      if (!res.ok && res.status === 400 && data.shipping_quote_id) {
+        sessionStorage.removeItem(`checkout-attempt:${userProfile.id}`);
+        setCheckoutAttempt(null);
+        setQuoteInvalidated(true);
         setFreightData(null);
         setConfirmedQuoteId(null);
         setCalculationError({
@@ -286,9 +311,23 @@ const PaymentPage = () => {
         });
         return;
       }
+      if (res.status === 409 && data.code === 'checkout_already_started' && data.attempt) {
+        sessionStorage.setItem(`checkout-attempt:${userProfile.id}`, JSON.stringify(data.attempt));
+        setCheckoutAttempt(data.attempt);
+        setCheckoutError(data.message);
+        return;
+      }
+      if (res.status === 202) {
+        const retrySeconds = Number(res.headers?.get('Retry-After')) || 3;
+        setRetryReady(false);
+        retryTimer.current = window.setTimeout(() => setRetryReady(true), Math.min(60, Math.max(1, retrySeconds)) * 1000);
+        setCheckoutError(data.message || 'Seu checkout está sendo processado. Consulte a mesma tentativa novamente.');
+        return;
+      }
       if (!res.ok) throw new Error(data.message || data.detail || 'Falha ao processar o pedido.');
       refreshCart();
       if (data.checkout_url) {
+        sessionStorage.removeItem(`checkout-attempt:${userProfile.id}`);
         window.location.assign(data.checkout_url);
       } else {
         throw new Error('Não foi possível abrir o pagamento.');
@@ -296,6 +335,7 @@ const PaymentPage = () => {
     } catch (e) {
       setCheckoutError(e.message);
     } finally {
+      checkoutInFlight.current = false;
       setSubmitting(false);
     }
   };
@@ -365,7 +405,7 @@ const PaymentPage = () => {
                       }`}>
                       <input
                         type="radio"
-                        disabled={submitting || cartUpdating}
+                        disabled={submitting || cartUpdating || Boolean(checkoutAttempt)}
                         name="address"
                         checked={selectedAddressId === addr.id}
                         onChange={() => handleSelectAddress(addr.id)}
@@ -484,7 +524,7 @@ const PaymentPage = () => {
                           <p className="truncate text-[14px] font-bold text-black">{item.product_name}</p>
                           <button onClick={() => handleRemove(item.variation_id ?? item.id)}
                             aria-label={`Remover ${item.product_name}`}
-                            disabled={submitting || cartUpdating}
+                            disabled={submitting || cartUpdating || Boolean(checkoutAttempt)}
                             className="shrink-0 text-[#cc0000] transition hover:text-[#990000]">
                             <Icon name="trash" className="h-4 w-4" />
                           </button>
@@ -495,14 +535,14 @@ const PaymentPage = () => {
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity - 1)}
                               aria-label={`Diminuir quantidade de ${item.product_name}`}
-                              disabled={submitting || cartUpdating}
+                              disabled={submitting || cartUpdating || Boolean(checkoutAttempt)}
                               className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5">
                               <Icon name="minus" className="h-3 w-3" />
                             </button>
                             <span className="w-5 text-center text-[14px] font-medium text-black">{item.quantity}</span>
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity + 1)}
                               aria-label={`Aumentar quantidade de ${item.product_name}`}
-                              disabled={submitting || cartUpdating}
+                              disabled={submitting || cartUpdating || Boolean(checkoutAttempt)}
                               className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5">
                               <Icon name="plus" className="h-3 w-3" />
                             </button>
@@ -545,7 +585,7 @@ const PaymentPage = () => {
                     </label>
                   </div>
                 )}
-                {checkoutError && (
+                {checkoutError && !checkoutAttempt && (
                   <p className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-[#cc0000]">{checkoutError}</p>
                 )}
 
@@ -557,7 +597,7 @@ const PaymentPage = () => {
                   </p>
                 )}
                 <button type="button" onClick={handleCheckout}
-                  disabled={submitting || cartUpdating || freightLoading || !hasCalculation || !quoteConfirmed || items.length === 0 || !selectedAddressId || (userProfile && !userProfile.phone_number)}
+                  disabled={submitting || Boolean(checkoutAttempt) || !userProfile?.id || cartUpdating || freightLoading || !hasCalculation || !quoteConfirmed || items.length === 0 || !selectedAddressId || (userProfile && !userProfile.phone_number)}
                   className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/40">
                   {submitting ? 'Processando...' : 'Finalizar Compra'}
                 </button>
@@ -566,7 +606,16 @@ const PaymentPage = () => {
           </StepCard>
 
         </div>
-        {freightError && (
+        {checkoutAttempt && (
+          <div className="mt-4 space-y-3 rounded-[12px] border border-black/20 p-4 text-[14px]">
+            <p role="status">{checkoutError || 'Há uma tentativa de checkout registrada. Consulte o resultado antes de iniciar outra compra.'}</p>
+            <button type="button" onClick={handleCheckout} disabled={submitting || !retryReady || !userProfile?.id}
+              className="h-12 w-full rounded-full bg-black font-bold text-white disabled:opacity-50">
+              {submitting ? 'Consultando...' : 'Consultar tentativa'}
+            </button>
+          </div>
+        )}
+        {freightError && !checkoutAttempt && (
           <button type="button" onClick={recalculateQuote} disabled={cartUpdating || submitting}
             className="mt-4 h-12 w-full rounded-full border border-black/20 text-[14px] font-bold disabled:opacity-50">
             Recalcular cotação
