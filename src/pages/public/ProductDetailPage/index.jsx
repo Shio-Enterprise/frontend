@@ -15,8 +15,7 @@ const toCardShape = (p) => ({
   rating: null,
 });
 
-const ProductDetailPage = () => {
-  const { id } = useParams();
+const ProductDetailContent = ({ id }) => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -26,34 +25,48 @@ const ProductDetailPage = () => {
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMsg, setCartMsg] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [recommendationsError, setRecommendationsError] = useState(false);
   const { cartItems, setCartData } = useCart();
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-    setNotFound(false);
+    const controller = new AbortController();
 
-    fetch(`${API_BASE_URL}/api/catalog/products/${id}/`)
+    fetch(`${API_BASE_URL}/api/catalog/products/${id}/`, { signal: controller.signal })
       .then((r) => {
-        if (r.status === 404) { setNotFound(true); return null; }
+        if (!r.ok) throw new Error('Falha ao carregar produto');
         return r.json();
       })
       .then((data) => {
-        if (!data) return;
+        if (controller.signal.aborted) return;
         setProduct(data);
         setActiveImage(0);
         if (data.variations?.length > 0) setSelectedVarId(data.variations[0].id);
       })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
-
-    fetch(`${API_BASE_URL}/api/catalog/products/`)
-      .then((r) => r.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : (data.results ?? []);
-        setRecommendations(list.filter((p) => p.id !== id).slice(0, 4));
+      .catch(() => {
+        if (!controller.signal.aborted) setNotFound(true);
       })
-      .catch(() => {});
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    fetch(`${API_BASE_URL}/api/catalog/products/${id}/recommendations/?page_size=4`, { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error('Falha ao carregar recomendações');
+        return r.json();
+      })
+      .then((data) => {
+        if (!controller.signal.aborted) setRecommendations(data.results);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setRecommendationsError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRecommendationsLoading(false);
+      });
+
+    return () => controller.abort();
   }, [id]);
 
   const handleAddToCart = useCallback(async () => {
@@ -92,7 +105,7 @@ const ProductDetailPage = () => {
       setAddingToCart(false);
       setTimeout(() => setCartMsg(null), 3000);
     }
-  }, [selectedVarId, quantity]);
+  }, [selectedVarId, quantity, cartItems, setCartData]);
 
   if (loading) {
     return (
@@ -228,16 +241,27 @@ const ProductDetailPage = () => {
         </div>
       </section>
 
-      {recommendations.length > 0 && (
-        <section className="mx-auto max-w-[1240px] border-t border-black/10 px-6 py-16">
-          <SectionTitle>Recomendacoes para voce</SectionTitle>
+      <section className="mx-auto max-w-[1240px] border-t border-black/10 px-6 py-16">
+        <SectionTitle>Recomendações para você</SectionTitle>
+        {recommendationsLoading ? (
+          <p role="status" className="mt-10 text-center text-black/50">Carregando recomendações...</p>
+        ) : recommendationsError ? (
+          <p role="alert" className="mt-10 text-center text-black/50">Não foi possível carregar as recomendações.</p>
+        ) : recommendations.length === 0 ? (
+          <p className="mt-10 text-center text-black/50">Nenhuma recomendação disponível no momento.</p>
+        ) : (
           <div className="mt-10 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {recommendations.map(toCardShape).map((p) => <ProductCard key={p.id} product={p} />)}
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </PublicLayout>
   );
+};
+
+const ProductDetailPage = () => {
+  const { id } = useParams();
+  return <ProductDetailContent key={id} id={id} />;
 };
 
 export default ProductDetailPage;
