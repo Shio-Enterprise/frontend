@@ -10,7 +10,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 const toCardShape = (p) => ({
   id: p.id,
   name: p.name,
-  price: `R$ ${Number(p.base_price).toFixed(2)}`,
+  price: `R$ ${Number(p.effective_price ?? p.base_price).toFixed(2)}`,
+  oldPrice: p.is_promotion_active ? `R$ ${Number(p.base_price).toFixed(2)}` : null,
+  discount: p.is_promotion_active ? `-${Math.round((1 - Number(p.effective_price) / Number(p.base_price)) * 100)}%` : null,
   image: p.images?.[0]?.image ?? null,
   rating: null,
 });
@@ -116,8 +118,8 @@ const ProductDetailPage = () => {
   const images = product.images ?? [];
   const currentImage = images[activeImage]?.image ?? null;
   const basePrice = Number(product.base_price ?? 0);
-  const promoPrice = product.promotional_price ? Number(product.promotional_price) : null;
-  const price = (promoPrice ?? basePrice).toFixed(2);
+  const promoPrice = product.is_promotion_active ? Number(product.effective_price) : null;
+  const price = (Number(product.effective_price ?? basePrice)).toFixed(2);
   const discount = promoPrice ? Math.round((1 - promoPrice / basePrice) * 100) : null;
   const selectedVariation = product.variations?.find((v) => v.id === selectedVarId);
   const totalStock = product.variations?.reduce((s, v) => s + (v.stock_quantity || 0), 0) ?? 0;
@@ -181,13 +183,13 @@ const ProductDetailPage = () => {
             {/* Size selector */}
             {product.variations?.length > 0 && (
               <div className="border-b border-black/10 py-6">
-                <p className="mb-4 text-[15px] text-black/55">Tamanho</p>
+                <p className="mb-4 text-[15px] text-black/55">Tamanho e cor</p>
                 <div className="flex flex-wrap gap-3">
                   {product.variations.map((v) => (
                     <button key={v.id} onClick={() => setSelectedVarId(v.id)}
                       disabled={v.stock_quantity === 0}
                       className={`min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition disabled:opacity-40 ${v.id === selectedVarId ? 'bg-black text-white' : 'bg-[#f0f0f0] text-black/55 hover:bg-black/10'}`}>
-                      {v.size}
+                      {v.size}{v.color ? ` / ${v.color}` : ''}
                       {v.stock_quantity === 0 && ' (esgotado)'}
                     </button>
                   ))}

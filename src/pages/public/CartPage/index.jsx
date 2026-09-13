@@ -115,6 +115,7 @@ const CartPage = () => {
                             <Icon name="trash" className="h-5 w-5" />
                           </button>
                         </div>
+                        {item.is_promotion_active && <p className="mt-2 text-sm text-black/50"><s>R$ {Number(item.base_price).toFixed(2)}</s> — {Math.round((1 - Number(item.unit_price) / Number(item.base_price)) * 100)}% de desconto</p>}
                         <p className="mt-5 text-[24px] font-bold text-black">
                           R$ {Number(item.unit_price).toFixed(2)}
                         </p>
