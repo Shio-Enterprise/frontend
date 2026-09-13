@@ -10,6 +10,7 @@ const DropDetailsPage = () => {
   const { id: dropId } = useParams();
   const navigate = useNavigate();
   const { data: drop, loading, error } = useApi(`/api/catalog/drops/${dropId}/`);
+  const { data: dropRevenueResponse } = useApi(`/api/orders/dashboard/drop-revenue/?drop=${dropId}`);
   const { data: productsResponse, loading: loadingProducts } = useApi('/api/catalog/products/');
   const [managedDrop, setManagedDrop] = useState(null);
   const [isManagingProducts, setIsManagingProducts] = useState(false);
@@ -179,7 +180,7 @@ const DropDetailsPage = () => {
     statusBg = '#c8970a';
   }
 
-  const revenue = products.reduce((sum, p) => sum + Number(p.base_price ?? 0), 0);
+  const revenue = Number(dropRevenueResponse?.[0]?.revenue || 0);
   const formattedRevenue = `R$ ${revenue.toFixed(2)}`;
 
   return (

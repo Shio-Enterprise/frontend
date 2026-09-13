@@ -81,6 +81,13 @@ function CustomerProfileDrawer({ id }) {
                     </div>
                   </div>
                 )}
+                <div className="flex items-start gap-3">
+                  <Icon name="users" className="mt-0.5 h-4 w-4 shrink-0 text-black/40" />
+                  <div className="flex flex-1 justify-between gap-4">
+                    <span className="text-black/55">Cliente recorrente</span>
+                    <span className="text-right font-medium">{customer.is_recurring ? 'Sim' : 'Não'}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -89,11 +96,12 @@ function CustomerProfileDrawer({ id }) {
               <div className="px-7 py-5">
                 <h3 className="mb-4 text-[13px] font-bold uppercase text-black/45">Histórico de Pedidos</h3>
                 <div className="space-y-2">
-                  {customer.order_history.slice(0, 5).map((order) => (
+                  {customer.order_history.map((order) => (
                     <div key={order.id} className="flex items-center justify-between rounded-[8px] border border-black/10 px-4 py-3 text-[13px]">
                       <span className="font-semibold text-black">#{String(order.id).substring(0, 8).toUpperCase()}</span>
                       <span className="text-black/55">{formatDate(order.created_at)}</span>
-                      <span className="font-semibold">{formatCurrency(order.total_amount)}</span>
+                      <span className="text-black/55">{order.status}</span>
+                      <span className="font-semibold">{order.commercial_status === 'REFUNDED' ? '- ' : ''}{formatCurrency(order.total_amount)}</span>
                     </div>
                   ))}
                 </div>
