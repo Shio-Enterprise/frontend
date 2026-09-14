@@ -263,11 +263,94 @@ function OrderDetailDrawer({ id, onError }) {
               </button>
             )}
           </div>
+
+          {order.status_logs?.length > 0 && (
+            <div className="border-t border-black/10 px-7 py-5">
+              <h3 className="mb-5 text-[15px] font-bold uppercase">
+                Histórico do pedido
+              </h3>
+
+              <div className="max-h-[33vh] overflow-y-auto pr-2">
+                <OrderTimeline
+                  logs={order.status_logs}
+                  trackingCode={order.tracking_code}
+                />
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className="flex flex-1 items-center justify-center text-black/40">Pedido não encontrado.</div>
       )}
     </aside>
+  );
+}
+
+// ─── Order Time Line ──────────────────────────────────────────────────────
+
+function OrderTimeline({ logs = [], trackingCode }) {
+  const orderedLogs = [...logs].sort(
+    (a, b) =>
+      new Date(a.created_at) - new Date(b.created_at)
+  );
+
+  return (
+    <div className="space-y-4">
+      {orderedLogs.map((log, index) => {
+        const info = STATUS_MAP[log.new_status] ?? {
+          label: log.new_status,
+          color: 'text-black',
+        };
+
+        return (
+          <div
+            key={log.id}
+            className="relative flex gap-4"
+          >
+            <div className="flex flex-col items-center">
+              <div className="mt-1 h-3 w-3 rounded-full bg-black" />
+
+              {index < orderedLogs.length - 1 && (
+                <div className="h-full w-px bg-black/15" />
+              )}
+            </div>
+
+            <div className="pb-5">
+              <p className={`text-sm font-bold ${info.color}`}>
+                {info.label}
+              </p>
+
+              <p className="mt-1 text-xs text-black/45">
+                {new Date(log.created_at).toLocaleString(
+                  'pt-BR'
+                )}
+              </p>
+
+              {log.comment && (
+                <p className="mt-1 text-sm text-black/60">
+                  {log.comment}
+                </p>
+              )}
+
+              {log.tracking_code && (
+                <p className="mt-1 text-xs font-medium">
+                  Rastreio: {log.tracking_code}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {trackingCode && (
+        <div className="rounded-lg bg-[#f5f5f5] p-3 text-sm">
+          <span className="text-black/50">
+            Código de rastreio:
+          </span>{' '}
+          <strong>{trackingCode}</strong>
+        </div>
+      )}
+    </div>
   );
 }
 
