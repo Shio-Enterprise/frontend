@@ -18,7 +18,6 @@ const columns = [
       { label: 'Suporte ao cliente', to: '/' },
       { label: 'Prazo de entrega', to: '/' },
       { label: 'Trocas e devoluções', to: '/' },
-      { label: 'Política de privacidade', to: '/' },
     ],
   },
   {
@@ -36,7 +35,6 @@ const columns = [
       { label: 'Instagram', to: '/' },
       { label: 'WhatsApp', to: '/' },
       { label: 'TikTok', to: '/' },
-      { label: 'Termos de uso', to: '/' },
     ],
   },
 ];
@@ -44,14 +42,9 @@ const columns = [
 function PaymentBadges() {
   return (
     <div className="flex flex-wrap justify-center gap-3 md:justify-end">
-      <span className="flex h-7 w-11 items-center justify-center rounded bg-white text-[11px] font-black italic text-[#1a1f71] shadow-sm">VISA</span>
-      <span className="relative flex h-7 w-11 items-center justify-center overflow-hidden rounded bg-white shadow-sm">
-        <span className="absolute left-2 h-4 w-4 rounded-full bg-[#eb001b]" />
-        <span className="absolute right-2 h-4 w-4 rounded-full bg-[#f79e1b] mix-blend-multiply" />
-      </span>
-      <span className="flex h-7 w-11 items-center justify-center rounded bg-white text-[10px] font-bold italic text-[#003087] shadow-sm">PayPal</span>
-      <span className="flex h-7 w-11 items-center justify-center rounded bg-white text-[10px] font-bold text-black shadow-sm">Pay</span>
-      <span className="flex h-7 w-11 items-center justify-center rounded bg-white text-[10px] font-bold text-[#4285f4] shadow-sm">G Pay</span>
+      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[11px] font-bold text-[#10a545] shadow-sm">Pix</span>
+      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[11px] font-bold text-black shadow-sm">Cartão</span>
+      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[11px] font-bold text-black shadow-sm">Boleto</span>
     </div>
   );
 }
