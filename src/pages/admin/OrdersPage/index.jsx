@@ -30,6 +30,23 @@ function OrderDetailDrawer({ id, onError }) {
 
   const [actionLoading, setActionLoading] = useState(false);
 
+  const [returnConfirmed, setReturnConfirmed] = useState(false);
+  const [returnMessage, setReturnMessage] = useState('');
+  const [returning, setReturning] = useState(false);
+  const confirmReturn = async () => {
+    setReturning(true); setReturnMessage('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/admin/${id}/`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken()}` },
+        body: JSON.stringify({ status: order.status, physical_return_confirmed: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.detail || 'Falha ao registrar retorno.');
+      setReturnMessage('Retorno registrado. Repetir a confirmação não duplica a entrada.');
+      setReturnConfirmed(false); refetch();
+    } catch (e) { setReturnMessage(e.message); } finally { setReturning(false); }
+  };
+
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const formatCurrency = (v) => `R$ ${parseFloat(v || 0).toFixed(2)}`;
   const statusInfo = order ? (STATUS_MAP[order.status] ?? { label: order.status, color: 'text-black/55' }) : null;
@@ -208,6 +225,12 @@ function OrderDetailDrawer({ id, onError }) {
                 </div>
               </div>
             )}
+
+            {(order.status === 'SHIPPED' || order.status === 'DELIVERED' || order.status_logs?.some((log) => ['SHIPPED', 'DELIVERED'].includes(log.new_status))) && <div className="space-y-3 border-b px-7 py-5 text-sm">
+              <label className="flex gap-2"><input type="checkbox" checked={returnConfirmed} onChange={(e) => setReturnConfirmed(e.target.checked)} />Confirmo o recebimento físico de todas as unidades deste pedido.</label>
+              <button disabled={!returnConfirmed || returning} onClick={confirmReturn} className="rounded-lg border p-2 disabled:opacity-40">Repor estoque devolvido</button>
+              {returnMessage && <p role="status">{returnMessage}</p>}
+            </div>}
 
             {/* Resumo financeiro */}
             <div className="px-7 py-5">

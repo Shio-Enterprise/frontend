@@ -8,11 +8,11 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const toCardShape = (p) => {
   const base = Number(p.base_price);
-  const promo = p.promotional_price ? Number(p.promotional_price) : null;
+  const promo = p.is_promotion_active ? Number(p.effective_price) : null;
   return {
     id: p.id,
     name: p.name,
-    price: `R$ ${(promo ?? base).toFixed(2)}`,
+    price: `R$ ${Number(p.effective_price ?? base).toFixed(2)}`,
     oldPrice: promo ? `R$ ${base.toFixed(2)}` : null,
     discount: promo ? `-${Math.round((1 - promo / base) * 100)}%` : null,
     image: p.images?.[0]?.image ?? null,
