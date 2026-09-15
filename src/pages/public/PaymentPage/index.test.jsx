@@ -69,16 +69,44 @@ describe('PaymentPage', () => {
     expect(headline).toBeInTheDocument();
   });
 
-  it('exibe valores do servidor e não aplica desconto PIX local', async () => {
+  it('simula desconto PIX sem alterar os valores da cobrança do servidor', async () => {
     renderPage();
     await showReview();
     expect(screen.getByText('R$ 39.98')).toBeInTheDocument();
     expect(screen.getByText('R$ 19.92')).toBeInTheDocument();
     expect(screen.getByText('R$ 59.90')).toBeInTheDocument();
     expect(screen.getByText('R$ 19.99')).toBeInTheDocument();
-    expect(screen.queryByText(/5%/)).not.toBeInTheDocument();
+    expect(screen.getByText('Desconto PIX (5%)')).toBeInTheDocument();
+    expect(screen.getByText('- R$ 3.00')).toBeInTheDocument();
+    expect(screen.getByText('Total estimado no PIX').parentElement).toHaveTextContent('R$ 56.90');
+    expect(screen.getByText('Total da cobrança').parentElement).toHaveTextContent('R$ 59.90');
+    expect(screen.queryByText(/simulação/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^2.*Pagamento/ }));
+    expect(screen.getByText('5% OFF')).toBeInTheDocument();
+    expect(screen.queryByText(/simulação/i)).not.toBeInTheDocument();
     const call = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/calculate/'));
     expect(JSON.parse(call[1].body)).toEqual({ address_id: 'address-1' });
+  });
+
+  it.each([
+    ['1.00', '25.90', '26.90', '1.35', '25.55'],
+    ['10.00', '5.00', '15.00', '0.75', '14.25'],
+    ['100.00', '25.90', '125.90', '6.30', '119.60'],
+    ['1000.00', '59.90', '1059.90', '53.00', '1006.90'],
+    ['315.96', '0.00', '315.96', '15.80', '300.16'],
+    ['1.10', '25.90', '27.00', '1.35', '25.65'],
+    ['0.10', '0.00', '0.10', '0.01', '0.09'],
+  ])('calcula 5%% sobre o subtotal %s mais frete %s', async (subtotal, shipping, total, discount, preview) => {
+    calculationResponse = async () => jsonResponse({
+      ...calculation,
+      items: [{ ...calculation.items[0], quantity: 1, unit_price: subtotal }],
+      subtotal, shipping_cost: shipping, total_amount: total,
+    });
+    renderPage();
+    await showReview();
+    expect(screen.getByText('Desconto PIX (5%)').parentElement).toHaveTextContent(`- R$ ${discount}`);
+    expect(screen.getByText('Total estimado no PIX').parentElement).toHaveTextContent(`R$ ${preview}`);
+    expect(screen.getByText('Total da cobrança').parentElement).toHaveTextContent(`R$ ${total}`);
   });
 
   it('envia endereço e cotação confirmada e preserva o erro do servidor', async () => {

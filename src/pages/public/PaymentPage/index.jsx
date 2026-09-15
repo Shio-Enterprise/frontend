@@ -355,6 +355,10 @@ const PaymentPage = () => {
   const FRETE = hasCalculation ? Number(freightData.shipping_cost) : null;
   const total = hasCalculation ? Number(freightData.total_amount) : null;
   const welcomeDiscount = hasCalculation ? Number(freightData.discount_amount ?? 0) : 0;
+  // Prévia visual em centavos; o checkout continua usando a cotação do servidor.
+  const purchaseCents = hasCalculation ? Math.round(subtotal * 100) + Math.round(FRETE * 100) : null;
+  const pixDiscountCents = purchaseCents === null ? null : Math.round(purchaseCents * 5 / 100);
+  const pixTotalCents = purchaseCents === null ? null : purchaseCents - pixDiscountCents;
   const selectedAddress = selectedAddressId ? {
     ...addresses.find((a) => a.id === selectedAddressId),
     ...(hasCalculation ? freightData.address : {}),
@@ -475,6 +479,7 @@ const PaymentPage = () => {
                 <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-black/10 py-6">
                   <PixLogo />
                   <span className="text-[15px] font-bold text-black">PIX</span>
+                  <span className="text-[12px] font-semibold text-[#c8970a]">5% OFF</span>
                 </div>
                 <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-black/10 py-6">
                   <CreditCardIcon />
@@ -578,8 +583,18 @@ const PaymentPage = () => {
                       {FRETE === null ? 'A calcular' : FRETE === 0 ? 'Grátis' : `R$ ${FRETE.toFixed(2)}`}
                     </span>
                   </div>
+                  <div className="space-y-2 rounded-[10px] bg-[#c8970a]/5 p-3 text-[#c8970a]" aria-label="Prévia de desconto PIX">
+                    <div className="flex justify-between font-medium">
+                      <span>Desconto PIX (5%)</span>
+                      <span>{pixDiscountCents === null ? 'A calcular' : `- R$ ${(pixDiscountCents / 100).toFixed(2)}`}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold">
+                      <span>Total estimado no PIX</span>
+                      <span>{pixTotalCents === null ? 'A calcular' : `R$ ${(pixTotalCents / 100).toFixed(2)}`}</span>
+                    </div>
+                  </div>
                   <div className="flex justify-between border-t border-black/10 pt-3 text-[17px] font-black text-black">
-                    <span>Total</span>
+                    <span>Total da cobrança</span>
                     <span>{total === null ? 'A calcular' : `R$ ${total.toFixed(2)}`}</span>
                   </div>
                 </div>
