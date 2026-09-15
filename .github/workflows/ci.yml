@@ -1,0 +1,38 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Lint + Testes + Build
+    runs-on: ubuntu-latest
+
+    env:
+      VITE_API_URL: http://localhost:8000
+      VITE_GOOGLE_CLIENT_ID: ci-test-client-id
+
+    steps:
+      - name: checkout do codigo
+        uses: actions/checkout@v4
+
+      - name: configurar node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: instalar dependencias
+        run: npm ci
+
+      - name: Lint com eslint
+        run: npm run lint
+
+      - name: rodar testes com Vitest
+        run: npm run test -- --run --reporter=verbose
+
+      - name: Build de produção
+        run: npm run build
