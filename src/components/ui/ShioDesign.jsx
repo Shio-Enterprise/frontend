@@ -55,13 +55,18 @@ export function Rating({ value }) {
 export function ProductCard({ product }) {
   return (
     <article className="group">
-      <Link to={`/product/${product.id ?? '1'}`} className="block overflow-hidden rounded-[16px] bg-[#f0efed]">
+      <Link to={`/product/${product.id ?? '1'}`} className={`relative block overflow-hidden rounded-[16px] bg-[#f0efed] ${product.unavailable ? 'opacity-60' : ''}`}>
         {product.image ? (
           <img src={product.image} alt={product.name}
             className="aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.03]"
             onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
         ) : null}
         <div className={`aspect-square w-full bg-[#f0efed] ${product.image ? 'hidden' : 'block'}`} />
+        {product.unavailable && (
+          <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">
+            Indisponível
+          </span>
+        )}
       </Link>
       <h3 className="mt-4 text-[16px] font-semibold leading-tight text-black">{product.name}</h3>
       <div className="mt-1">

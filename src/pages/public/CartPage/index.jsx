@@ -71,6 +71,8 @@ const CartPage = () => {
 
   const items = cartItems;
   const subtotal = items.reduce((s, i) => s + i.quantity * parseFloat(i.unit_price ?? 0), 0);
+  const unavailableItems = items.filter((i) => i.is_sellable === false);
+  const hasUnavailableItems = unavailableItems.length > 0;
 
   return (
     <PublicLayout>
@@ -78,6 +80,15 @@ const CartPage = () => {
 
       <section className="mx-auto max-w-[1240px] px-6 py-16">
         <h1 className="mb-8 text-[42px] font-black uppercase leading-tight text-black">Carrinho</h1>
+
+        {hasUnavailableItems && (
+          <div className="mb-6 rounded-[14px] bg-[#fff5f5] px-6 py-4 text-[14px] font-semibold text-[#cc0000]">
+            {unavailableItems.length === 1
+              ? 'Um item do seu carrinho não está mais disponível para compra.'
+              : `${unavailableItems.length} itens do seu carrinho não estão mais disponíveis para compra.`}
+            {' '}Remova-o{unavailableItems.length > 1 ? 's' : ''} para continuar.
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[1fr_505px]">
             {/* Items */}
@@ -91,8 +102,10 @@ const CartPage = () => {
                 </div>
               ) : (
                 <div className="divide-y divide-black/10">
-                  {items.map((item) => (
-                    <article key={item.variation_id} className="grid gap-4 py-5 first:pt-0 last:pb-0 sm:grid-cols-[124px_1fr_auto]">
+                  {items.map((item) => {
+                    const unavailable = item.is_sellable === false;
+                    return (
+                    <article key={item.variation_id} className={`grid gap-4 py-5 first:pt-0 last:pb-0 sm:grid-cols-[124px_1fr_auto] ${unavailable ? 'opacity-60' : ''}`}>
                       <div className="h-[124px] w-[124px] shrink-0 overflow-hidden rounded-[8px] bg-[#f0efed]">
                         {productImages[item.product_id] && (
                           <img
@@ -108,6 +121,9 @@ const CartPage = () => {
                             <h2 className="text-[20px] font-bold text-black">{item.product_name}</h2>
                             <p className="mt-1 text-[14px] text-black/60">Tamanho: {item.size}</p>
                             <p className="text-[14px] text-black/60">SKU: {item.sku}</p>
+                            {unavailable && (
+                              <p className="mt-1 text-[13px] font-semibold text-[#cc0000]">Indisponível para compra</p>
+                            )}
                           </div>
                           <button onClick={() => handleRemove(item.variation_id)} disabled={updating === item.variation_id}
                             className="text-[#ff3333] transition hover:text-[#cc0000] disabled:opacity-40"
@@ -122,16 +138,17 @@ const CartPage = () => {
                       <div className="flex items-end justify-start sm:justify-end">
                         <div className={`flex h-11 items-center gap-3 rounded-full bg-[#f0f0f0] px-4 ${updating === item.variation_id ? 'opacity-50' : ''}`}>
                           <button onClick={() => handleQuantity(item.variation_id, item.quantity - 1)}
-                            disabled={updating === item.variation_id || item.quantity <= 1}
+                            disabled={updating === item.variation_id || unavailable || item.quantity <= 1}
                             className="flex h-7 w-7 items-center justify-center rounded-full text-[18px] font-bold hover:bg-black/10 disabled:opacity-40">−</button>
                           <span className="min-w-[20px] text-center text-[16px] font-semibold">{item.quantity}</span>
                           <button onClick={() => handleQuantity(item.variation_id, item.quantity + 1)}
-                            disabled={updating === item.variation_id}
+                            disabled={updating === item.variation_id || unavailable}
                             className="flex h-7 w-7 items-center justify-center rounded-full text-[18px] font-bold hover:bg-black/10 disabled:opacity-40">+</button>
                         </div>
                       </div>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -162,11 +179,18 @@ const CartPage = () => {
                 <button className="h-12 rounded-full bg-black text-sm font-medium text-white">Aplicar</button>
               </div>
 
-              <Link to="/payment"
-                className={`mt-6 flex h-[60px] w-full items-center justify-center gap-4 rounded-full bg-black text-[16px] font-medium text-white transition hover:bg-black/85 ${items.length === 0 ? 'pointer-events-none opacity-40' : ''}`}>
+              <Link to={hasUnavailableItems ? '#' : '/payment'}
+                aria-disabled={items.length === 0 || hasUnavailableItems}
+                onClick={(e) => { if (items.length === 0 || hasUnavailableItems) e.preventDefault(); }}
+                className={`mt-6 flex h-[60px] w-full items-center justify-center gap-4 rounded-full bg-black text-[16px] font-medium text-white transition hover:bg-black/85 ${items.length === 0 || hasUnavailableItems ? 'pointer-events-none opacity-40' : ''}`}>
                 Finalizar compra
                 <Icon name="arrowRight" className="h-5 w-5" />
               </Link>
+              {hasUnavailableItems && (
+                <p className="mt-3 text-center text-[13px] text-[#cc0000]">
+                  Remova os itens indisponíveis para continuar.
+                </p>
+              )}
             </aside>
           </div>
       </section>
