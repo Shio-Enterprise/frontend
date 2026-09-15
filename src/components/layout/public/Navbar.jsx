@@ -14,10 +14,11 @@ export default function Navbar() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    const q = searchQuery.trim();
+    const search = searchQuery.trim();
+    const params = new URLSearchParams({ search });
     setIsMenuOpen(false);
     setShowSearch(false);
-    navigate(q ? `/category/all?q=${encodeURIComponent(q)}` : '/category/all');
+    navigate(search ? `/category/all?${params}` : '/category/all');
   };
 
   const closeMenu = () => setIsMenuOpen(false);

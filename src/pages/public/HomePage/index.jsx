@@ -81,26 +81,42 @@ function HeroCarousel() {
   );
 }
 
-const HomePage = () => {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+function useHomeProducts(ordering) {
+  const [state, setState] = useState({ items: [], loading: true, error: false });
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/catalog/products/`)
-      .then((r) => r.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : (data.results ?? []);
-        setProducts(list.filter((p) => p.is_active !== false));
+    const controller = new AbortController();
+    const params = new URLSearchParams({ ordering, page_size: '4' });
+
+    fetch(`${API_BASE_URL}/api/catalog/products/?${params}`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error('Falha ao carregar produtos');
+        return response.json();
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setState({ items: data.results.map(toCardShape), loading: false, error: false });
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setState({ items: [], loading: false, error: true });
+        }
+      });
 
-  const launches = products.slice(0, 4).map(toCardShape);
-  const bestSellers = products.slice(4, 8).map(toCardShape);
+    return () => controller.abort();
+  }, [ordering]);
 
-  const renderGrid = (items) => {
+  return state;
+}
+
+const HomePage = () => {
+  const launches = useHomeProducts('-created_at');
+  const bestSellers = useHomeProducts('-sales_count');
+
+  const renderGrid = ({ items, loading, error }) => {
     if (loading) return <div className="mt-10 text-center text-[18px] text-black/40">Carregando...</div>;
+    if (error) return <div role="alert" className="mt-10 text-center text-[18px] text-black/40">Não foi possível carregar os produtos.</div>;
     if (items.length === 0) return <div className="mt-10 text-center text-[18px] text-black/40">Nenhum produto disponível.</div>;
     return (
       <div className="mt-10 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
@@ -130,7 +146,7 @@ const HomePage = () => {
       <section className="mx-auto max-w-[1240px] border-t border-black/10 px-6 py-16 md:py-20">
         <SectionTitle>Mais vendidos</SectionTitle>
         {renderGrid(bestSellers)}
-        <ViewAllButton />
+        <ViewAllButton to="/category/all?ordering=-sales_count" />
       </section>
     </PublicLayout>
   );
