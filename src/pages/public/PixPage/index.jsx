@@ -86,6 +86,9 @@ const PixPage = () => {
               <p>Número do pedido: <span className="font-semibold">{order.id}</span></p>
               <p>Valor do pedido: <span className="font-semibold">{Number(order.total_amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
               <p>Forma de pagamento: <span className="font-semibold">{PAYMENT_METHOD_LABEL[payment.method] ?? PAYMENT_METHOD_LABEL.UNKNOWN}</span></p>
+              {Number(order.discount_amount) > 0 && (
+                <p className="text-[#10a545]">Desconto de boas-vindas: <span>- R$ {Number(order.discount_amount).toFixed(2)}</span></p>
+              )}
               {order.status === 'CANCELED' && <p>Pedido cancelado. Se houve pagamento, entre em contato para conferência.</p>}
             </div>
           )}

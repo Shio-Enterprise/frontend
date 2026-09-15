@@ -1,6 +1,7 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { clearAuthTokens, getAccessToken, setAuthTokens } from '../lib/authToken';
+import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from '../lib/authToken';
+import apiClient from '../lib/axios';
 
 const AuthContext = createContext(null);
 
@@ -19,7 +20,12 @@ export const AuthProvider = ({ children }) => {
           const storedUser = JSON.parse(localStorage.getItem('user'));
           if (storedUser) {
             setUser(storedUser);
-            setIsAdmin(storedUser.is_staff || false);
+            setIsAdmin(
+              storedUser.is_admin ||
+              storedUser.is_staff ||
+              storedUser.is_superuser ||
+              false
+            );
           }
           setAccessToken(token);
         } else {
@@ -39,10 +45,23 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(userData));
     setAccessToken(access);
     setUser(userData);
-    setIsAdmin(userData.is_staff || false);
+    setIsAdmin(
+      userData.is_admin || 
+      userData.is_staff || 
+      userData.is_superuser || 
+      false
+    );
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refresh = getRefreshToken();
+    if (refresh) {
+      try {
+        await apiClient.post('/auth/logout/', { refresh });
+      } catch (err) {
+        console.error('Erro ao fazer logout no servidor', err);
+      }
+    }
     clearAuthTokens();
     localStorage.removeItem('user');
     setAccessToken(null);
@@ -50,7 +69,19 @@ export const AuthProvider = ({ children }) => {
     setIsAdmin(false);
   };
 
-  const value = { user, accessToken, isAdmin, isAuthLoading, login, logout };
+  const loginWithPassword = async (email, password) => {
+    const response = await apiClient.post('/auth/login/', { email, password });
+    login(response.data);
+    return response.data;
+  };
+
+  const registerWithPassword = async (name, email, password) => {
+    const response = await apiClient.post('/auth/register/', { name, email, password });
+    login(response.data);
+    return response.data;
+  };
+
+  const value = { user, accessToken, isAdmin, isAuthLoading, login, logout, loginWithPassword, registerWithPassword };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

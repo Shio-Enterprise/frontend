@@ -1,16 +1,38 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
 import { useGoogleAuth } from '../../../context/useGoogleAuth';
 import { GoogleLoginButton } from '../../../context/GoogleLoginButton';
 import logo from '../../../assets/logo/logo.svg';
 
 const LoginPage = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const from = location.state?.from?.pathname ?? '/my-account';
-
-  const { handleGoogleLogin, isLoading, error } = useGoogleAuth({
+  const { loginWithPassword } = useAuth();
+  const { handleGoogleLogin, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth({
     onSuccessRedirect: from,
     requireAdmin: false,
   });
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const displayedError = error || googleError;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      await loginWithPassword(email, password);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Email ou senha incorretos.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 font-sans text-gray-800">
@@ -26,19 +48,54 @@ const LoginPage = () => {
 
         <GoogleLoginButton
           onSuccess={handleGoogleLogin}
-          disabled={isLoading}
-          onError={() => console.error('Google Login falhou a partir do componente.')}
+          disabled={isLoading || isGoogleLoading}
+          onError={() => console.error("Google Login falhou a partir do componente.")}
         />
 
-        {isLoading && <p className="mt-4 text-[13px] text-gray-500">Autenticando...</p>}
-        {error && (
+        <div className="flex w-full items-center gap-3 my-6">
+          <hr className="w-full border-gray-200" />
+          <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">ou</span>
+          <hr className="w-full border-gray-200" />
+        </div>
+
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
+          <input
+            type="email"
+            placeholder="E-mail"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+          />
+          <input
+            type="password"
+            placeholder="Senha"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={isLoading || isGoogleLoading}
+            className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+          >
+            {isLoading ? 'Autenticando...' : 'Entrar'}
+          </button>
+        </form>
+
+        {displayedError && (
           <p className="mt-4 rounded-md bg-red-50 w-full text-center border border-red-100 p-3 text-[13px] text-red-600">
-            {error}
+            {displayedError}
           </p>
         )}
 
-        <p className="mt-20 text-[11px] text-gray-400 text-center leading-relaxed max-w-[320px]">
-          Ao continuar você concorda com nossos <Link to="/termos" className="font-semibold text-gray-500 hover:text-black transition-colors">Termos de uso</Link> e <Link to="/privacidade" className="font-semibold text-gray-500 hover:text-black transition-colors">Política de Privacidade</Link>
+        <p className="mt-6 text-sm text-gray-500">
+          Não tem conta? <Link to="/signup" className="font-semibold text-black">Cadastre-se</Link>
+        </p>
+
+        <p className="mt-14 text-[11px] text-gray-400 text-center leading-relaxed max-w-[320px]">
+          Ao continuar você concorda com nossos Termos de uso e Política de Privacidade
         </p>
       </div>
     </div>

@@ -298,14 +298,16 @@ const PaymentPage = () => {
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok && res.status === 400 && data.shipping_quote_id) {
+      if (!res.ok && ((res.status === 400 && data.shipping_quote_id) || (res.status === 409 && data.code === 'price_changed'))) {
         sessionStorage.removeItem(`checkout-attempt:${userProfile.id}`);
         setCheckoutAttempt(null);
         setQuoteInvalidated(true);
         setFreightData(null);
         setConfirmedQuoteId(null);
         setCalculationError({
-          message: 'A cotação não é mais válida. Recalcule e confirme os valores antes de finalizar.',
+          message: data.code === 'price_changed'
+            ? 'Os preços mudaram. Recalcule e confirme os novos valores antes de finalizar.'
+            : 'A cotação não é mais válida. Recalcule e confirme os valores antes de finalizar.',
           addressId: selectedAddressId,
           cartSnapshot: cart,
         });
@@ -352,6 +354,7 @@ const PaymentPage = () => {
   const subtotal = hasCalculation ? Number(freightData.subtotal) : null;
   const FRETE = hasCalculation ? Number(freightData.shipping_cost) : null;
   const total = hasCalculation ? Number(freightData.total_amount) : null;
+  const welcomeDiscount = hasCalculation ? Number(freightData.discount_amount ?? 0) : 0;
   const selectedAddress = selectedAddressId ? {
     ...addresses.find((a) => a.id === selectedAddressId),
     ...(hasCalculation ? freightData.address : {}),
@@ -531,6 +534,7 @@ const PaymentPage = () => {
                         </div>
                         {item.size && <p className="text-[12px] text-black/50">Tamanho: {item.size}</p>}
                         <div className="mt-1 flex items-center justify-between">
+                          {item.is_promotion_active && <p className="text-sm text-black/50"><s>R$ {Number(item.base_price).toFixed(2)}</s> — {Math.round((1 - Number(item.unit_price) / Number(item.base_price)) * 100)}% de desconto</p>}
                           <p className="text-[15px] font-bold text-black">R$ {Number(item.unit_price).toFixed(2)}</p>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity - 1)}
@@ -559,6 +563,12 @@ const PaymentPage = () => {
                     <span>Subtotal</span>
                     <span className="font-medium text-black">{subtotal === null ? 'A calcular' : `R$ ${subtotal.toFixed(2)}`}</span>
                   </div>
+                  {welcomeDiscount > 0 && (
+                    <div className="flex justify-between text-[#10a545]">
+                      <span>Desconto de boas-vindas</span>
+                      <span className="font-medium">- R$ {welcomeDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-black/55">
                     <span>
                       Frete

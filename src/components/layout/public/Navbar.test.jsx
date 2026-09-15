@@ -28,4 +28,13 @@ describe('Navbar', () => {
     const myAccountLink = screen.getByTestId('my-account-link');
     expect(myAccountLink).toBeInTheDocument();
   });
+
+  it('should show the correct welcome discount in the banner', () => {
+    render(
+      <BrowserRouter>
+        <Navbar />
+      </BrowserRouter>
+    );
+    expect(screen.getByText(/10% de desconto/i)).toBeInTheDocument();
+  });
 });

@@ -24,6 +24,26 @@ afterEach(() => {
 });
 
 describe('PixPage', () => {
+  it('should not promise an order confirmation email', async () => {
+    fetch.mockResolvedValue(response({ ...order, payment: { status: 'PAID', method: 'PIX' } }));
+    renderReturn();
+    await screen.findByText('Pagamento confirmado!');
+    expect(screen.queryByText(/enviamos.*e-mail/i)).not.toBeInTheDocument();
+  });
+
+  it('should show the discount fetched from the order detail on the real redirect flow', async () => {
+    fetch.mockResolvedValue(response({
+      ...order, discount_amount: '20.00', total_amount: '95.00',
+      payment: { status: 'PAID', method: 'PIX' },
+    }));
+    renderReturn(`?order_nsu=${orderId}&transaction_nsu=TX-1&slug=shio`, { discount: 999 });
+    expect(await screen.findByText(/Desconto de boas-vindas/)).toBeInTheDocument();
+    expect(screen.getByText('- R$ 20.00')).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s*95,00/)).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toContain(`/api/orders/my-orders/${orderId}/`);
+  });
+
   it('renders headline', () => {
     render(
       <BrowserRouter>
