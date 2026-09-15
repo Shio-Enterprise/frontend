@@ -39,6 +39,7 @@ export function Icon({ name, className = 'h-5 w-5' }) {
     more: <path d="M12 6h.01M12 12h.01M12 18h.01" />,
     logout: <path d="M14 8V5H5v14h9v-3m-3-4h9m-3-3 3 3-3 3" />,
     save: <path d="M5 4h12l2 2v14H5V4Zm3 0v6h8V4M8 20v-7h8v7" />,
+    refresh: <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />,
   };
 
   return <svg {...common}>{paths[name]}</svg>;

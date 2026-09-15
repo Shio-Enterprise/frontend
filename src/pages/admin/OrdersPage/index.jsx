@@ -8,11 +8,11 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const STATUS_MAP = {
   AWAITING_PAYMENT: { label: 'Aguardando Pagamento', color: 'text-yellow-600' },
-  PAID:             { label: 'Pago',                  color: 'text-[#00a651]' },
-  PREPARING:        { label: 'Preparando',            color: 'text-blue-600' },
-  SHIPPED:          { label: 'Em transporte',         color: 'text-indigo-600' },
-  DELIVERED:        { label: 'Entregue',              color: 'text-[#00a651]' },
-  CANCELED:         { label: 'Cancelado',             color: 'text-[#ff3333]' },
+  PAID: { label: 'Pago', color: 'text-[#00a651]' },
+  PREPARING: { label: 'Preparando', color: 'text-blue-600' },
+  SHIPPED: { label: 'Em transporte', color: 'text-indigo-600' },
+  DELIVERED: { label: 'Entregue', color: 'text-[#00a651]' },
+  CANCELED: { label: 'Cancelado', color: 'text-[#ff3333]' },
 };
 
 const PAYMENT_METHOD_MAP = {
@@ -24,9 +24,11 @@ const PAYMENT_METHOD_MAP = {
 
 // ─── Order Detail Drawer ──────────────────────────────────────────────────────
 
-function OrderDetailDrawer({ id }) {
+function OrderDetailDrawer({ id, onError }) {
   const navigate = useNavigate();
   const { data: order, loading, refetch } = useApi(`/api/orders/admin/${id}/`);
+
+  const [actionLoading, setActionLoading] = useState(false);
 
   const [returnConfirmed, setReturnConfirmed] = useState(false);
   const [returnMessage, setReturnMessage] = useState('');
@@ -49,10 +51,114 @@ function OrderDetailDrawer({ id }) {
   const formatCurrency = (v) => `R$ ${parseFloat(v || 0).toFixed(2)}`;
   const statusInfo = order ? (STATUS_MAP[order.status] ?? { label: order.status, color: 'text-black/55' }) : null;
 
+  const dispatchOrder = async () => {
+    setActionLoading(true);
+    onError(null);
+
+    try {
+      const token = getAccessToken();
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/orders/correios/${id}/despachar/`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || 'Não foi possível despachar o pedido.'
+        );
+      }
+
+      return data;
+    } catch (err) {
+      onError(err.message);
+      throw err;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const updateOrderStatus = async (newStatus, extraData = {}) => {
+    setActionLoading(true);
+    onError(null);
+
+    try {
+      const token = getAccessToken();
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/orders/admin/${id}/`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: newStatus,
+            ...extraData,
+          }),
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+          data.status?.[0] ||
+          'Não foi possível atualizar o pedido.'
+        );
+      }
+
+      return data;
+    } catch (err) {
+      onError(err.message);
+      throw err;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const getPrimaryAction = () => {
+    if (!order) return null;
+
+    switch (order.status) {
+      case 'PAID':
+        return {
+          label: 'Iniciar preparação',
+          action: () => updateOrderStatus('PREPARING'),
+        };
+
+      case 'PREPARING':
+        return {
+          label: 'Despachar pedido',
+          action: dispatchOrder,
+        };
+
+      case 'SHIPPED':
+        return {
+          label: 'Marcar como entregue',
+          action: () => updateOrderStatus('DELIVERED'),
+        };
+
+      default:
+        return null;
+    }
+  };
+
   const shippingAddress = order
     ? [order.shipping_street, order.shipping_number, order.shipping_complement, order.shipping_neighborhood, `${order.shipping_city} - ${order.shipping_state}`, order.shipping_zip_code]
-        .filter(Boolean).join(', ')
+      .filter(Boolean).join(', ')
     : '';
+
+  const primaryAction = getPrimaryAction();
 
   return (
     <aside className="fixed inset-y-0 right-0 z-30 flex w-[380px] flex-col border-l border-black/10 bg-white shadow-2xl">
@@ -153,18 +259,121 @@ function OrderDetailDrawer({ id }) {
           </div>
 
           <div className="flex shrink-0 gap-3 border-t border-black/10 p-5">
-            <button onClick={() => navigate('/admin/orders')} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black">
+            <button
+              onClick={() => navigate('/admin/orders')}
+              className="flex h-11 flex-1 items-center justify-center rounded-lg border border-black/25 font-bold"
+            >
               Fechar
             </button>
-            <button onClick={() => window.print()} className="flex h-11 flex-1 items-center justify-center rounded-[8px] bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85">
-              Imprimir Pedido
-            </button>
+
+            {primaryAction && (
+              <button
+                disabled={actionLoading}
+                onClick={async () => {
+                  try {
+                    await primaryAction.action();
+
+                    refetch();
+                  } catch {
+                    // ja tratado
+                  }
+                }}
+                className="flex h-11 flex-1 items-center justify-center rounded-lg bg-black font-bold text-white disabled:opacity-50"
+              >
+                {actionLoading
+                  ? 'Processando...'
+                  : primaryAction.label}
+              </button>
+            )}
           </div>
+
+          {order.status_logs?.length > 0 && (
+            <div className="border-t border-black/10 px-7 py-5">
+              <h3 className="mb-5 text-[15px] font-bold uppercase">
+                Histórico do pedido
+              </h3>
+
+              <div className="max-h-[33vh] overflow-y-auto pr-2">
+                <OrderTimeline
+                  logs={order.status_logs}
+                  trackingCode={order.tracking_code}
+                />
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className="flex flex-1 items-center justify-center text-black/40">Pedido não encontrado.</div>
       )}
     </aside>
+  );
+}
+
+// ─── Order Time Line ──────────────────────────────────────────────────────
+
+function OrderTimeline({ logs = [], trackingCode }) {
+  const orderedLogs = [...logs].sort(
+    (a, b) =>
+      new Date(a.created_at) - new Date(b.created_at)
+  );
+
+  return (
+    <div className="space-y-4">
+      {orderedLogs.map((log, index) => {
+        const info = STATUS_MAP[log.new_status] ?? {
+          label: log.new_status,
+          color: 'text-black',
+        };
+
+        return (
+          <div
+            key={log.id}
+            className="relative flex gap-4"
+          >
+            <div className="flex flex-col items-center">
+              <div className="mt-1 h-3 w-3 rounded-full bg-black" />
+
+              {index < orderedLogs.length - 1 && (
+                <div className="h-full w-px bg-black/15" />
+              )}
+            </div>
+
+            <div className="pb-5">
+              <p className={`text-sm font-bold ${info.color}`}>
+                {info.label}
+              </p>
+
+              <p className="mt-1 text-xs text-black/45">
+                {new Date(log.created_at).toLocaleString(
+                  'pt-BR'
+                )}
+              </p>
+
+              {log.comment && (
+                <p className="mt-1 text-sm text-black/60">
+                  {log.comment}
+                </p>
+              )}
+
+              {log.tracking_code && (
+                <p className="mt-1 text-xs font-medium">
+                  Rastreio: {log.tracking_code}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {trackingCode && (
+        <div className="rounded-lg bg-[#f5f5f5] p-3 text-sm">
+          <span className="text-black/50">
+            Código de rastreio:
+          </span>{' '}
+          <strong>{trackingCode}</strong>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -188,6 +397,29 @@ const OrdersPage = () => {
   const renderStatus = (statusKey) => {
     const { label, color } = STATUS_MAP[statusKey] ?? { label: statusKey, color: 'text-black/55' };
     return <span className={`text-[18px] font-semibold ${color}`}>{label}</span>;
+  };
+
+  const getOrderMenuItems = (order) => {
+    const items = [
+      {
+        label: 'Ver detalhes',
+        to: `/admin/orders/${order.id}`,
+      },
+    ];
+
+    if (order.status === 'AWAITING_PAYMENT') {
+      items.push(
+        { separator: true, key: 'sep' },
+        {
+          label: 'Cancelar pedido',
+          danger: true,
+          icon: 'trash',
+          onClick: () => handleCancel(order.id),
+        }
+      );
+    }
+
+    return items;
   };
 
   const handleCancel = async (orderId) => {
@@ -214,9 +446,9 @@ const OrdersPage = () => {
     const allOrders = Array.isArray(ordersData) ? ordersData : ordersData?.results ?? [];
     const orders = search.trim()
       ? allOrders.filter((o) =>
-          o.id.includes(search) ||
-          o.customer_name?.toLowerCase().includes(search.toLowerCase())
-        )
+        o.id.includes(search) ||
+        o.customer_name?.toLowerCase().includes(search.toLowerCase())
+      )
       : allOrders;
 
     if (orders.length === 0) return <div className="p-10 text-center text-black/55">Nenhum pedido encontrado.</div>;
@@ -249,12 +481,7 @@ const OrdersPage = () => {
                 <td className="px-10 py-8 text-right">
                   <ActionMenu
                     label={`Ações para o pedido #${order.id}`}
-                    items={[
-                      { label: 'Ver detalhes', to: `/admin/orders/${order.id}` },
-                      { label: 'Atualizar status', to: `/admin/orders/${order.id}` },
-                      { separator: true, key: 'sep' },
-                      { label: 'Cancelar pedido', danger: true, icon: 'trash', onClick: () => handleCancel(order.id) },
-                    ]}
+                    items={getOrderMenuItems(order)}
                   />
                 </td>
               </tr>
@@ -278,7 +505,7 @@ const OrdersPage = () => {
       )}
 
       <AdminPanel className="overflow-hidden">
-        <div className="p-5">
+        <div className="flex p-5 justify-between">
           <label className="flex h-12 max-w-[675px] items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
             <Icon name="search" className="h-5 w-5" />
             <input
@@ -288,11 +515,25 @@ const OrdersPage = () => {
               placeholder="Buscar por ID ou cliente..."
             />
           </label>
+
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={loading}
+            className="flex h-10 items-center gap-2 rounded-lg bg-black px-4 text-white transition hover:bg-black/85 disabled:opacity-50"
+          >
+            <Icon
+              name="refresh"
+              className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`}
+            />
+
+            {loading ? 'Atualizando...' : 'Atualizar'}
+          </button>
         </div>
         {renderContent()}
       </AdminPanel>
 
-      {selectedId && <OrderDetailDrawer id={selectedId} />}
+      {selectedId && <OrderDetailDrawer id={selectedId} onError={setActionError} />}
     </div>
   );
 };
