@@ -221,6 +221,7 @@ const PaymentPage = () => {
           state: {
             orderNumber: data.order_nsu ?? data.id ?? 'SH-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
             total: total,
+            discount: welcomeDiscount,
             paymentMethod,
           },
         });
@@ -236,7 +237,10 @@ const PaymentPage = () => {
   const subtotal = parseFloat(cart?.subtotal ?? 0);
   const FRETE = freightData ? parseFloat(freightData.preco_final ?? 0) : 0;
   const pixDiscount = paymentMethod === 'pix' ? +(subtotal * 0.05).toFixed(2) : 0;
-  const total = subtotal + FRETE - pixDiscount;
+  const welcomeDiscount = cart?.eligible_for_welcome_discount
+    ? parseFloat(cart.welcome_discount_amount ?? 0)
+    : 0;
+  const total = subtotal + FRETE - pixDiscount - welcomeDiscount;
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
 
   return (
@@ -439,6 +443,12 @@ const PaymentPage = () => {
                     <span>Subtotal</span>
                     <span className="font-medium text-black">R$ {subtotal.toFixed(2)}</span>
                   </div>
+                  {welcomeDiscount > 0 && (
+                    <div className="flex justify-between text-[#10a545]">
+                      <span>Desconto de boas-vindas</span>
+                      <span className="font-medium">- R$ {welcomeDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-black/55">
                     <span>
                       Frete
