@@ -8,19 +8,19 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const STATUS_LABEL = {
   AWAITING_PAYMENT: { label: 'Aguardando Pagamento', color: 'bg-[#fff3cd] text-[#856404]' },
-  PAID:             { label: 'Pago',                  color: 'bg-[#d4f7e2] text-[#1da64a]' },
-  PREPARING:        { label: 'Em Preparação',          color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
-  SHIPPED:          { label: 'Enviado',                color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
-  DELIVERED:        { label: 'Entregue',               color: 'bg-[#d4f7e2] text-[#1da64a]' },
-  CANCELED:         { label: 'Cancelado',              color: 'bg-[#ffe0e0] text-[#cc0000]' },
+  PAID: { label: 'Pago', color: 'bg-[#d4f7e2] text-[#1da64a]' },
+  PREPARING: { label: 'Em Preparação', color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
+  SHIPPED: { label: 'Enviado', color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
+  DELIVERED: { label: 'Entregue', color: 'bg-[#d4f7e2] text-[#1da64a]' },
+  CANCELED: { label: 'Cancelado', color: 'bg-[#ffe0e0] text-[#cc0000]' },
 };
 
 const formatDate = (iso) =>
   iso
     ? new Date(iso).toLocaleString('pt-BR', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      })
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
     : '—';
 
 const Section = ({ title, children }) => (
@@ -208,6 +208,91 @@ const OrderDetailsPage = () => {
                 Código de rastreio: <span className="font-mono font-semibold text-black">{order.tracking_code}</span>
                 <br />Ainda sem eventos disponíveis nos Correios.
               </p>
+            )}
+          </Section>
+
+          {/* Histórico do Pedido */}
+          <Section title="Histórico do Pedido">
+            {order.status_logs?.length > 0 ? (
+              <div className="max-h-[20vh] overflow-y-auto pr-2">
+                <div className="relative ml-1 space-y-0">
+                  {[...order.status_logs]
+                    .sort(
+                      (a, b) =>
+                        new Date(b.created_at) - new Date(a.created_at)
+                    )
+                    .map((log, i, logs) => {
+                      const statusInfo =
+                        STATUS_LABEL[log.new_status] ?? {
+                          label: log.new_status,
+                          color: 'bg-black/5 text-black/50',
+                        };
+
+                      return (
+                        <div key={log.id} className="flex gap-4">
+                          {/* Timeline dot */}
+                          <div className="flex flex-col items-center">
+                            <div
+                              className={`mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${i === 0
+                                ? 'border-black bg-black'
+                                : 'border-black/30 bg-white'
+                                }`}
+                            />
+
+                            {i < logs.length - 1 && (
+                              <div className="w-px flex-1 bg-black/10" />
+                            )}
+                          </div>
+
+                          {/* Conteúdo do histórico */}
+                          <div className="pb-5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-[14px] font-semibold text-black">
+                                {statusInfo.label}
+                              </p>
+
+                              {i === 0 && (
+                                <span className="text-[11px] font-semibold uppercase text-black/40">
+                                  Atual
+                                </span>
+                              )}
+                            </div>
+
+                            {log.comment && (
+                              <p className="mt-1 text-[13px] text-black/50">
+                                {log.comment}
+                              </p>
+                            )}
+
+                            {log.tracking_code && (
+                              <p className="mt-1 text-[13px] text-black/50">
+                                Código de rastreio:{' '}
+                                <span className="font-mono font-semibold text-black">
+                                  {log.tracking_code}
+                                </span>
+                              </p>
+                            )}
+
+                            <p className="mt-1 text-[12px] text-black/40">
+                              {formatDate(log.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 text-black/40">
+                <Icon
+                  name="bag"
+                  className="h-5 w-5 shrink-0"
+                />
+
+                <p className="text-[14px]">
+                  Ainda não há alterações registradas neste pedido.
+                </p>
+              </div>
             )}
           </Section>
         </div>
