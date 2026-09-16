@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
@@ -54,11 +54,9 @@ function StepCard({ number, title, active, onClick, children }) {
 // ─── PaymentPage ──────────────────────────────────────────────────────────────
 
 const PaymentPage = () => {
-  const navigate = useNavigate();
   const { refreshCart } = useCart();
 
   const [activeStep, setActiveStep] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('pix');
 
   // Cart
   const [cart, setCart] = useState(null);
@@ -71,9 +69,12 @@ const PaymentPage = () => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
 
   // Freight
-  const [freightLoading, setFreightLoading] = useState(false);
   const [freightData, setFreightData] = useState(null);
-  const [freightError, setFreightError] = useState(null);
+  const [calculationError, setCalculationError] = useState(null);
+  const [cartUpdating, setCartUpdating] = useState(false);
+  const [quoteRequest, setQuoteRequest] = useState(0);
+  const [expiredQuoteId, setExpiredQuoteId] = useState(null);
+  const [confirmedQuoteId, setConfirmedQuoteId] = useState(null);
 
   // Profile
   const [userProfile, setUserProfile] = useState(null);
@@ -81,14 +82,20 @@ const PaymentPage = () => {
   // Checkout
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const [checkoutAttempt, setCheckoutAttempt] = useState(null);
+  const [retryReady, setRetryReady] = useState(true);
+  const [quoteInvalidated, setQuoteInvalidated] = useState(false);
+  const checkoutInFlight = useRef(false);
+  const retryTimer = useRef(null);
 
-  const fetchCart = useCallback(async () => {
+  useEffect(() => () => window.clearTimeout(retryTimer.current), []);
+
+  const fetchCart = useCallback(() => {
     const token = getAccessToken();
-    try {
-      const r = await fetch(`${API_BASE_URL}/api/orders/cart/`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!r.ok) return;
+    return fetch(`${API_BASE_URL}/api/orders/cart/`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).then(async (r) => {
+      if (!r.ok) throw new Error('Não foi possível carregar o carrinho.');
       const data = await r.json();
       setCart(data);
       const ids = [...new Set((data?.items ?? []).map((i) => i.product_id).filter(Boolean))];
@@ -102,120 +109,221 @@ const PaymentPage = () => {
       const map = {};
       results.forEach((p) => { if (p?.id && p.images?.[0]?.image) map[p.id] = p.images[0].image; });
       setProductImages(map);
-    } catch {}
+    }).catch(() => {
+      setCheckoutError('Não foi possível carregar o carrinho.');
+      setCart(null);
+    });
   }, []);
 
-  const fetchAddresses = useCallback(async () => {
+  const fetchAddresses = useCallback(() => {
     const token = getAccessToken();
-    if (!token) { setAddressesLoading(false); return; }
-    try {
-      const r = await fetch(`${API_BASE_URL}/api/auth/addresses/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (r.ok) {
-        const data = await r.json();
-        const list = Array.isArray(data) ? data : (data.results ?? []);
-        setAddresses(list);
-        const def = list.find((a) => a.is_default) ?? list[0] ?? null;
-        if (def) setSelectedAddressId(def.id);
-      }
-    } catch {}
-    finally {
-      setAddressesLoading(false);
-    }
+    if (!token) return Promise.resolve();
+    return fetch(`${API_BASE_URL}/api/auth/addresses/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (r) => {
+      if (!r.ok) throw new Error('Não foi possível carregar os endereços.');
+      const data = await r.json();
+      const list = Array.isArray(data) ? data : (data.results ?? []);
+      setAddresses(list);
+      const def = list.find((a) => a.is_default) ?? list[0] ?? null;
+      setSelectedAddressId((current) => list.some((address) => address.id === current) ? current : def?.id ?? null);
+    }).catch(() => {
+      setCheckoutError('Não foi possível carregar os endereços.');
+      setAddresses([]);
+      setSelectedAddressId(null);
+    });
   }, []);
 
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = useCallback(() => {
     const token = getAccessToken();
     if (!token) return;
-    try {
-      const r = await fetch(`${API_BASE_URL}/api/auth/me/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (r.ok) setUserProfile(await r.json());
-    } catch {}
+    return fetch(`${API_BASE_URL}/api/auth/me/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (r) => {
+      if (r.ok) {
+        const profile = await r.json();
+        setUserProfile(profile);
+        const saved = sessionStorage.getItem(`checkout-attempt:${profile.id}`);
+        if (saved) setCheckoutAttempt(JSON.parse(saved));
+      }
+    }).catch(() => {
+      setCheckoutError('Não foi possível carregar o perfil.');
+    });
   }, []);
 
   useEffect(() => {
     fetchCart().finally(() => setCartLoading(false));
-    fetchAddresses();
+    fetchAddresses().finally(() => setAddressesLoading(false));
     fetchProfile();
   }, [fetchCart, fetchAddresses, fetchProfile]);
 
-  const fetchFreight = useCallback(async (addressId) => {
-    const addr = addresses.find((a) => a.id === addressId);
-    if (!addr) return;
-    const cep = addr.zip_code.replace(/\D/g, '');
-    setFreightLoading(true);
-    setFreightError(null);
-    setFreightData(null);
-    try {
-      const token = getAccessToken();
-      const r = await fetch(
-        `${API_BASE_URL}/api/orders/correios/frete/?cep_destino=${cep}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  useEffect(() => {
+    if (!selectedAddressId || !cart?.items?.length || cartUpdating || checkoutAttempt || quoteInvalidated) return;
+    let cancelled = false;
+    const token = getAccessToken();
+    fetch(
+      `${API_BASE_URL}/api/orders/checkout/calculate/`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ address_id: selectedAddressId }),
+      }
+    ).then(async (r) => {
       const data = await r.json();
-      if (!r.ok) throw new Error(data.message || 'Frete indisponível.');
-      setFreightData(data);
-    } catch (e) {
-      setFreightError(e.message);
-    } finally {
-      setFreightLoading(false);
-    }
-  }, [addresses]);
+      if (!r.ok) throw new Error(data.message || data.detail || 'Cálculo indisponível.');
+      if (!data.shipping_quote_id || !Number.isFinite(Date.parse(data.expires_at))) {
+        throw new Error('Não foi possível validar a cotação. Calcule novamente.');
+      }
+      if (!cancelled) {
+        setFreightData({ ...data, addressId: selectedAddressId, cartSnapshot: cart });
+        setCalculationError(null);
+        setConfirmedQuoteId(null);
+      }
+    }).catch((error) => {
+      if (!cancelled) setCalculationError({ message: error.message, addressId: selectedAddressId, cartSnapshot: cart });
+    });
+    return () => { cancelled = true; };
+  }, [selectedAddressId, cart, cartUpdating, quoteRequest, checkoutAttempt, quoteInvalidated]);
+
+  useEffect(() => {
+    if (!freightData?.shipping_quote_id) return;
+    const expire = () => setExpiredQuoteId(freightData.shipping_quote_id);
+    const timer = window.setTimeout(expire, Math.max(0, Date.parse(freightData.expires_at) - Date.now()));
+    const checkExpiry = () => {
+      if (Date.parse(freightData.expires_at) <= Date.now()) expire();
+    };
+    window.addEventListener('focus', checkExpiry);
+    document.addEventListener('visibilitychange', checkExpiry);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', checkExpiry);
+      document.removeEventListener('visibilitychange', checkExpiry);
+    };
+  }, [freightData]);
+
+  const recalculateQuote = async () => {
+    if (cartUpdating || submitting || checkoutAttempt) return;
+    setFreightData(null);
+    setCalculationError(null);
+    setConfirmedQuoteId(null);
+    setCartUpdating(true);
+    setQuoteInvalidated(false);
+    await Promise.all([fetchCart(), fetchAddresses()]);
+    setCartUpdating(false);
+    setQuoteRequest((value) => value + 1);
+  };
 
   const handleSelectAddress = (id) => {
+    if (checkoutAttempt || checkoutInFlight.current) return;
+    setFreightData(null);
+    setQuoteInvalidated(false);
+    setCalculationError(null);
+    setConfirmedQuoteId(null);
     setSelectedAddressId(id);
-    fetchFreight(id);
   };
 
   const handleQtyChange = async (itemId, newQty) => {
+    if (cartUpdating || submitting || checkoutAttempt || checkoutInFlight.current) return;
     if (newQty < 1) { handleRemove(itemId); return; }
     const token = getAccessToken();
-    await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ quantity: newQty }),
-    }).catch(() => {});
-    fetchCart();
-    refreshCart();
+    setCartUpdating(true);
+    setFreightData(null);
+    setCalculationError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ quantity: newQty }),
+      });
+      if (!response.ok) throw new Error('Não foi possível atualizar a quantidade.');
+      await fetchCart();
+      refreshCart();
+    } catch (error) {
+      setCheckoutError(error.message);
+    } finally {
+      setCartUpdating(false);
+    }
   };
 
   const handleRemove = async (itemId) => {
+    if (cartUpdating || submitting || checkoutAttempt || checkoutInFlight.current) return;
     const token = getAccessToken();
-    await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {});
-    fetchCart();
-    refreshCart();
+    setCartUpdating(true);
+    setFreightData(null);
+    setCalculationError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Não foi possível remover o produto.');
+      await fetchCart();
+      refreshCart();
+    } catch (error) {
+      setCheckoutError(error.message);
+    } finally {
+      setCartUpdating(false);
+    }
   };
 
   const handleCheckout = async () => {
+    if (checkoutInFlight.current || !retryReady || cartUpdating || !userProfile?.id) return;
+    if (!checkoutAttempt && (!hasCalculation || !quoteConfirmed || freightLoading)) return;
+    if (!checkoutAttempt && Date.parse(freightData.expires_at) <= Date.now()) {
+      setExpiredQuoteId(freightData.shipping_quote_id);
+      return;
+    }
     setCheckoutError(null);
-    if (!selectedAddressId) {
+    if (!checkoutAttempt && !selectedAddressId) {
       setCheckoutError('Selecione um endereço de entrega.');
       return;
     }
+    checkoutInFlight.current = true;
     setSubmitting(true);
     try {
       const token = getAccessToken();
       if (!token) throw new Error('Você precisa estar logado.');
+      const payload = checkoutAttempt ?? {
+        address_id: selectedAddressId,
+        shipping_quote_id: freightData.shipping_quote_id,
+        idempotency_key: crypto.randomUUID(),
+      };
+      // Persistir antes do envio permite recuperar a mesma tentativa após perder a resposta.
+      sessionStorage.setItem(`checkout-attempt:${userProfile.id}`, JSON.stringify(payload));
+      setCheckoutAttempt(payload);
 
       const res = await fetch(`${API_BASE_URL}/api/orders/checkout/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          address_id: selectedAddressId,
-          shipping_cost: FRETE,
-          confirmed_subtotal: cart?.subtotal,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.status === 409 && data.code === 'price_changed') {
-        setCart((current) => ({ ...current, subtotal: data.subtotal, items: current.items.map((item) => ({ ...item, ...data.items.find((updated) => updated.variation_id === item.variation_id) })) }));
-        setCheckoutError('Os preços mudaram. Confira os novos valores e clique novamente para confirmar.');
+      if (!res.ok && ((res.status === 400 && data.shipping_quote_id) || (res.status === 409 && data.code === 'price_changed'))) {
+        sessionStorage.removeItem(`checkout-attempt:${userProfile.id}`);
+        setCheckoutAttempt(null);
+        setQuoteInvalidated(true);
+        setFreightData(null);
+        setConfirmedQuoteId(null);
+        setCalculationError({
+          message: data.code === 'price_changed'
+            ? 'Os preços mudaram. Recalcule e confirme os novos valores antes de finalizar.'
+            : 'A cotação não é mais válida. Recalcule e confirme os valores antes de finalizar.',
+          addressId: selectedAddressId,
+          cartSnapshot: cart,
+        });
+        return;
+      }
+      if (res.status === 409 && data.code === 'checkout_already_started' && data.attempt) {
+        sessionStorage.setItem(`checkout-attempt:${userProfile.id}`, JSON.stringify(data.attempt));
+        setCheckoutAttempt(data.attempt);
+        setCheckoutError(data.message);
+        return;
+      }
+      if (res.status === 202) {
+        const retrySeconds = Number(res.headers?.get('Retry-After')) || 3;
+        setRetryReady(false);
+        retryTimer.current = window.setTimeout(() => setRetryReady(true), Math.min(60, Math.max(1, retrySeconds)) * 1000);
+        setCheckoutError(data.message || 'Seu checkout está sendo processado. Consulte a mesma tentativa novamente.');
         return;
       }
       if (!res.ok) {
@@ -225,38 +333,42 @@ const PaymentPage = () => {
         // o estado atual (ex.: is_sellable) e o usuário poder agir.
         fetchCart();
         refreshCart();
-        throw new Error(data.message || 'Falha ao processar o pedido.');
+        throw new Error(data.message || data.detail || 'Falha ao processar o pedido.');
       }
       refreshCart();
       if (data.checkout_url) {
-        window.location.href = data.checkout_url;
+        sessionStorage.removeItem(`checkout-attempt:${userProfile.id}`);
+        window.location.assign(data.checkout_url);
       } else {
-        navigate('/pix', {
-          state: {
-            orderNumber: data.order_nsu ?? data.id ?? 'SH-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
-            total: total,
-            discount: welcomeDiscount,
-            paymentMethod,
-          },
-        });
+        throw new Error('Não foi possível abrir o pagamento.');
       }
     } catch (e) {
       setCheckoutError(e.message);
     } finally {
+      checkoutInFlight.current = false;
       setSubmitting(false);
     }
   };
 
-  const items = cart?.items ?? [];
+  const quoteExpired = freightData?.shipping_quote_id && expiredQuoteId === freightData.shipping_quote_id;
+  const hasCalculation = Boolean(freightData?.shipping_quote_id && freightData?.addressId === selectedAddressId
+    && freightData?.cartSnapshot === cart && !cartUpdating && !quoteExpired);
+  const quoteConfirmed = hasCalculation && confirmedQuoteId === freightData.shipping_quote_id;
+  const freightError = quoteExpired ? 'Cotação expirada. Recalcule e confirme os valores novamente.'
+    : calculationError?.addressId === selectedAddressId
+      && calculationError?.cartSnapshot === cart ? calculationError.message : null;
+  const freightLoading = Boolean(selectedAddressId && cart?.items?.length && !hasCalculation && !freightError);
+  const items = (hasCalculation ? freightData.items : cart?.items) ?? [];
   const unavailableItems = items.filter((item) => item.is_sellable === false);
   const hasUnavailableItems = unavailableItems.length > 0;
-  const subtotal = parseFloat(cart?.subtotal ?? 0);
-  const FRETE = freightData ? parseFloat(freightData.preco_final ?? 0) : 0;
-  const welcomeDiscount = cart?.eligible_for_welcome_discount
-    ? parseFloat(cart.welcome_discount_amount ?? 0)
-    : 0;
-  const total = subtotal + FRETE - welcomeDiscount;
-  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+  const subtotal = hasCalculation ? Number(freightData.subtotal) : null;
+  const FRETE = hasCalculation ? Number(freightData.shipping_cost) : null;
+  const total = hasCalculation ? Number(freightData.total_amount) : null;
+  const welcomeDiscount = hasCalculation ? Number(freightData.discount_amount ?? 0) : 0;
+  const selectedAddress = selectedAddressId ? {
+    ...addresses.find((a) => a.id === selectedAddressId),
+    ...(hasCalculation ? freightData.address : {}),
+  } : null;
 
   return (
     <PublicLayout>
@@ -306,6 +418,7 @@ const PaymentPage = () => {
                       }`}>
                       <input
                         type="radio"
+                        disabled={submitting || cartUpdating || Boolean(checkoutAttempt)}
                         name="address"
                         checked={selectedAddressId === addr.id}
                         onChange={() => handleSelectAddress(addr.id)}
@@ -342,7 +455,7 @@ const PaymentPage = () => {
                     <span className="text-black/45">Calculando frete...</span>
                   ) : freightError ? (
                     <span className="text-[#cc0000]">{freightError}</span>
-                  ) : freightData ? (
+                  ) : hasCalculation ? (
                     <div className="flex items-center justify-between">
                       <span className="text-black/55">
                         Frete estimado
@@ -357,7 +470,7 @@ const PaymentPage = () => {
               )}
 
               <button type="button"
-                disabled={!selectedAddressId || addresses.length === 0}
+                disabled={!hasCalculation || freightLoading || cartUpdating || submitting}
                 onClick={() => setActiveStep(1)}
                 className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/35">
                 Continuar para Pagamento
@@ -369,23 +482,19 @@ const PaymentPage = () => {
           <StepCard number={2} title="Pagamento" active={activeStep === 1} onClick={() => setActiveStep(1)}>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <button type="button" onClick={() => setPaymentMethod('pix')}
-                  className={`flex flex-col items-center gap-2 rounded-[14px] border-2 py-6 transition ${
-                    paymentMethod === 'pix' ? 'border-black' : 'border-black/10 hover:border-black/30'
-                  }`}>
+                <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-black/10 py-6">
                   <PixLogo />
                   <span className="text-[15px] font-bold text-black">PIX</span>
-                </button>
-                <button type="button" onClick={() => setPaymentMethod('card')}
-                  className={`flex flex-col items-center gap-2 rounded-[14px] border-2 py-6 transition ${
-                    paymentMethod === 'card' ? 'border-black' : 'border-black/10 hover:border-black/30'
-                  }`}>
+                </div>
+                <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-black/10 py-6">
                   <CreditCardIcon />
                   <span className="text-[15px] font-bold text-black">Cartão</span>
                   <span className="text-[12px] text-black/45">ATÉ 12X</span>
-                </button>
+                </div>
               </div>
+              <p className="text-[13px] text-black/55">Escolha PIX ou cartão na página de pagamento da InfinitePay.</p>
               <button type="button" onClick={() => setActiveStep(2)}
+                disabled={!hasCalculation || cartUpdating || submitting}
                 className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85">
                 Revisar Pedido
               </button>
@@ -437,6 +546,8 @@ const PaymentPage = () => {
                         <div className="flex items-start justify-between gap-2">
                           <p className="truncate text-[14px] font-bold text-black">{item.product_name}</p>
                           <button onClick={() => handleRemove(item.variation_id ?? item.id)}
+                            aria-label={`Remover ${item.product_name}`}
+                            disabled={submitting || cartUpdating || Boolean(checkoutAttempt)}
                             className="shrink-0 text-[#cc0000] transition hover:text-[#990000]">
                             <Icon name="trash" className="h-4 w-4" />
                           </button>
@@ -450,13 +561,15 @@ const PaymentPage = () => {
                           <p className="text-[15px] font-bold text-black">R$ {Number(item.unit_price).toFixed(2)}</p>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity - 1)}
-                              disabled={unavailable}
+                              aria-label={`Diminuir quantidade de ${item.product_name}`}
+                              disabled={unavailable || submitting || cartUpdating || Boolean(checkoutAttempt)}
                               className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5 disabled:opacity-40">
                               <Icon name="minus" className="h-3 w-3" />
                             </button>
                             <span className="w-5 text-center text-[14px] font-medium text-black">{item.quantity}</span>
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity + 1)}
-                              disabled={unavailable}
+                              aria-label={`Aumentar quantidade de ${item.product_name}`}
+                              disabled={unavailable || submitting || cartUpdating || Boolean(checkoutAttempt)}
                               className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5 disabled:opacity-40">
                               <Icon name="plus" className="h-3 w-3" />
                             </button>
@@ -472,7 +585,7 @@ const PaymentPage = () => {
                 <div className="space-y-2 text-[14px]">
                   <div className="flex justify-between text-black/55">
                     <span>Subtotal</span>
-                    <span className="font-medium text-black">R$ {subtotal.toFixed(2)}</span>
+                    <span className="font-medium text-black">{subtotal === null ? 'A calcular' : `R$ ${subtotal.toFixed(2)}`}</span>
                   </div>
                   {welcomeDiscount > 0 && (
                     <div className="flex justify-between text-[#10a545]">
@@ -483,20 +596,30 @@ const PaymentPage = () => {
                   <div className="flex justify-between text-black/55">
                     <span>
                       Frete
-                      {freightData?.prazo_dias && <span className="ml-1 text-[12px]">({freightData.prazo_dias} dias úteis)</span>}
+                      {hasCalculation && freightData.prazo_dias && <span className="ml-1 text-[12px]">({freightData.prazo_dias} dias úteis)</span>}
                     </span>
                     <span className="font-medium text-black">
-                      {freightLoading ? '...' : FRETE === 0 ? 'Grátis' : `R$ ${FRETE.toFixed(2)}`}
+                      {FRETE === null ? 'A calcular' : FRETE === 0 ? 'Grátis' : `R$ ${FRETE.toFixed(2)}`}
                     </span>
                   </div>
-
                   <div className="flex justify-between border-t border-black/10 pt-3 text-[17px] font-black text-black">
                     <span>Total</span>
-                    <span>R$ {total.toFixed(2)}</span>
+                    <span>{total === null ? 'A calcular' : `R$ ${total.toFixed(2)}`}</span>
                   </div>
                 </div>
 
-                {checkoutError && (
+                {freightError && <p role="alert" className="text-[13px] text-[#cc0000]">{freightError}</p>}
+                {hasCalculation && (
+                  <div className="space-y-3 text-[13px] text-black/60">
+                    <p>Cotação válida até {new Date(freightData.expires_at).toLocaleTimeString('pt-BR')}.</p>
+                    <label className="flex items-start gap-2">
+                      <input type="checkbox" checked={quoteConfirmed} disabled={submitting}
+                        onChange={(event) => setConfirmedQuoteId(event.target.checked ? freightData.shipping_quote_id : null)} />
+                      Conferi os itens, o endereço e o total desta compra.
+                    </label>
+                  </div>
+                )}
+                {checkoutError && !checkoutAttempt && (
                   <p className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-[#cc0000]">{checkoutError}</p>
                 )}
 
@@ -508,7 +631,7 @@ const PaymentPage = () => {
                   </p>
                 )}
                 <button type="button" onClick={handleCheckout}
-                  disabled={submitting || items.length === 0 || hasUnavailableItems || !selectedAddressId || (userProfile && !userProfile.phone_number)}
+                  disabled={submitting || Boolean(checkoutAttempt) || !userProfile?.id || cartUpdating || freightLoading || !hasCalculation || !quoteConfirmed || items.length === 0 || hasUnavailableItems || !selectedAddressId || (userProfile && !userProfile.phone_number)}
                   className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/40">
                   {submitting ? 'Processando...' : 'Finalizar Compra'}
                 </button>
@@ -517,6 +640,21 @@ const PaymentPage = () => {
           </StepCard>
 
         </div>
+        {checkoutAttempt && (
+          <div className="mt-4 space-y-3 rounded-[12px] border border-black/20 p-4 text-[14px]">
+            <p role="status">{checkoutError || 'Há uma tentativa de checkout registrada. Consulte o resultado antes de iniciar outra compra.'}</p>
+            <button type="button" onClick={handleCheckout} disabled={submitting || !retryReady || !userProfile?.id}
+              className="h-12 w-full rounded-full bg-black font-bold text-white disabled:opacity-50">
+              {submitting ? 'Consultando...' : 'Consultar tentativa'}
+            </button>
+          </div>
+        )}
+        {freightError && !checkoutAttempt && (
+          <button type="button" onClick={recalculateQuote} disabled={cartUpdating || submitting}
+            className="mt-4 h-12 w-full rounded-full border border-black/20 text-[14px] font-bold disabled:opacity-50">
+            Recalcular cotação
+          </button>
+        )}
       </section>
     </PublicLayout>
   );
