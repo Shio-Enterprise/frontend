@@ -14,10 +14,11 @@ export default function Navbar() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    const q = searchQuery.trim();
+    const search = searchQuery.trim();
+    const params = new URLSearchParams({ search });
     setIsMenuOpen(false);
     setShowSearch(false);
-    navigate(q ? `/category/all?q=${encodeURIComponent(q)}` : '/category/all');
+    navigate(search ? `/category/all?${params}` : '/category/all');
   };
 
   const closeMenu = () => setIsMenuOpen(false);
@@ -27,7 +28,7 @@ export default function Navbar() {
       {showBanner && (
         <div className="relative flex h-9 items-center justify-center bg-black px-10 text-center text-[13px] text-white">
           <p>
-            Cadastre-se e ganhe 20% de desconto no seu primeiro pedido.{' '}
+            Cadastre-se e ganhe 10% de desconto no seu primeiro pedido.{' '}
             <Link to="/signup" className="font-semibold underline underline-offset-2">
               Cadastre-se agora
             </Link>

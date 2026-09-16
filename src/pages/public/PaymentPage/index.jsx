@@ -209,9 +209,15 @@ const PaymentPage = () => {
         body: JSON.stringify({
           address_id: selectedAddressId,
           shipping_cost: FRETE,
+          confirmed_subtotal: cart?.subtotal,
         }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.code === 'price_changed') {
+        setCart((current) => ({ ...current, subtotal: data.subtotal, items: current.items.map((item) => ({ ...item, ...data.items.find((updated) => updated.variation_id === item.variation_id) })) }));
+        setCheckoutError('Os preços mudaram. Confira os novos valores e clique novamente para confirmar.');
+        return;
+      }
       if (!res.ok) {
         // A falha pode ser por um item ter deixado de estar disponível
         // (produto/drop ocultado, estoque ou limite do drop esgotados entre
@@ -229,6 +235,7 @@ const PaymentPage = () => {
           state: {
             orderNumber: data.order_nsu ?? data.id ?? 'SH-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
             total: total,
+            discount: welcomeDiscount,
             paymentMethod,
           },
         });
@@ -245,8 +252,10 @@ const PaymentPage = () => {
   const hasUnavailableItems = unavailableItems.length > 0;
   const subtotal = parseFloat(cart?.subtotal ?? 0);
   const FRETE = freightData ? parseFloat(freightData.preco_final ?? 0) : 0;
-  const pixDiscount = paymentMethod === 'pix' ? +(subtotal * 0.05).toFixed(2) : 0;
-  const total = subtotal + FRETE - pixDiscount;
+  const welcomeDiscount = cart?.eligible_for_welcome_discount
+    ? parseFloat(cart.welcome_discount_amount ?? 0)
+    : 0;
+  const total = subtotal + FRETE - welcomeDiscount;
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
 
   return (
@@ -366,7 +375,6 @@ const PaymentPage = () => {
                   }`}>
                   <PixLogo />
                   <span className="text-[15px] font-bold text-black">PIX</span>
-                  <span className="text-[12px] font-semibold text-[#c8970a]">5% OFF</span>
                 </button>
                 <button type="button" onClick={() => setPaymentMethod('card')}
                   className={`flex flex-col items-center gap-2 rounded-[14px] border-2 py-6 transition ${
@@ -438,6 +446,7 @@ const PaymentPage = () => {
                           <p className="text-[12px] font-semibold text-[#cc0000]">Indisponível para compra</p>
                         )}
                         <div className="mt-1 flex items-center justify-between">
+                          {item.is_promotion_active && <p className="text-sm text-black/50"><s>R$ {Number(item.base_price).toFixed(2)}</s> — {Math.round((1 - Number(item.unit_price) / Number(item.base_price)) * 100)}% de desconto</p>}
                           <p className="text-[15px] font-bold text-black">R$ {Number(item.unit_price).toFixed(2)}</p>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity - 1)}
@@ -465,6 +474,12 @@ const PaymentPage = () => {
                     <span>Subtotal</span>
                     <span className="font-medium text-black">R$ {subtotal.toFixed(2)}</span>
                   </div>
+                  {welcomeDiscount > 0 && (
+                    <div className="flex justify-between text-[#10a545]">
+                      <span>Desconto de boas-vindas</span>
+                      <span className="font-medium">- R$ {welcomeDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-black/55">
                     <span>
                       Frete
@@ -474,12 +489,7 @@ const PaymentPage = () => {
                       {freightLoading ? '...' : FRETE === 0 ? 'Grátis' : `R$ ${FRETE.toFixed(2)}`}
                     </span>
                   </div>
-                  {paymentMethod === 'pix' && (
-                    <div className="flex justify-between text-[#c8970a]">
-                      <span className="font-semibold">Desconto PIX (5%)</span>
-                      <span className="font-semibold">- R$ {pixDiscount.toFixed(2)}</span>
-                    </div>
-                  )}
+
                   <div className="flex justify-between border-t border-black/10 pt-3 text-[17px] font-black text-black">
                     <span>Total</span>
                     <span>R$ {total.toFixed(2)}</span>

@@ -1,18 +1,24 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
+import { useGoogleAuth } from '../../../context/useGoogleAuth';
+import { GoogleLoginButton } from '../../../context/GoogleLoginButton';
 import logo from '../../../assets/logo/logo.svg';
 import { PageMarker } from '../../../components/ui/ShioDesign';
 
 const SignUpPage = () => {
   const navigate = useNavigate();
   const { registerWithPassword } = useAuth();
-  
+  const { handleGoogleLogin, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth({
+    onSuccessRedirect: '/my-account',
+    requireAdmin: false,
+  });
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const displayedError = error || googleError;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,6 +47,18 @@ const SignUpPage = () => {
         <h1 className="mt-10 text-[34px] font-normal text-black">Bem vindo(a)</h1>
         <p className="mt-4 text-[18px] text-black/45 mb-8">Cadastre-se para continuar</p>
 
+        <GoogleLoginButton
+          onSuccess={handleGoogleLogin}
+          disabled={isLoading || isGoogleLoading}
+          onError={() => console.error("Google Login falhou a partir do componente.")}
+        />
+
+        <div className="flex w-full items-center gap-3 my-6">
+          <hr className="w-full border-gray-200" />
+          <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">ou</span>
+          <hr className="w-full border-gray-200" />
+        </div>
+
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 text-left">
           <input
             type="text"
@@ -68,16 +86,16 @@ const SignUpPage = () => {
           />
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isGoogleLoading}
             className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 mt-2"
           >
             {isLoading ? 'Cadastrando...' : 'Criar Conta'}
           </button>
         </form>
 
-        {error && (
+        {displayedError && (
           <p className="mt-4 rounded-[12px] border border-red-100 bg-red-50 p-3 text-[13px] text-red-600">
-            {error}
+            {displayedError}
           </p>
         )}
 

@@ -10,14 +10,15 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 const toCardShape = (p) => ({
   id: p.id,
   name: p.name,
-  price: `R$ ${Number(p.base_price).toFixed(2)}`,
+  price: `R$ ${Number(p.effective_price ?? p.base_price).toFixed(2)}`,
+  oldPrice: p.is_promotion_active ? `R$ ${Number(p.base_price).toFixed(2)}` : null,
+  discount: p.is_promotion_active ? `-${Math.round((1 - Number(p.effective_price) / Number(p.base_price)) * 100)}%` : null,
   image: p.images?.[0]?.image ?? null,
   rating: null,
   unavailable: p.is_sellable === false,
 });
 
-const ProductDetailPage = () => {
-  const { id } = useParams();
+const ProductDetailContent = ({ id }) => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -27,34 +28,48 @@ const ProductDetailPage = () => {
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMsg, setCartMsg] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [recommendationsError, setRecommendationsError] = useState(false);
   const { cartItems, setCartData } = useCart();
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-    setNotFound(false);
+    const controller = new AbortController();
 
-    fetch(`${API_BASE_URL}/api/catalog/products/${id}/`)
+    fetch(`${API_BASE_URL}/api/catalog/products/${id}/`, { signal: controller.signal })
       .then((r) => {
-        if (r.status === 404) { setNotFound(true); return null; }
+        if (!r.ok) throw new Error('Falha ao carregar produto');
         return r.json();
       })
       .then((data) => {
-        if (!data) return;
+        if (controller.signal.aborted) return;
         setProduct(data);
         setActiveImage(0);
         if (data.variations?.length > 0) setSelectedVarId(data.variations[0].id);
       })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
-
-    fetch(`${API_BASE_URL}/api/catalog/products/`)
-      .then((r) => r.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : (data.results ?? []);
-        setRecommendations(list.filter((p) => p.id !== id).slice(0, 4));
+      .catch(() => {
+        if (!controller.signal.aborted) setNotFound(true);
       })
-      .catch(() => {});
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    fetch(`${API_BASE_URL}/api/catalog/products/${id}/recommendations/?page_size=4`, { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error('Falha ao carregar recomendações');
+        return r.json();
+      })
+      .then((data) => {
+        if (!controller.signal.aborted) setRecommendations(data.results);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setRecommendationsError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRecommendationsLoading(false);
+      });
+
+    return () => controller.abort();
   }, [id]);
 
   const handleAddToCart = useCallback(async () => {
@@ -95,7 +110,7 @@ const ProductDetailPage = () => {
       setAddingToCart(false);
       setTimeout(() => setCartMsg(null), 3000);
     }
-  }, [selectedVarId, quantity]);
+  }, [selectedVarId, quantity, cartItems, setCartData]);
 
   if (loading) {
     return (
@@ -119,8 +134,8 @@ const ProductDetailPage = () => {
   const images = product.images ?? [];
   const currentImage = images[activeImage]?.image ?? null;
   const basePrice = Number(product.base_price ?? 0);
-  const promoPrice = product.promotional_price ? Number(product.promotional_price) : null;
-  const price = (promoPrice ?? basePrice).toFixed(2);
+  const promoPrice = product.is_promotion_active ? Number(product.effective_price) : null;
+  const price = (Number(product.effective_price ?? basePrice)).toFixed(2);
   const discount = promoPrice ? Math.round((1 - promoPrice / basePrice) * 100) : null;
   const selectedVariation = product.variations?.find((v) => v.id === selectedVarId);
   const totalStock = product.variations?.reduce((s, v) => s + (v.stock_quantity || 0), 0) ?? 0;
@@ -191,13 +206,13 @@ const ProductDetailPage = () => {
             {/* Size selector */}
             {product.variations?.length > 0 && (
               <div className="border-b border-black/10 py-6">
-                <p className="mb-4 text-[15px] text-black/55">Tamanho</p>
+                <p className="mb-4 text-[15px] text-black/55">Tamanho e cor</p>
                 <div className="flex flex-wrap gap-3">
                   {product.variations.map((v) => (
                     <button key={v.id} onClick={() => setSelectedVarId(v.id)}
                       disabled={v.stock_quantity === 0}
                       className={`min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition disabled:opacity-40 ${v.id === selectedVarId ? 'bg-black text-white' : 'bg-[#f0f0f0] text-black/55 hover:bg-black/10'}`}>
-                      {v.size}
+                      {v.size}{v.color ? ` / ${v.color}` : ''}
                       {v.stock_quantity === 0 && ' (esgotado)'}
                     </button>
                   ))}
@@ -238,16 +253,27 @@ const ProductDetailPage = () => {
         </div>
       </section>
 
-      {recommendations.length > 0 && (
-        <section className="mx-auto max-w-[1240px] border-t border-black/10 px-6 py-16">
-          <SectionTitle>Recomendacoes para voce</SectionTitle>
+      <section className="mx-auto max-w-[1240px] border-t border-black/10 px-6 py-16">
+        <SectionTitle>Recomendações para você</SectionTitle>
+        {recommendationsLoading ? (
+          <p role="status" className="mt-10 text-center text-black/50">Carregando recomendações...</p>
+        ) : recommendationsError ? (
+          <p role="alert" className="mt-10 text-center text-black/50">Não foi possível carregar as recomendações.</p>
+        ) : recommendations.length === 0 ? (
+          <p className="mt-10 text-center text-black/50">Nenhuma recomendação disponível no momento.</p>
+        ) : (
           <div className="mt-10 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {recommendations.map(toCardShape).map((p) => <ProductCard key={p.id} product={p} />)}
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </PublicLayout>
   );
+};
+
+const ProductDetailPage = () => {
+  const { id } = useParams();
+  return <ProductDetailContent key={id} id={id} />;
 };
 
 export default ProductDetailPage;

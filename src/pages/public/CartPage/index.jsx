@@ -13,7 +13,7 @@ const getAuthHeaders = () => {
 };
 
 const CartPage = () => {
-  const { cartItems, setCartData, refreshCart } = useCart();
+  const { cartItems, welcomeDiscountEligible, welcomeDiscountAmount, setCartData, refreshCart } = useCart();
   const [updating, setUpdating] = useState(null);
   const [productImages, setProductImages] = useState({});
 
@@ -73,6 +73,8 @@ const CartPage = () => {
   const subtotal = items.reduce((s, i) => s + i.quantity * parseFloat(i.unit_price ?? 0), 0);
   const unavailableItems = items.filter((i) => i.is_sellable === false);
   const hasUnavailableItems = unavailableItems.length > 0;
+  const discount = welcomeDiscountEligible ? parseFloat(welcomeDiscountAmount) : 0;
+  const total = subtotal - discount;
 
   return (
     <PublicLayout>
@@ -131,6 +133,7 @@ const CartPage = () => {
                             <Icon name="trash" className="h-5 w-5" />
                           </button>
                         </div>
+                        {item.is_promotion_active && <p className="mt-2 text-sm text-black/50"><s>R$ {Number(item.base_price).toFixed(2)}</s> — {Math.round((1 - Number(item.unit_price) / Number(item.base_price)) * 100)}% de desconto</p>}
                         <p className="mt-5 text-[24px] font-bold text-black">
                           R$ {Number(item.unit_price).toFixed(2)}
                         </p>
@@ -161,13 +164,19 @@ const CartPage = () => {
                   <span>Subtotal</span>
                   <strong className="text-black">R$ {subtotal.toFixed(2)}</strong>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-[#10a545]">
+                    <span>Desconto de boas-vindas</span>
+                    <strong>- R$ {discount.toFixed(2)}</strong>
+                  </div>
+                )}
                 <div className="flex justify-between border-b border-black/10 pb-5 text-black/60">
                   <span>Entrega</span>
                   <strong className="text-black">A calcular</strong>
                 </div>
                 <div className="flex justify-between text-[24px] text-black">
                   <span>Total</span>
-                  <strong>R$ {subtotal.toFixed(2)}</strong>
+                  <strong>R$ {total.toFixed(2)}</strong>
                 </div>
               </div>
 
@@ -186,6 +195,7 @@ const CartPage = () => {
                 Finalizar compra
                 <Icon name="arrowRight" className="h-5 w-5" />
               </Link>
+
               {hasUnavailableItems && (
                 <p className="mt-3 text-center text-[13px] text-[#cc0000]">
                   Remova os itens indisponíveis para continuar.
