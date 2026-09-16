@@ -15,6 +15,7 @@ const toCardShape = (p) => ({
   discount: p.is_promotion_active ? `-${Math.round((1 - Number(p.effective_price) / Number(p.base_price)) * 100)}%` : null,
   image: p.images?.[0]?.image ?? null,
   rating: null,
+  unavailable: p.is_sellable === false,
 });
 
 const ProductDetailContent = ({ id }) => {
@@ -87,7 +88,9 @@ const ProductDetailContent = ({ id }) => {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || err.non_field_errors?.[0] || 'Falha ao adicionar ao carrinho.');
+        // CartItemAddAPIView devolve {"message": "..."} para itens que
+        // deixaram de ser vendáveis (drop oculto/esgotado) ou sem estoque.
+        throw new Error(err.message || err.detail || err.non_field_errors?.[0] || 'Falha ao adicionar ao carrinho.');
       }
       const cartData = await res.json();
       // Merge: garante que itens anteriores do contexto não sejam perdidos caso a
@@ -136,6 +139,10 @@ const ProductDetailContent = ({ id }) => {
   const discount = promoPrice ? Math.round((1 - promoPrice / basePrice) * 100) : null;
   const selectedVariation = product.variations?.find((v) => v.id === selectedVarId);
   const totalStock = product.variations?.reduce((s, v) => s + (v.stock_quantity || 0), 0) ?? 0;
+  // Um produto pode ser visível (por isso a página carregou) e ainda assim
+  // não vendável — drop Rascunho, Programado, Encerrado ou Esgotado (issue
+  // #6). Distinto de "Esgotado" (estoque zerado na variação).
+  const notSellable = product.is_sellable === false;
 
   return (
     <PublicLayout>
@@ -185,6 +192,9 @@ const ProductDetailContent = ({ id }) => {
               {totalStock === 0 && (
                 <span className="rounded-full bg-red-50 px-4 py-1 text-sm font-medium text-[#ff3333]">Esgotado</span>
               )}
+              {notSellable && (
+                <span className="rounded-full bg-black/5 px-4 py-1 text-sm font-medium text-black/55">Indisponível para compra</span>
+              )}
             </div>
 
             {product.description && (
@@ -224,9 +234,9 @@ const ProductDetailContent = ({ id }) => {
                 <span className="text-[16px] font-semibold">{quantity}</span>
                 <button onClick={() => setQuantity((q) => q + 1)} className="flex h-8 w-8 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10">+</button>
               </div>
-              <button onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || totalStock === 0}
+              <button onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || totalStock === 0 || notSellable}
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40">
-                {addingToCart ? 'Adicionando...' : 'Adicionar ao Carrinho'}
+                {addingToCart ? 'Adicionando...' : notSellable ? 'Indisponível' : 'Adicionar ao Carrinho'}
               </button>
             </div>
 

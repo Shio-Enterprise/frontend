@@ -20,6 +20,7 @@ const toCardShape = (p) => {
     discount: promo ? `-${Math.round((1 - promo / base) * 100)}%` : null,
     image: p.images?.[0]?.image ?? null,
     rating: null,
+    unavailable: p.is_sellable === false,
   };
 };
 

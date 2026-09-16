@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
+import { getDropStatus } from '../../../lib/dropStatus';
 import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -24,26 +25,8 @@ const DropsPage = () => {
   };
 
   const getStatusLabel = (drop) => {
-    const now = new Date();
-    const launchDate = drop.launch_date ? new Date(drop.launch_date) : null;
-    const endDate = drop.end_date ? new Date(drop.end_date) : null;
-
-    let text, color;
-    if (drop.is_active && launchDate && launchDate > now) {
-      text = 'Programado';
-      color = 'text-[#1d4ed8]';
-    } else if (drop.is_active && (!launchDate || launchDate <= now)) {
-      text = 'Ativo';
-      color = 'text-[#00a651]';
-    } else if (!drop.is_active && endDate && endDate < now) {
-      text = 'Esgotado';
-      color = 'text-black/45';
-    } else {
-      text = 'Rascunho';
-      color = 'text-[#c8970a]';
-    }
-
-    return <span className={`text-[14px] md:text-[18px] font-semibold ${color}`}>{text}</span>;
+    const { label, color } = getDropStatus(drop);
+    return <span className={`text-[14px] md:text-[18px] font-semibold ${color}`}>{label}</span>;
   };
 
   const formatReceita = (drop) => {

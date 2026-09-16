@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
+import { getDropStatus } from '../../../lib/dropStatus';
 import { AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -156,28 +157,7 @@ const DropDetailsPage = () => {
   const products = currentDrop.products || [];
   const linkedProductIds = new Set(products.map((product) => product.id));
 
-  const now = new Date();
-  const launchDate = currentDrop.launch_date ? new Date(currentDrop.launch_date) : null;
-  let statusLabel;
-  let statusColor;
-  let statusBg;
-  if (currentDrop.is_active && launchDate && launchDate > now) {
-    statusLabel = 'Programado';
-    statusColor = 'text-[#1d4ed8]';
-    statusBg = '#1d4ed8';
-  } else if (currentDrop.is_active) {
-    statusLabel = 'Ativo';
-    statusColor = 'text-[#00a651]';
-    statusBg = '#00a651';
-  } else if (products.length > 0 && products.every((p) => getStock(p) === 0)) {
-    statusLabel = 'Esgotado';
-    statusColor = 'text-[#888]';
-    statusBg = '#888';
-  } else {
-    statusLabel = 'Rascunho';
-    statusColor = 'text-[#c8970a]';
-    statusBg = '#c8970a';
-  }
+  const { label: statusLabel, color: statusColor, badgeColor: statusBg } = getDropStatus(currentDrop);
 
   const revenue = products.reduce((sum, p) => sum + Number(p.base_price ?? 0), 0);
   const formattedRevenue = `R$ ${revenue.toFixed(2)}`;

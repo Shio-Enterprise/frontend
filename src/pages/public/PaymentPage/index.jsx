@@ -218,7 +218,15 @@ const PaymentPage = () => {
         setCheckoutError('Os preços mudaram. Confira os novos valores e clique novamente para confirmar.');
         return;
       }
-      if (!res.ok) throw new Error(data.message || 'Falha ao processar o pedido.');
+      if (!res.ok) {
+        // A falha pode ser por um item ter deixado de estar disponível
+        // (produto/drop ocultado, estoque ou limite do drop esgotados entre
+        // a montagem do carrinho e o checkout) — resincroniza para refletir
+        // o estado atual (ex.: is_sellable) e o usuário poder agir.
+        fetchCart();
+        refreshCart();
+        throw new Error(data.message || 'Falha ao processar o pedido.');
+      }
       refreshCart();
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
@@ -240,6 +248,8 @@ const PaymentPage = () => {
   };
 
   const items = cart?.items ?? [];
+  const unavailableItems = items.filter((item) => item.is_sellable === false);
+  const hasUnavailableItems = unavailableItems.length > 0;
   const subtotal = parseFloat(cart?.subtotal ?? 0);
   const FRETE = freightData ? parseFloat(freightData.preco_final ?? 0) : 0;
   const welcomeDiscount = cart?.eligible_for_welcome_discount
@@ -404,9 +414,19 @@ const PaymentPage = () => {
                 )}
 
                 {/* Items */}
+                {hasUnavailableItems && (
+                  <p className="rounded-[10px] bg-[#fff5f5] px-4 py-3 text-[13px] font-semibold text-[#cc0000]">
+                    {unavailableItems.length === 1
+                      ? 'Um item não está mais disponível para compra.'
+                      : `${unavailableItems.length} itens não estão mais disponíveis para compra.`}
+                    {' '}Remova-o{unavailableItems.length > 1 ? 's' : ''} para finalizar a compra.
+                  </p>
+                )}
                 <div className="rounded-[12px] bg-[#f7f7f7] p-4 space-y-4">
-                  {items.map((item) => (
-                    <div key={item.variation_id ?? item.id} className="flex gap-3">
+                  {items.map((item) => {
+                    const unavailable = item.is_sellable === false;
+                    return (
+                    <div key={item.variation_id ?? item.id} className={`flex gap-3 ${unavailable ? 'opacity-60' : ''}`}>
                       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[8px] bg-[#e8e8e8]">
                         {productImages[item.product_id] && (
                           <img src={productImages[item.product_id]} alt={item.product_name}
@@ -422,24 +442,30 @@ const PaymentPage = () => {
                           </button>
                         </div>
                         {item.size && <p className="text-[12px] text-black/50">Tamanho: {item.size}</p>}
+                        {unavailable && (
+                          <p className="text-[12px] font-semibold text-[#cc0000]">Indisponível para compra</p>
+                        )}
                         <div className="mt-1 flex items-center justify-between">
                           {item.is_promotion_active && <p className="text-sm text-black/50"><s>R$ {Number(item.base_price).toFixed(2)}</s> — {Math.round((1 - Number(item.unit_price) / Number(item.base_price)) * 100)}% de desconto</p>}
                           <p className="text-[15px] font-bold text-black">R$ {Number(item.unit_price).toFixed(2)}</p>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity - 1)}
-                              className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5">
+                              disabled={unavailable}
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5 disabled:opacity-40">
                               <Icon name="minus" className="h-3 w-3" />
                             </button>
                             <span className="w-5 text-center text-[14px] font-medium text-black">{item.quantity}</span>
                             <button onClick={() => handleQtyChange(item.variation_id ?? item.id, item.quantity + 1)}
-                              className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5">
+                              disabled={unavailable}
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5 disabled:opacity-40">
                               <Icon name="plus" className="h-3 w-3" />
                             </button>
                           </div>
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Totals */}
@@ -482,7 +508,7 @@ const PaymentPage = () => {
                   </p>
                 )}
                 <button type="button" onClick={handleCheckout}
-                  disabled={submitting || items.length === 0 || !selectedAddressId || (userProfile && !userProfile.phone_number)}
+                  disabled={submitting || items.length === 0 || hasUnavailableItems || !selectedAddressId || (userProfile && !userProfile.phone_number)}
                   className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/40">
                   {submitting ? 'Processando...' : 'Finalizar Compra'}
                 </button>
