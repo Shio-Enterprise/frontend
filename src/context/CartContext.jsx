@@ -5,6 +5,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const CartContext = createContext({ cartCount: 0, cartItems: [], refreshCart: () => {}, setCartData: () => {} });
 
+const toCount = (data) => {
+  const items = Array.isArray(data) ? data : (data.items ?? []);
+  return items.reduce((s, item) => s + (item.quantity ?? 1), 0);
+};
 
 export function CartProvider({ children }) {
   const [cartCount, setCartCount] = useState(0);

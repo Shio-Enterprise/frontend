@@ -421,7 +421,7 @@ function StockManagementDrawer({ id, refetchList }) {
       });
       if (selectedVarId === varId) setSelectedVarId(null);
       refetchProduct();
-    } catch {
+    } catch (e) {
       // silently ignore; product will still refetch
     } finally {
       setDeletingSizeId(null);
@@ -468,7 +468,7 @@ function StockManagementDrawer({ id, refetchList }) {
 
   const totalStock = product?.variations?.reduce((s, v) => s + (v.stock_quantity || 0), 0) ?? 0;
   const firstImage = product?.images?.[0]?.image ?? null;
-
+  const selectedVariation = product?.variations?.find((v) => v.id === selectedVarId);
   const entryReasons = ['COMPRA', 'DEVOLUCAO', 'AJUSTE', 'OUTRO'];
   const exitReasons = ['VENDA', 'PERDA', 'AJUSTE', 'OUTRO'];
   const reasons = kind === 'ENTRADA' ? entryReasons : exitReasons;

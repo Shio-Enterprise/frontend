@@ -22,9 +22,7 @@ const AddressesPage = () => {
         const data = await res.json();
         setAddresses(Array.isArray(data) ? data : data.results ?? []);
       }
-    } catch {
-      // ignore error
-    }
+    } catch {}
     finally {
       setLoading(false);
     }
