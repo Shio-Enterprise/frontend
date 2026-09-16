@@ -102,7 +102,9 @@ const PaymentPage = () => {
       const map = {};
       results.forEach((p) => { if (p?.id && p.images?.[0]?.image) map[p.id] = p.images[0].image; });
       setProductImages(map);
-    } catch {}
+    } catch {
+      // ignore error
+    }
   }, []);
 
   const fetchAddresses = useCallback(async () => {
@@ -119,7 +121,9 @@ const PaymentPage = () => {
         const def = list.find((a) => a.is_default) ?? list[0] ?? null;
         if (def) setSelectedAddressId(def.id);
       }
-    } catch {}
+    } catch {
+      // ignore error
+    }
     finally {
       setAddressesLoading(false);
     }
@@ -133,7 +137,9 @@ const PaymentPage = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (r.ok) setUserProfile(await r.json());
-    } catch {}
+    } catch {
+      // ignore error
+    }
   }, []);
 
   useEffect(() => {

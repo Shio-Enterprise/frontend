@@ -27,8 +27,6 @@ export default defineConfig([
       // Permitir re-export de lazy components em arquivos de rotas/contexto
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       // Downgrade de erros comuns em código legado para avisos
-      'no-unused-vars': 'warn',
-      'no-empty': 'warn',
       'preserve-caught-error': 'warn',
     },
   },
