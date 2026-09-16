@@ -10,6 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const DropsPage = () => {
   const { data: apiResponse, loading, error, refetch } = useApi('/api/catalog/drops/');
+  const { data: dropRevenueResponse } = useApi('/api/orders/dashboard/drop-revenue/');
   const [search, setSearch] = useState('');
   const [actionError, setActionError] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -30,9 +31,8 @@ const DropsPage = () => {
   };
 
   const formatReceita = (drop) => {
-    if (!drop.products || drop.products.length === 0) return '-';
-    const total = drop.products.reduce((sum, p) => sum + Number(p.base_price ?? 0), 0);
-    return `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    const metric = dropRevenueResponse?.find((item) => item.drop_id === drop.id);
+    return `R$ ${Number(metric?.revenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
   };
 
   const handleDelete = async () => {

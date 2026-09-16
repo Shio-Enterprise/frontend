@@ -204,9 +204,9 @@ export function QuantityControl() {
   );
 }
 
-export function AdminPanel({ children, className = '' }) {
+export function AdminPanel({ children, className = '', ...props }) {
   return (
-    <section className={`rounded-[18px] border border-black/20 bg-white ${className}`}>
+    <section {...props} className={`rounded-[18px] border border-black/20 bg-white ${className}`}>
       {children}
     </section>
   );

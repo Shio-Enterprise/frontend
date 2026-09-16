@@ -1,7 +1,15 @@
 import { AdminPanel, Icon } from './ShioDesign';
 
-const MetricCard = ({ label, value, change, icon, negative }) => (
-  <AdminPanel className="p-5 md:p-6">
+const MetricCard = ({ label, value, change, icon, negative, onClick }) => (
+  <AdminPanel
+    className={`p-5 md:p-6 ${onClick ? 'cursor-pointer transition hover:ring-2 hover:ring-black/15' : ''}`}
+    onClick={onClick}
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={onClick ? (event) => {
+      if (event.key === 'Enter' || event.key === ' ') onClick();
+    } : undefined}
+  >
     <div className="flex items-start justify-between">
       <div className="flex h-7 w-7 items-center justify-center bg-[#f0f0f0] text-lg font-bold text-black">
         {icon === '$' ? '$' : <Icon name={icon} className="h-5 w-5" />}
