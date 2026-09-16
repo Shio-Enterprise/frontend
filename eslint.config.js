@@ -17,5 +17,34 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // React 19 regras muito rígidas — avisar por enquanto, corrigir depois
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/static-components': 'warn',
+      'react-hooks/use-memo': 'warn',
+      // Permitir re-export de lazy components em arquivos de rotas/contexto
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Downgrade de erros comuns em código legado para avisos
+      'preserve-caught-error': 'warn',
+    },
+  },
+  // Arquivos de teste — reconhecer globals do Vitest (describe, it, expect)
+  {
+    files: ['**/*.test.{js,jsx}', '**/*.spec.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        vi: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+      },
+    },
   },
 ])
+

@@ -5,6 +5,10 @@ import AdminLoginPage from './index';
 import { useAuth } from '../../../context/AuthContext';
 
 vi.mock('../../../context/AuthContext');
+vi.mock('@react-oauth/google', () => ({
+  GoogleLogin: () => <div>Google Login Mock</div>,
+  useGoogleLogin: () => vi.fn(),
+}));
 
 describe('AdminLoginPage', () => {
   beforeEach(() => {
