@@ -117,8 +117,13 @@ export default function ReviewsPage() {
       .then((data) => {
         if (!ignore) setList({ key: requestKey, count: data.count, results: data.results, error: false });
       })
-      .catch(() => {
-        if (!ignore) setList({ key: requestKey, count: 0, results: [], error: true });
+      .catch((err) => {
+        if (ignore) return;
+        if (err?.response?.status === 404 && page > 1) {
+          setPage((current) => Math.max(1, current - 1));
+          return;
+        }
+        setList({ key: requestKey, count: 0, results: [], error: true });
       });
     return () => {
       ignore = true;

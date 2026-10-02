@@ -114,4 +114,18 @@ describe('ReviewsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Restaurar' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('A avaliação já está publicada.');
   });
+
+  it('volta uma página quando a página atual não existe mais (404)', async () => {
+    const many = Array.from({ length: 10 }, (_, n) => adminReview({ id: `r${n}`, comment: `Comentário ${n}` }));
+    getAdminReviews.mockResolvedValueOnce({ count: 11, next: 'x', previous: null, results: many });
+    mount();
+    await screen.findByText('Comentário 0');
+    getAdminReviews.mockRejectedValueOnce({ response: { status: 404, data: {} } });
+    getAdminReviews.mockResolvedValue({ count: 10, next: null, previous: null, results: many });
+    fireEvent.click(screen.getByRole('button', { name: 'Próxima' }));
+    await waitFor(() => expect(getAdminReviews).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
+    await waitFor(() => expect(getAdminReviews).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 })));
+    expect(await screen.findByText('Comentário 0')).toBeInTheDocument();
+    expect(screen.queryByText('Não foi possível carregar as avaliações.')).not.toBeInTheDocument();
+  });
 });
