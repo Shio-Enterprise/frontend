@@ -45,11 +45,36 @@ export function Icon({ name, className = 'h-5 w-5' }) {
   return <svg {...common}>{paths[name]}</svg>;
 }
 
-export function Rating({ value }) {
+const ratingFormatter = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+function Star({ fill }) {
   return (
-    <div className="flex items-center gap-2 text-[13px] text-black/55">
-      <span className="text-base leading-none text-[#ffc633]">★★★★★</span>
-      <span>{value}</span>
+    <span data-star={fill} aria-hidden="true" className="relative inline-block leading-none">
+      <span className="text-black/15">★</span>
+      {fill !== 'empty' && (
+        <span className={`absolute inset-y-0 left-0 overflow-hidden text-[#ffc633] ${fill === 'half' ? 'w-1/2' : 'w-full'}`}>★</span>
+      )}
+    </span>
+  );
+}
+
+export function Rating({ value, count }) {
+  const numeric = Math.min(5, Math.max(0, Number(value) || 0));
+  const full = Math.floor(numeric);
+  const half = numeric - full >= 0.5;
+  const fills = Array.from({ length: 5 }, (_, index) => {
+    if (index < full) return 'full';
+    if (index === full && half) return 'half';
+    return 'empty';
+  });
+  const label = ratingFormatter.format(numeric);
+
+  return (
+    <div role="img" aria-label={`Nota ${label} de 5`} className="flex items-center gap-2 text-[13px] text-black/55">
+      <span className="flex text-base">
+        {fills.map((fill, index) => <Star key={index} fill={fill} />)}
+      </span>
+      <span aria-hidden="true">{count == null ? label : `${label} (${count})`}</span>
     </div>
   );
 }
@@ -71,6 +96,11 @@ export function ProductCard({ product }) {
         )}
       </Link>
       <h3 className="mt-4 text-[16px] font-semibold leading-tight text-black">{product.name}</h3>
+      {product.ratingCount > 0 && (
+        <div className="mt-2">
+          <Rating value={product.ratingAvg} count={product.ratingCount} />
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-[20px] font-bold text-black">{product.price}</span>
         {product.oldPrice && <span className="text-[18px] font-bold text-black/35 line-through">{product.oldPrice}</span>}

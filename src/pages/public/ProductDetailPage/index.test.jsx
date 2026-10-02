@@ -130,6 +130,15 @@ describe('ProductDetailPage', () => {
     fetch.mock.calls.forEach(([, options]) => expect(options.signal.aborted).toBe(true));
   });
 
+  it('mostra a nota das recomendações avaliadas', async () => {
+    fetch.mockImplementation((url) => Promise.resolve(url.includes('/recommendations/')
+      ? response({ count: 1, next: null, previous: null, results: [{ ...product(25), rating_avg: '4.00', rating_count: 2 }] })
+      : response(product('1'))));
+    mount();
+    await screen.findByText('Produto 25');
+    expect(section().getByRole('img', { name: 'Nota 4,0 de 5' })).toBeInTheDocument();
+  });
+
   it('mostra produto não encontrado quando o detalhe retorna 404', async () => {
     fetch.mockImplementation((url) => Promise.resolve(
       url.includes('/recommendations/') ? recommendations([]) : { ok: false, status: 404 },

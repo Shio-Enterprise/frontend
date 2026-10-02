@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import apiClient from '../../lib/axios';
-import { NewsletterBand, ProductCard } from './ShioDesign';
+import { NewsletterBand, ProductCard, Rating } from './ShioDesign';
 
 vi.mock('../../lib/axios', () => ({
   default: { post: vi.fn() },
@@ -16,6 +16,51 @@ describe('ProductCard', () => {
       </BrowserRouter>
     );
     expect(screen.queryByText('★★★★★')).not.toBeInTheDocument();
+  });
+});
+
+const stars = (container, fill) => container.querySelectorAll(`[data-star="${fill}"]`).length;
+
+describe('Rating', () => {
+  it('4,3 mostra 4 estrelas cheias e 1 vazia', () => {
+    const { container } = render(<Rating value="4.30" count={12} />);
+    expect(screen.getByRole('img', { name: 'Nota 4,3 de 5' })).toBeInTheDocument();
+    expect(screen.getByText('4,3 (12)')).toBeInTheDocument();
+    expect([stars(container, 'full'), stars(container, 'half'), stars(container, 'empty')]).toEqual([4, 0, 1]);
+  });
+
+  it('4,5 mostra 4 cheias e meia', () => {
+    const { container } = render(<Rating value={4.5} />);
+    expect(screen.getByRole('img', { name: 'Nota 4,5 de 5' })).toBeInTheDocument();
+    expect(screen.getByText('4,5')).toBeInTheDocument();
+    expect([stars(container, 'full'), stars(container, 'half'), stars(container, 'empty')]).toEqual([4, 1, 0]);
+  });
+
+  it('valor ausente vira 0 e nota inteira mostra 5 cheias', () => {
+    const empty = render(<Rating value={null} />);
+    expect(stars(empty.container, 'empty')).toBe(5);
+    empty.unmount();
+    const { container } = render(<Rating value={5} />);
+    expect(stars(container, 'full')).toBe(5);
+  });
+});
+
+describe('ProductCard rating', () => {
+  const renderCard = (product) => render(
+    <BrowserRouter>
+      <ProductCard product={{ id: '1', name: 'Camiseta', price: 'R$ 99,90', ...product }} />
+    </BrowserRouter>,
+  );
+
+  it('mostra a nota quando o produto tem avaliações', () => {
+    renderCard({ ratingAvg: '4.50', ratingCount: 3 });
+    expect(screen.getByRole('img', { name: 'Nota 4,5 de 5' })).toBeInTheDocument();
+    expect(screen.getByText('4,5 (3)')).toBeInTheDocument();
+  });
+
+  it('não mostra estrelas sem avaliações', () => {
+    renderCard({ ratingAvg: '0.00', ratingCount: 0 });
+    expect(screen.queryByRole('img', { name: /^Nota/ })).not.toBeInTheDocument();
   });
 });
 
