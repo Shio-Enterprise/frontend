@@ -274,4 +274,26 @@ describe("CategoryPage server-side", () => {
       screen.getAllByRole("button", { name: "Aplicar Filtros" }),
     ).toHaveLength(1);
   });
+
+  it("ordena por mais bem avaliados e volta para a página 1", async () => {
+    mount("/category/all?page=2");
+    await screen.findByText("25 produtos");
+    fireEvent.change(screen.getAllByRole("combobox")[0], {
+      target: { value: "rating" },
+    });
+    await waitFor(() =>
+      expect(queries().at(-1).get("ordering")).toBe("-rating_avg"),
+    );
+    expect(queries().at(-1).get("page")).toBe("1");
+  });
+
+  it("restaura a ordenação por avaliação de um link", async () => {
+    mount("/category/all?ordering=-rating_avg");
+    await screen.findByText("25 produtos");
+    expect(queries().at(-1).get("ordering")).toBe("-rating_avg");
+    expect(screen.getAllByRole("combobox")[0]).toHaveValue("rating");
+    expect(
+      screen.getAllByRole("option", { name: "Mais bem avaliados" }).length,
+    ).toBeGreaterThan(0);
+  });
 });

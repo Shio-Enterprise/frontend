@@ -33,6 +33,7 @@ const ORDERING = {
   "price-asc": "base_price",
   "price-desc": "-base_price",
   sales: "-sales_count",
+  rating: "-rating_avg",
 };
 
 const COLOR_HEX = {
@@ -501,6 +502,7 @@ const CategoryCatalog = ({ category, search }) => {
         <option value="price-asc">Menor preço</option>
         <option value="price-desc">Maior preço</option>
         <option value="sales">Mais vendidos</option>
+        <option value="rating">Mais bem avaliados</option>
       </select>
     </div>
   );
