@@ -44,6 +44,17 @@ describe('Rating', () => {
     const { container } = render(<Rating value={5} />);
     expect(stars(container, 'full')).toBe(5);
   });
+
+  it.each([
+    [4.45, 'Nota 4,5 de 5', [4, 1, 0]],
+    [4.25, 'Nota 4,3 de 5', [4, 0, 1]],
+    [4.96, 'Nota 5,0 de 5', [5, 0, 0]],
+    [7, 'Nota 5,0 de 5', [5, 0, 0]],
+  ])('estrelas e texto concordam para %s', (value, name, expected) => {
+    const { container } = render(<Rating value={value} />);
+    expect(screen.getByRole('img', { name })).toBeInTheDocument();
+    expect([stars(container, 'full'), stars(container, 'half'), stars(container, 'empty')]).toEqual(expected);
+  });
 });
 
 describe('ProductCard rating', () => {

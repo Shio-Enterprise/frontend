@@ -61,14 +61,15 @@ function Star({ fill }) {
 
 export function Rating({ value, count }) {
   const numeric = Math.min(5, Math.max(0, Number(value) || 0));
-  const full = Math.floor(numeric);
-  const half = numeric - full >= 0.5;
+  const rounded = Math.round(numeric * 10) / 10;
+  const full = Math.floor(rounded);
+  const half = rounded - full >= 0.5;
   const fills = Array.from({ length: 5 }, (_, index) => {
     if (index < full) return 'full';
     if (index === full && half) return 'half';
     return 'empty';
   });
-  const label = ratingFormatter.format(numeric);
+  const label = ratingFormatter.format(rounded);
 
   return (
     <div role="img" aria-label={`Nota ${label} de 5`} className="flex items-center gap-2 text-[13px] text-black/55">
