@@ -1,15 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { removalText } from '../../lib/reviewLabels';
 import { createReview, deleteReview, reviewErrorMessage, updateReview } from '../../lib/reviewsApi';
 import ReviewForm from './ReviewForm';
 
 export default function ReviewModal({ productId, productName, review = null, onClose, onSaved, onDeleted }) {
+  const dialogRef = useRef(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const isEdit = Boolean(review);
   const isRemoved = review?.status === 'REMOVED';
   const submitLabel = !isEdit ? 'Publicar avaliação' : isRemoved ? 'Salvar e republicar' : 'Salvar alterações';
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   const handleSubmit = async (data) => {
     setSubmitting(true);
@@ -43,10 +48,12 @@ export default function ReviewModal({ productId, productName, review = null, onC
       }}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="review-modal-title"
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[18px] bg-white p-6"
+        className="max-h-[90vh] outline-none w-full max-w-lg overflow-y-auto rounded-[18px] bg-white p-6"
       >
         <h2 id="review-modal-title" className="text-[20px] font-bold text-black">
           {isEdit ? 'Editar avaliação' : 'Avaliar produto'}

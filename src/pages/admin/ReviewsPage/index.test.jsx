@@ -50,6 +50,14 @@ describe('ReviewsPage', () => {
     await waitFor(() => expect(getAdminReviews).toHaveBeenLastCalledWith(expect.objectContaining({ product: undefined })));
   });
 
+  it('move o foco para o modal de remoção e fecha com Escape', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover' }));
+    expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Remover avaliação' }));
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('exige detalhes ao remover com motivo "Outro"', async () => {
     mount();
     fireEvent.click(await screen.findByRole('button', { name: 'Remover' }));

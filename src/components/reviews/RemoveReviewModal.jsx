@@ -1,14 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { REMOVAL_NOTE_MAX, REMOVAL_REASONS } from '../../lib/reviewLabels';
 import { removeReview, reviewErrorMessage } from '../../lib/reviewsApi';
 
 export default function RemoveReviewModal({ review, onClose, onRemoved }) {
+  const dialogRef = useRef(null);
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const noteRequired = reason === 'OTHER';
   const canSubmit = Boolean(reason) && (!noteRequired || note.trim() !== '') && !submitting;
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -32,11 +37,13 @@ export default function RemoveReviewModal({ review, onClose, onRemoved }) {
       }}
     >
       <form
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="remove-review-title"
         onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-[18px] bg-white p-6"
+        className="w-full max-w-md outline-none rounded-[18px] bg-white p-6"
       >
         <h2 id="remove-review-title" className="text-[20px] font-bold text-black">Remover avaliação</h2>
         <p className="mt-1 text-[14px] text-black/55">{review.author_name} · {review.product_name}</p>

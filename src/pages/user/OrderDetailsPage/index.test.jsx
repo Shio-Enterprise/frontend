@@ -113,6 +113,14 @@ describe('OrderDetailsPage', () => {
     expect(within(modal).getByRole('button', { name: 'Salvar alterações' })).toBeDisabled();
   });
 
+  it('move o foco para o modal e fecha com Escape', async () => {
+    mount([item()]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Avaliar' }));
+    expect(document.activeElement).toBe(dialog('Avaliar produto'));
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('mostra o erro do backend e mantém o modal aberto', async () => {
     mount([item()]);
     fireEvent.click(await screen.findByRole('button', { name: 'Avaliar' }));
