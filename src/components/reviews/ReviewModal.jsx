@@ -66,6 +66,12 @@ export default function ReviewModal({ productId, productName, review = null, onC
           </p>
         )}
 
+        {isEdit && review.rating == null && (
+          <p role="note" className="mt-4 rounded-[10px] bg-[#fff8e1] px-4 py-3 text-[13px] text-[#856404]">
+            Não foi possível carregar sua avaliação. Ao salvar, o comentário e o caimento anteriores serão substituídos.
+          </p>
+        )}
+
         <div className="mt-5">
           <ReviewForm
             initialReview={review}

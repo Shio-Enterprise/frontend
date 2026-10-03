@@ -400,6 +400,7 @@ const OrderDetailsPage = () => {
 
       {reviewItem && (
         <ReviewModal
+          key={reviewFor(reviewItem)?.rating != null ? 'full' : 'stub'}
           productId={reviewItem.product_id}
           productName={reviewItem.product_name}
           review={reviewFor(reviewItem)}

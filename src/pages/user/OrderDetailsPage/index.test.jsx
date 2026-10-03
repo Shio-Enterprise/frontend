@@ -43,6 +43,7 @@ const mount = (items) => {
     </MemoryRouter>,
   );
 };
+const WARNING = 'Não foi possível carregar sua avaliação. Ao salvar, o comentário e o caimento anteriores serão substituídos.';
 const dialog = (name) => screen.getByRole('dialog', { name });
 
 beforeEach(() => vi.clearAllMocks());
@@ -111,6 +112,22 @@ describe('OrderDetailsPage', () => {
     const modal = dialog('Editar avaliação');
     expect(within(modal).getAllByRole('radio').every((radio) => radio.getAttribute('aria-checked') === 'false')).toBe(true);
     expect(within(modal).getByRole('button', { name: 'Salvar alterações' })).toBeDisabled();
+    expect(within(modal).getByRole('note')).toHaveTextContent(WARNING);
+  });
+
+  it('recarrega o formulário quando a avaliação termina de carregar com o modal aberto', async () => {
+    let resolveMine;
+    getAllMyReviews.mockReturnValueOnce(new Promise((resolve) => { resolveMine = resolve; }));
+    mount([item({ review_id: 'r1' })]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar avaliação' }));
+    expect(within(dialog('Editar avaliação')).getByRole('note')).toHaveTextContent(WARNING);
+    resolveMine([mine({ rating: 2, comment: 'Compre em x.com' })]);
+    await waitFor(() => expect(
+      within(dialog('Editar avaliação')).getByRole('radio', { name: '2 estrelas' }),
+    ).toHaveAttribute('aria-checked', 'true'));
+    const modal = dialog('Editar avaliação');
+    expect(within(modal).getByLabelText(/Comentário/)).toHaveValue('Compre em x.com');
+    expect(within(modal).queryByRole('note')).not.toBeInTheDocument();
   });
 
   it('move o foco para o modal e fecha com Escape', async () => {
