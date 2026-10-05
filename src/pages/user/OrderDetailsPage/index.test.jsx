@@ -94,6 +94,17 @@ describe('OrderDetailsPage', () => {
     expect(screen.getByRole('button', { name: 'Editar avaliação' })).toBeInTheDocument();
   });
 
+  it('não duplica a pontuação quando os detalhes da remoção terminam em ponto', async () => {
+    getAllMyReviews.mockResolvedValueOnce([
+      mine({ status: 'REMOVED', removal_reason_label: 'Outro', removal_note: 'Pode reenviar sem o link.' }),
+    ]);
+    mount([item({ review_id: 'r1' })]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar e republicar' }));
+    expect(within(dialog('Editar avaliação')).getByText(
+      'Removida pela loja: Outro — Pode reenviar sem o link. Ao salvar, ela volta a ser publicada.',
+    )).toBeInTheDocument();
+  });
+
   it('atualiza todos os itens do mesmo produto depois de avaliar', async () => {
     mount([item(), item({ id: 'i2', sku_snapshot: 'CAM-G' })]);
     const [first] = await screen.findAllByRole('button', { name: 'Avaliar' });

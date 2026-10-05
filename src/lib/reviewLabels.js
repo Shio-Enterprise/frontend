@@ -25,6 +25,11 @@ export function removalText(review) {
     : `Removida pela loja: ${reason}`;
 }
 
+export function asSentence(text) {
+  const trimmed = text.trimEnd();
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
 export function formatReviewDate(iso) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }

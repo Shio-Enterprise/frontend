@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { removalText } from '../../lib/reviewLabels';
+import { asSentence, removalText } from '../../lib/reviewLabels';
 import { createReview, deleteReview, reviewErrorMessage, updateReview } from '../../lib/reviewsApi';
 import ReviewForm from './ReviewForm';
 
@@ -62,7 +62,7 @@ export default function ReviewModal({ productId, productName, review = null, onC
 
         {isRemoved && (
           <p className="mt-4 rounded-[10px] bg-[#fff5f5] px-4 py-3 text-[13px] text-[#cc0000]">
-            {removalText(review)}. Ao salvar, ela volta a ser publicada.
+            {asSentence(removalText(review))} Ao salvar, ela volta a ser publicada.
           </p>
         )}
 
