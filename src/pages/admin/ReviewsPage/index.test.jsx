@@ -74,7 +74,7 @@ describe('ReviewsPage', () => {
     fireEvent.click(confirm);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(removeReview).toHaveBeenCalledWith('r1', { reason: 'OTHER', note: 'Link para concorrente' });
-    expect(getAdminReviews).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(getAdminReviews).toHaveBeenCalledTimes(2));
   });
 
   it('remove com motivo comum sem detalhes', async () => {
