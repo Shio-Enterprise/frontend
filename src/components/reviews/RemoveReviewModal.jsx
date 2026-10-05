@@ -79,18 +79,18 @@ export default function RemoveReviewModal({ review, onClose, onRemoved }) {
 
         {error && <p role="alert" className="mt-3 text-[13px] text-[#cc0000]">{error}</p>}
 
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="h-11 rounded-full border border-black/15 px-6 text-sm font-medium text-black transition hover:border-black"
+            className="h-11 whitespace-nowrap rounded-full border border-black/15 px-6 text-sm font-medium text-black transition hover:border-black"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={!canSubmit}
-            className="h-11 rounded-full bg-[#ff3333] px-6 text-sm font-medium text-white transition hover:bg-[#e02020] disabled:opacity-40"
+            className="h-11 whitespace-nowrap rounded-full bg-[#ff3333] px-6 text-sm font-medium text-white transition hover:bg-[#e02020] disabled:opacity-40"
           >
             {submitting ? 'Removendo...' : 'Remover da loja'}
           </button>

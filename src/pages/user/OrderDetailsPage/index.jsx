@@ -181,7 +181,7 @@ const OrderDetailsPage = () => {
                     <p className="text-[13px] text-black/40">SKU: {item.sku_snapshot}</p>
                     <ReviewAction item={item} review={reviewFor(item)} onOpen={() => setReviewItem(item)} />
                   </div>
-                  <div className="text-right">
+                  <div className="shrink-0 whitespace-nowrap text-right">
                     <p className="text-[14px] font-semibold text-black">
                       {item.quantity}× R$ {Number(item.unit_price).toFixed(2)}
                     </p>

@@ -39,11 +39,11 @@ export default function RatingInput({ value, onChange, label = 'Nota' }) {
           tabIndex={n === tabStop ? 0 : -1}
           onClick={() => select(n)}
           onKeyDown={handleKeyDown}
-          className={`rounded text-[32px] leading-none transition focus:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+          className={`flex h-11 w-11 items-center justify-center rounded transition focus:outline-none focus-visible:ring-2 focus-visible:ring-black ${
             value && n <= value ? 'text-[#ffc633]' : 'text-black/15 hover:text-[#ffc633]/60'
           }`}
         >
-          ★
+          <span aria-hidden="true" className="text-[32px] leading-none">★</span>
         </button>
       ))}
     </div>

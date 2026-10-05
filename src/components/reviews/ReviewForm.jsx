@@ -66,12 +66,12 @@ export default function ReviewForm({
 
       {error && <p role="alert" className="text-[13px] text-[#cc0000]">{error}</p>}
 
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-wrap justify-end gap-3">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="h-11 rounded-full border border-black/15 px-6 text-sm font-medium text-black transition hover:border-black"
+            className="h-11 whitespace-nowrap rounded-full border border-black/15 px-6 text-sm font-medium text-black transition hover:border-black"
           >
             Cancelar
           </button>
@@ -79,7 +79,7 @@ export default function ReviewForm({
         <button
           type="submit"
           disabled={!rating || submitting}
-          className="h-11 rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40"
+          className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40"
         >
           {submitting ? 'Enviando...' : submitLabel}
         </button>
