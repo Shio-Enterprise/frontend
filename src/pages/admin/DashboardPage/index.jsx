@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, AdminTitle, PageMarker } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
@@ -12,6 +12,7 @@ const DashboardPage = () => {
   const [filters, setFilters] = useState({ period: 'monthly', search: '' });
   const [drillDown, setDrillDown] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -44,23 +45,30 @@ const DashboardPage = () => {
     const fetchAll = async () => {
       try {
         const token = getAccessToken();
-        if (!token) { navigate('/admin/login'); return; }
+        if (!token) {
+          navigate('/login', { state: { from: location }, replace: true });
+          return;
+        }
 
         const headers = { Authorization: `Bearer ${token}` };
         const base = import.meta.env.VITE_API_URL;
 
         const summaryRes = await fetch(`${base}/api/orders/dashboard/summary/?${query}`, { headers });
 
-        if (summaryRes.status === 401 || summaryRes.status === 403) {
+        if (summaryRes.status === 401) {
           clearAuthTokens();
-          navigate('/admin/login', {
+          navigate('/login', {
             state: {
-              error: summaryRes.status === 403
-                ? "Acesso negado. Esta conta não possui permissão de administrador."
-                : "Sua sessão expirou. Faça login novamente."
+              from: location,
+              error: "Sua sessão expirou. Faça login novamente.",
             },
-            replace: true
+            replace: true,
           });
+          return;
+        }
+
+        if (summaryRes.status === 403) {
+          navigate('/', { replace: true });
           return;
         }
 
@@ -73,7 +81,7 @@ const DashboardPage = () => {
     };
 
     fetchAll();
-  }, [navigate, query]);
+  }, [location, navigate, query]);
 
   if (loading) {
     return (

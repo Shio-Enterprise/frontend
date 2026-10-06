@@ -11,7 +11,6 @@ const SignUpPage = () => {
   const { registerWithPassword } = useAuth();
   const { handleGoogleLogin, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth({
     onSuccessRedirect: '/my-account',
-    requireAdmin: false,
   });
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

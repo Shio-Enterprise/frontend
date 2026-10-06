@@ -8,17 +8,19 @@ import logo from '../../../assets/logo/logo.svg';
 const LoginPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const from = location.state?.from?.pathname ?? '/my-account';
+  const requestedLocation = location.state?.from;
+  const from = requestedLocation
+    ? `${requestedLocation.pathname}${requestedLocation.search ?? ''}${requestedLocation.hash ?? ''}`
+    : '/my-account';
   const { loginWithPassword } = useAuth();
   const { handleGoogleLogin, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth({
     onSuccessRedirect: from,
-    requireAdmin: false,
   });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const displayedError = error || googleError;
+  const displayedError = error || googleError || location.state?.error;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
