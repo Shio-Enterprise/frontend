@@ -5,34 +5,73 @@ import logo from '../../../assets/logo/logo.svg';
 import { Icon } from '../../ui/ShioDesign';
 
 const navItems = [
-  { label: 'Dashboard', to: '/admin/dashboard', icon: 'grid'  },
-  { label: 'Drops',     to: '/admin/drops',     icon: 'tag'   },
-  { label: 'Produtos',  to: '/admin/products',  icon: 'box'   },
-  { label: 'Pedidos',   to: '/admin/orders',    icon: 'bag'   },
-  { label: 'Clientes',  to: '/admin/customers', icon: 'users' },
+  {
+    label: 'Dashboard',
+    to: '/admin/dashboard',
+    icon: 'grid',
+    matches: ['/admin/dashboard'],
+    exact: true,
+  },
+  {
+    label: 'Drops',
+    to: '/admin/drops',
+    icon: 'tag',
+    matches: ['/admin/drops', '/admin/new-drop', '/admin/edit-drop'],
+  },
+  {
+    label: 'Produtos',
+    to: '/admin/products',
+    icon: 'box',
+    matches: ['/admin/products', '/admin/new-product', '/admin/edit-product', '/admin/stock'],
+  },
+  {
+    label: 'Pedidos',
+    to: '/admin/orders',
+    icon: 'bag',
+    matches: ['/admin/orders'],
+  },
+  {
+    label: 'Clientes',
+    to: '/admin/customers',
+    icon: 'users',
+    matches: ['/admin/customers'],
+  },
 ];
 
 function isActive(item, pathname) {
-  if (item.to === '/admin/dashboard') return pathname === item.to;
-  return pathname.startsWith(item.to);
+  if (item.exact) return item.matches.includes(pathname);
+  return item.matches.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+function getUserIdentity(user) {
+  const name =
+    user?.name ||
+    user?.full_name ||
+    user?.first_name ||
+    user?.username ||
+    user?.email ||
+    'Administrador';
+
+  const email = user?.email && user.email !== name ? user.email : null;
+
+  return { name, email };
 }
 
 export default function AdminNavbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const currentSection = navItems.find((item) => isActive(item, pathname)) ?? navItems[0];
+  const identity = getUserIdentity(user);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login', { replace: true });
   };
 
   return (
     <>
-      {/* ══════════════════════════════════════════
-          DESKTOP sidebar (hidden on mobile)
-      ══════════════════════════════════════════ */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-[290px] lg:flex-col lg:border-r lg:border-black/20 lg:bg-white">
         <div className="flex h-[128px] shrink-0 flex-col items-center justify-center border-b border-black/20">
           <Link to="/admin/dashboard" className="flex flex-col items-center">
@@ -41,14 +80,18 @@ export default function AdminNavbar() {
           </Link>
         </div>
 
-        <nav className="space-y-5 px-5 py-6">
+        <nav className="space-y-5 px-5 py-6" aria-label="Navegação administrativa">
           {navItems.map((item) => {
             const active = isActive(item, pathname);
             return (
-              <Link key={item.to} to={item.to}
+              <Link
+                key={item.to}
+                to={item.to}
+                aria-current={active ? 'page' : undefined}
                 className={`flex h-14 items-center gap-5 rounded-[16px] border px-5 text-[20px] ${
                   active ? 'border-black/20 bg-[#f0f0f0]' : 'border-transparent hover:bg-[#f7f7f7]'
-                }`}>
+                }`}
+              >
                 <Icon name={item.icon} className={`h-5 w-5 ${active ? 'text-[#c5a100]' : 'text-black'}`} />
                 {item.label}
               </Link>
@@ -57,13 +100,35 @@ export default function AdminNavbar() {
         </nav>
 
         <div className="mt-auto px-5 pb-8">
-          <div className="border-t border-black/15 pt-6">
+          <div className="mb-5 rounded-[16px] border border-black/10 bg-[#f7f7f7] px-4 py-4" data-testid="admin-user-summary">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black text-white">
+                <Icon name="user" className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[14px] font-semibold text-black" data-testid="admin-user-name">
+                  {identity.name}
+                </p>
+                {identity.email && (
+                  <p className="truncate text-[12px] text-black/55" data-testid="admin-user-email">
+                    {identity.email}
+                  </p>
+                )}
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-black/45">Administrador</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-black/15 pt-5">
             <Link to="/" className="flex h-12 items-center gap-5 text-[18px] text-black">
               <Icon name="arrowLeft" className="h-5 w-5" />
-              Voltar para Loja
+              Voltar para loja
             </Link>
-            <button type="button" onClick={handleLogout}
-              className="mt-3 flex h-12 items-center gap-5 text-[18px] text-[#ff3333]">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="mt-3 flex h-12 items-center gap-5 text-[18px] text-[#ff3333]"
+            >
               <Icon name="logout" className="h-5 w-5" />
               Sair
             </button>
@@ -71,13 +136,9 @@ export default function AdminNavbar() {
         </div>
       </aside>
 
-      {/* ══════════════════════════════════════════
-          MOBILE header + tab bar (hidden on lg+)
-      ══════════════════════════════════════════ */}
       <div className="lg:hidden">
-        {/* Top header */}
         <div className="flex h-[52px] items-center justify-between border-b border-black/10 bg-white px-4">
-          <button type="button" onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
+          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label="Menu administrativo">
             <Icon name={menuOpen ? 'close' : 'menu'} className="h-5 w-5" />
           </button>
           <Link to="/admin/dashboard" className="flex items-center gap-1.5">
@@ -86,49 +147,73 @@ export default function AdminNavbar() {
           <span className="text-[13px] font-semibold uppercase tracking-widest text-black/55">Admin</span>
         </div>
 
-        {/* Slide-down menu: Voltar + Sair */}
         {menuOpen && (
           <div className="border-b border-black/10 bg-white px-4 py-3">
-            <Link to="/" onClick={() => setMenuOpen(false)}
-              className="flex h-10 items-center gap-3 text-[14px] text-black">
+            <div className="mb-2 flex items-center gap-3 border-b border-black/10 pb-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-white">
+                <Icon name="user" className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold text-black">{identity.name}</p>
+                {identity.email && <p className="truncate text-[11px] text-black/50">{identity.email}</p>}
+              </div>
+            </div>
+            <Link
+              to="/"
+              onClick={() => setMenuOpen(false)}
+              className="flex h-10 items-center gap-3 text-[14px] text-black"
+            >
               <Icon name="arrowLeft" className="h-4 w-4" />
-              Voltar para Loja
+              Voltar para loja
             </Link>
-            <button type="button" onClick={() => { setMenuOpen(false); handleLogout(); }}
-              className="flex h-10 items-center gap-3 text-[14px] text-[#ff3333]">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                handleLogout();
+              }}
+              className="flex h-10 items-center gap-3 text-[14px] text-[#ff3333]"
+            >
               <Icon name="logout" className="h-4 w-4" />
               Sair
             </button>
           </div>
         )}
 
-        {/* Tab bar */}
-        <div className="flex border-b border-black/10 bg-white">
+        <nav className="flex border-b border-black/10 bg-white" aria-label="Navegação administrativa">
           {navItems.map((item) => {
             const active = isActive(item, pathname);
             return (
-              <Link key={item.to} to={item.to} onClick={() => setMenuOpen(false)}
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => setMenuOpen(false)}
+                aria-current={active ? 'page' : undefined}
                 className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition ${
                   active ? 'border-b-2 border-black text-black' : 'text-black/35'
-                }`}>
+                }`}
+              >
                 <Icon name={item.icon} className={`h-[18px] w-[18px] ${active ? 'text-black' : ''}`} />
                 {item.label}
               </Link>
             );
           })}
-        </div>
+        </nav>
       </div>
 
-      {/* Desktop breadcrumb header */}
       <header className="hidden border-b border-black/20 bg-white lg:ml-[290px] lg:block">
-        <div className="flex h-[128px] items-center px-14">
-          <nav className="text-[20px]">
+        <div className="flex h-[128px] items-center justify-between px-14">
+          <nav className="text-[20px]" aria-label="Localização no painel">
             <span className="text-black/55">Admin</span>
             <span className="mx-2 text-black">/</span>
-            <span className="font-semibold text-black">
-              {navItems.find((n) => isActive(n, pathname))?.label ?? 'Dashboard'}
+            <span className="font-semibold text-black" data-testid="admin-current-section">
+              {currentSection.label}
             </span>
           </nav>
+          <div className="text-right">
+            <p className="max-w-[260px] truncate text-[14px] font-semibold text-black">{identity.name}</p>
+            <p className="text-[12px] text-black/45">Administrador</p>
+          </div>
         </div>
       </header>
     </>
