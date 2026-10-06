@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../../../lib/axios';
 import logo from '../../../assets/logo/logo.svg';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +16,7 @@ const ForgotPasswordPage = () => {
     setSuccess(false);
 
     try {
-      await axios.post(`${API_URL}/auth/password-reset/`, { email });
+      await apiClient.post('/auth/password-reset/', { email });
       setSuccess(true);
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao solicitar redefinição. Tente novamente mais tarde.');

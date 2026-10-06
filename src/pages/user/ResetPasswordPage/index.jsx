@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../../../lib/axios';
 import logo from '../../../assets/logo/logo.svg';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const ResetPasswordPage = () => {
   const { uid, token } = useParams();
@@ -28,7 +26,7 @@ const ResetPasswordPage = () => {
     }
 
     try {
-      await axios.post(`${API_URL}/auth/password-reset-confirm/`, {
+      await apiClient.post('/auth/password-reset-confirm/', {
         uidb64: uid,
         token: token,
         new_password: newPassword
