@@ -35,9 +35,21 @@ const writeStorage = (key, value) => {
   }
 };
 
+const removeStorage = (key) => {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Sem armazenamento disponível não há o que remover.
+  }
+};
+
 export const getAnalyticsConsent = () => readStorage(CONSENT_KEY);
 
-export const setAnalyticsConsent = (value) => writeStorage(CONSENT_KEY, value);
+// Ao recusar, o identificador anônimo também é apagado: nada mais fica guardado no navegador.
+export const setAnalyticsConsent = (value) => {
+  writeStorage(CONSENT_KEY, value);
+  if (value !== CONSENT_GRANTED) removeStorage(ANONYMOUS_ID_KEY);
+};
 
 export const getAnonymousId = () => {
   let id = readStorage(ANONYMOUS_ID_KEY);
@@ -46,6 +58,26 @@ export const getAnonymousId = () => {
     writeStorage(ANONYMOUS_ID_KEY, id);
   }
   return id;
+};
+
+/**
+ * Após o login, vincula à conta a navegação feita antes do login neste navegador.
+ * Só age com consentimento e quando há identificador anônimo e token.
+ */
+export const linkAnonymousEvents = () => {
+  if (getAnalyticsConsent() !== CONSENT_GRANTED) return;
+  const anonymousId = readStorage(ANONYMOUS_ID_KEY);
+  const token = getAccessToken();
+  if (!anonymousId || !token) return;
+
+  fetch(`${API_BASE_URL}/api/analytics/link/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ anonymous_id: anonymousId }),
+  }).catch(() => {});
 };
 
 /**

@@ -183,6 +183,7 @@ const CustomersPage = () => {
                     items={[
                       { label: 'Ver perfil', to: `/admin/customers/${customer.id}` },
                       { label: 'Ver pedidos', to: `/admin/orders?customer=${customer.id}` },
+                      { label: 'Ver comportamento', to: `/admin/dashboard?usuario=${customer.id}` },
                       { label: 'Editar cliente', to: `/admin/customers/${customer.id}/edit` },
                       { separator: true, key: 'sep' },
                       { label: 'Excluir cliente', danger: true, icon: 'trash', onClick: () => {} },

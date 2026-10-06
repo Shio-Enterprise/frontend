@@ -2,6 +2,7 @@ import { createContext, useState, useContext, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from '../lib/authToken';
 import apiClient from '../lib/axios';
+import { linkAnonymousEvents } from '../lib/analytics';
 
 const AuthContext = createContext(null);
 
@@ -46,11 +47,12 @@ export const AuthProvider = ({ children }) => {
     setAccessToken(access);
     setUser(userData);
     setIsAdmin(
-      userData.is_admin || 
-      userData.is_staff || 
-      userData.is_superuser || 
+      userData.is_admin ||
+      userData.is_staff ||
+      userData.is_superuser ||
       false
     );
+    linkAnonymousEvents();
   };
 
   const logout = async () => {
