@@ -18,4 +18,10 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  // The route table intentionally exports lazy React elements; this config module
+  // is the single, narrow exception to the component export refresh check.
+  {
+    files: ['src/routes/index.jsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])

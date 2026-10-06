@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { describe, expect, it, vi } from 'vitest';
+import { BrowserRouter, MemoryRouter, useLocation } from 'react-router-dom';
 import apiClient from '../../lib/axios';
 import { NewsletterBand, ProductCard } from './ShioDesign';
+
+function LocationProbe() { return <span data-testid="location">{useLocation().pathname}</span>; }
 
 vi.mock('../../lib/axios', () => ({
   default: { post: vi.fn() },
@@ -16,6 +19,17 @@ describe('ProductCard', () => {
       </BrowserRouter>
     );
     expect(screen.queryByText('★★★★★')).not.toBeInTheDocument();
+  });
+
+  it('marks products with no positive variation stock as unavailable', () => {
+    render(<BrowserRouter><ProductCard product={{ id: 'empty', name: 'Sem estoque', price: 'R$ 10,00', variations: [{ stock_quantity: 0 }] }} /></BrowserRouter>);
+    expect(screen.getByText('Indisponível')).toBeInTheDocument();
+  });
+
+  it('sends anonymous users to login from the accessible favorite control', () => {
+    render(<MemoryRouter initialEntries={['/category/all']}><ProductCard product={{ id: 'p1', name: 'Camiseta', price: 'R$ 10,00' }} /><LocationProbe /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /adicionar camiseta/i }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/login');
   });
 });
 

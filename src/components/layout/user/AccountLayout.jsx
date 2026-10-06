@@ -1,20 +1,22 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import PublicLayout from '../public/PublicLayout';
 import { Icon } from '../../ui/ShioDesign';
-import { clearAuthTokens } from '../../../lib/authToken';
+import { useAuth } from '../../../context/AuthContext';
 
 const navItems = [
   { label: 'Meus Dados', to: '/my-account', icon: 'users' },
   { label: 'Meus Pedidos', to: '/my-orders', icon: 'box' },
   { label: 'Endereços', to: '/addresses', icon: 'tag' },
+  { label: 'Favoritos', to: '/my-favorites', icon: 'heart' },
 ];
 
 export default function AccountLayout({ children }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    clearAuthTokens();
+    logout();
     navigate('/');
   };
 

@@ -8,7 +8,8 @@ import logo from '../../../assets/logo/logo.svg';
 const LoginPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const from = location.state?.from?.pathname ?? '/my-account';
+  const origin = location.state?.from;
+  const from = origin ? `${origin.pathname}${origin.search ?? ''}${origin.hash ?? ''}` : '/my-account';
   const { loginWithPassword } = useAuth();
   const { handleGoogleLogin, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth({
     onSuccessRedirect: from,
