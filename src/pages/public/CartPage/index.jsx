@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
+import { EVENT_TYPES, trackEvent } from '../../../lib/analytics';
 import { useCart } from '../../../context/CartContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -63,6 +64,7 @@ const CartPage = () => {
     if (res?.ok) {
       const data = await res.json();
       setCartData(data);
+      trackEvent(EVENT_TYPES.REMOVE_FROM_CART, { variationId });
     } else {
       refreshCart();
     }

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { PageMarker, ProductCard, SectionTitle } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
+import { EVENT_TYPES, trackEvent } from '../../../lib/analytics';
 import { useCart } from '../../../context/CartContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -43,6 +44,7 @@ const ProductDetailPage = () => {
         setProduct(data);
         setActiveImage(0);
         if (data.variations?.length > 0) setSelectedVarId(data.variations[0].id);
+        trackEvent(EVENT_TYPES.PRODUCT_VIEW, { productId: data.id });
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -86,13 +88,14 @@ const ProductDetailPage = () => {
         setCartData(cartData);
       }
       setCartMsg({ type: 'success', text: 'Adicionado ao carrinho!' });
+      trackEvent(EVENT_TYPES.ADD_TO_CART, { productId: product?.id, variationId: selectedVarId });
     } catch (e) {
       setCartMsg({ type: 'error', text: e.message });
     } finally {
       setAddingToCart(false);
       setTimeout(() => setCartMsg(null), 3000);
     }
-  }, [selectedVarId, quantity]);
+  }, [selectedVarId, quantity, product?.id]);
 
   if (loading) {
     return (

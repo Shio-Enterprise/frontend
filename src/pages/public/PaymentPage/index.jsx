@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
+import { EVENT_TYPES, trackEvent } from '../../../lib/analytics';
 import { useCart } from '../../../context/CartContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -184,10 +185,11 @@ const PaymentPage = () => {
 
   const handleRemove = async (itemId) => {
     const token = getAccessToken();
-    await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
+    const res = await fetch(`${API_BASE_URL}/api/orders/cart/items/${itemId}/`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {});
+    }).catch(() => null);
+    if (res?.ok) trackEvent(EVENT_TYPES.REMOVE_FROM_CART, { variationId: itemId });
     fetchCart();
     refreshCart();
   };
@@ -198,6 +200,7 @@ const PaymentPage = () => {
       setCheckoutError('Selecione um endereço de entrega.');
       return;
     }
+    trackEvent(EVENT_TYPES.CHECKOUT_STARTED);
     setSubmitting(true);
     try {
       const token = getAccessToken();
@@ -213,6 +216,7 @@ const PaymentPage = () => {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'Falha ao processar o pedido.');
+      trackEvent(EVENT_TYPES.PURCHASE);
       refreshCart();
       if (data.checkout_url) {
         window.location.href = data.checkout_url;

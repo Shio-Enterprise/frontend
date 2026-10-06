@@ -2,10 +2,12 @@ import { Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import routes from "../routes";
 import ProtectedRoute from "../components/ProtectedRoute";
+import PageViewTracker from "../components/analytics/PageViewTracker";
 
 const Router = () => {
   return (
     <BrowserRouter>
+      <PageViewTracker />
       <Suspense fallback={<div>Loading...</div>}>
         <Routes>
           {routes.map((route) => (
