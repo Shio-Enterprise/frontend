@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, AdminTitle, PageMarker } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
+import SiteBehaviorSection from './SiteBehaviorSection';
 
 const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -265,6 +266,8 @@ const DashboardPage = () => {
           <p className="mt-4 text-[14px] text-black/60">Nenhum pedido recente encontrado.</p>
         )}
       </AdminPanel>
+
+      <SiteBehaviorSection />
     </div>
   );
 };
