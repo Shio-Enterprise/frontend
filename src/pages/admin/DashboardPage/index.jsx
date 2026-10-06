@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, AdminTitle, PageMarker } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
@@ -137,7 +137,11 @@ const DashboardPage = () => {
   return (
     <div>
       <PageMarker name="DashboardPage" />
-      <AdminTitle title="Dashboard" />
+      <AdminTitle title="Dashboard" action={(
+        <Link to="/admin/dashboard/detail" className="inline-flex min-h-11 items-center rounded-lg bg-black px-5 text-sm font-bold uppercase text-white hover:bg-black/80">
+          Análise detalhada
+        </Link>
+      )} />
 
       <AdminPanel className="mx-auto mb-6 max-w-[920px] p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

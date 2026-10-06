@@ -35,5 +35,6 @@ describe('DashboardPage', () => {
     expect(await screen.findByText('Clientes cadastrados')).toBeInTheDocument();
     expect(screen.getByText('Camiseta — M')).toBeInTheDocument();
     expect(screen.getByText('Nenhuma venda no período.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Análise detalhada' })).toHaveAttribute('href', '/admin/dashboard/detail');
   });
 });

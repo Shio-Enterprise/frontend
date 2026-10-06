@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { lazy } from "react";
 import AdminLayout from "../components/layout/admin/AdminLayout";
 
@@ -20,6 +21,7 @@ const NewAddressPage = lazy(() => import("../pages/user/NewAddressPage"));
 // Admin pages
 const AdminLoginPage = lazy(() => import("../pages/admin/AdminLoginPage"));
 const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
+const DetailedDashboardPage = lazy(() => import("../pages/admin/DetailedDashboardPage"));
 const ProductsPage = lazy(() => import("../pages/admin/ProductsPage"));
 const NewProductPage = lazy(() => import("../pages/admin/NewProductPage"));
 const OrdersPage = lazy(() => import("../pages/admin/OrdersPage"));
@@ -107,6 +109,11 @@ const routes = [
   {
     path: "/admin/dashboard",
     component: <AdminLayout><DashboardPage /></AdminLayout>,
+    isAdmin: true,
+  },
+  {
+    path: "/admin/dashboard/detail",
+    component: <AdminLayout><DetailedDashboardPage /></AdminLayout>,
     isAdmin: true,
   },
   {
