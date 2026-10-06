@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, AdminTitle, PageMarker } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
+import DashboardViewToggle from '../../../components/ui/DashboardViewToggle';
+import { DonutChart, HorizontalBars } from './Visualizations';
 
 const formatMoney = (value) => {
   const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(String(value ?? '0'));
@@ -23,13 +25,19 @@ const statusLabels = {
 };
 
 const paymentLabels = { PIX: 'Pix', CREDIT_CARD: 'Cartão de crédito', BOLETO: 'Boleto' };
+const listAndBars = [['list', 'Lista'], ['bars', 'Barras']];
+const listBarsAndDonut = [...listAndBars, ['donut', 'Rosca']];
 
-function Section({ title, note, children }) {
+function Section({ title, note, views, defaultView = 'list', children }) {
+  const [view, setView] = useState(defaultView);
   return (
-    <AdminPanel className="p-5 md:p-8">
-      <h2 className="text-lg font-black uppercase tracking-wide md:text-xl">{title}</h2>
+    <AdminPanel className="min-w-0 p-5 md:p-6">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <h2 className="min-w-0 flex-1 basis-[180px] text-lg font-black uppercase tracking-wide md:text-xl">{title}</h2>
+        {views && <DashboardViewToggle label={`Visualização de ${title}`} views={views} value={view} onChange={setView} />}
+      </div>
       {note && <p className="mt-2 text-sm leading-relaxed text-black/60">{note}</p>}
-      <div className="mt-5">{children}</div>
+      <div className="mt-5 min-w-0">{typeof children === 'function' ? children(view) : children}</div>
     </AdminPanel>
   );
 }
@@ -40,8 +48,8 @@ function Empty({ children = 'Nenhum dado no período.' }) {
 
 function Rows({ rows, getKey, renderRow }) {
   if (!rows?.length) return <Empty />;
-  return <div className="divide-y divide-black/10">{rows.map((row, index) => (
-    <div key={getKey(row, index)} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0">
+  return <div className="min-w-0 divide-y divide-black/10">{rows.map((row, index) => (
+    <div key={getKey(row, index)} className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3 [overflow-wrap:anywhere] first:pt-0 last:pb-0">
       {renderRow(row, index)}
     </div>
   ))}</div>;
@@ -75,9 +83,29 @@ function SeriesChart({ points, granularity }) {
   );
 }
 
+function SeriesTable({ points }) {
+  if (!points?.length) return <Empty />;
+  return <div className="max-h-[420px] overflow-auto">
+    <table className="w-full min-w-[560px] text-left text-sm">
+      <thead className="sticky top-0 bg-white text-xs uppercase text-black/55">
+        <tr><th className="py-2 pr-4">Período</th><th className="py-2 pr-4 text-right">Vendas</th><th className="py-2 pr-4 text-right">Bruto</th><th className="py-2 pr-4 text-right">Reembolsos</th><th className="py-2 text-right">Líquido</th></tr>
+      </thead>
+      <tbody className="divide-y divide-black/10">
+        {points.map((point) => <tr key={point.period}>
+          <td className="py-2 pr-4">{formatDate(point.period)}</td>
+          <td className="py-2 pr-4 text-right">{point.valid_sales}</td>
+          <td className="py-2 pr-4 text-right">{formatMoney(point.gross_revenue)}</td>
+          <td className="py-2 pr-4 text-right">{formatMoney(point.refunds)}</td>
+          <td className="py-2 text-right font-semibold">{formatMoney(point.net_revenue)}</td>
+        </tr>)}
+      </tbody>
+    </table>
+  </div>;
+}
+
 function ProductRanking({ rows, unit }) {
   return <Rows rows={rows} getKey={(row) => row.product_id} renderRow={(row, index) => <>
-    <div className="min-w-0 text-sm">
+    <div className="min-w-0 text-sm [overflow-wrap:anywhere]">
       <span className="mr-2 font-bold text-black/45">{index + 1}.</span>
       <Link to={`/admin/products/${row.product_id}`} className="font-semibold underline-offset-2 hover:underline">{row.product_name}</Link>
     </div>
@@ -87,8 +115,8 @@ function ProductRanking({ rows, unit }) {
 
 function RevenueDistribution({ rows, idKey }) {
   return <Rows rows={rows} getKey={(row) => row[idKey] ?? 'unclassified'} renderRow={(row) => <>
-    <span className="text-sm font-medium">{row.name}</span>
-    <span className="text-right text-sm"><strong>{formatMoney(row.revenue)}</strong><span className="ml-2 text-black/50">{row.units} un.</span></span>
+    <span className="min-w-0 text-sm font-medium [overflow-wrap:anywhere]">{row.name}</span>
+    <span className="min-w-0 text-right text-sm [overflow-wrap:anywhere]"><strong>{formatMoney(row.revenue)}</strong><span className="ml-2 text-black/50">{row.units} un.</span></span>
   </>} />;
 }
 
@@ -162,16 +190,21 @@ export default function DetailedDashboardPage() {
     <p className="mt-3 text-xs leading-relaxed text-black/55">Vendas válidas: pedidos entregues e pagos. Receita líquida = receita bruta − reembolsos; ticket médio = receita líquida ÷ vendas válidas.</p>
 
     <div className="mt-8 grid gap-6">
-      <Section title="Receita e vendas ao longo do tempo" note="Cada ponto usa a data do pagamento. O período mensal cobre 30 dias móveis; o anual, 365 dias móveis.">
-        <SeriesChart points={sales_series} granularity={period.granularity} />
+      <Section title="Receita e vendas ao longo do tempo" note="Cada ponto usa a data do pagamento. O período mensal cobre 30 dias móveis; o anual, 365 dias móveis."
+        views={listAndBars} defaultView="bars">
+        {(view) => view === 'list' ? <SeriesTable points={sales_series} /> : <SeriesChart points={sales_series} granularity={period.granularity} />}
       </Section>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Section title="Produtos por unidades vendidas" note="Até 10 produtos de vendas válidas, ordenados por quantidade.">
-          <ProductRanking rows={product_rankings.by_units} unit="units" />
+        <Section title="Produtos por unidades vendidas" note="Até 10 produtos de vendas válidas, ordenados por quantidade." views={listAndBars}>
+          {(view) => view === 'bars' ? <HorizontalBars rows={product_rankings.by_units} getKey={(row) => row.product_id}
+            getLabel={(row) => row.product_name} getValue={(row) => row.units} formatValue={(row) => `${row.units} un.`}
+            getHref={(row) => `/admin/products/${row.product_id}`} /> : <ProductRanking rows={product_rankings.by_units} unit="units" />}
         </Section>
-        <Section title="Produtos por receita de itens" note="Até 10 produtos de vendas válidas, ordenados por quantidade × preço do item.">
-          <ProductRanking rows={product_rankings.by_revenue} unit="revenue" />
+        <Section title="Produtos por receita de itens" note="Até 10 produtos de vendas válidas, ordenados por quantidade × preço do item." views={listAndBars}>
+          {(view) => view === 'bars' ? <HorizontalBars rows={product_rankings.by_revenue} getKey={(row) => row.product_id}
+            getLabel={(row) => row.product_name} getValue={(row) => row.revenue} formatValue={(row) => formatMoney(row.revenue)}
+            getHref={(row) => `/admin/products/${row.product_id}`} /> : <ProductRanking rows={product_rankings.by_revenue} unit="revenue" />}
         </Section>
       </div>
       {(product_rankings.unclassified.units > 0 || Number(product_rankings.unclassified.revenue) !== 0) && (
@@ -179,32 +212,57 @@ export default function DetailedDashboardPage() {
       )}
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Section title="Receita de itens por drop">
-          <RevenueDistribution rows={item_revenue.by_drop} idKey="drop_id" />
+        <Section title="Receita de itens por drop" views={listBarsAndDonut} defaultView="bars">
+          {(view) => view === 'bars' ? <HorizontalBars rows={item_revenue.by_drop} getKey={(row) => row.drop_id ?? 'unclassified'}
+            getLabel={(row) => row.name} getValue={(row) => row.revenue} formatValue={(row) => formatMoney(row.revenue)} />
+            : view === 'donut' ? <DonutChart rows={item_revenue.by_drop} getKey={(row) => row.drop_id ?? 'unclassified'}
+              getLabel={(row) => row.name} getValue={(row) => row.revenue} formatValue={(row) => formatMoney(row.revenue)} totalLabel="receita de itens por drop" />
+              : <RevenueDistribution rows={item_revenue.by_drop} idKey="drop_id" />}
         </Section>
-        <Section title="Receita de itens por categoria">
-          <RevenueDistribution rows={item_revenue.by_category} idKey="category_id" />
+        <Section title="Receita de itens por categoria" views={listBarsAndDonut} defaultView="bars">
+          {(view) => view === 'bars' ? <HorizontalBars rows={item_revenue.by_category} getKey={(row) => row.category_id ?? 'unclassified'}
+            getLabel={(row) => row.name} getValue={(row) => row.revenue} formatValue={(row) => formatMoney(row.revenue)} />
+            : view === 'donut' ? <DonutChart rows={item_revenue.by_category} getKey={(row) => row.category_id ?? 'unclassified'}
+              getLabel={(row) => row.name} getValue={(row) => row.revenue} formatValue={(row) => formatMoney(row.revenue)} totalLabel="receita de itens por categoria" />
+              : <RevenueDistribution rows={item_revenue.by_category} idKey="category_id" />}
         </Section>
       </div>
       <p className="-mt-3 text-xs leading-relaxed text-black/55">Receita de itens soma quantidade × preço unitário; frete e desconto não são rateados. Drop e categoria seguem os vínculos atuais do catálogo, que podem mudar após a venda. “Sem classificação” reúne itens sem vínculo atual.</p>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Section title="Pedidos por status" note="Inclui todos os pedidos criados no período, inclusive pendentes e cancelados. Usa a data de criação do pedido.">
-          <Rows rows={orders_by_status.rows} getKey={(row) => row.status} renderRow={(row) => <><span className="text-sm font-medium">{statusLabels[row.status] ?? row.status}</span><strong className="text-sm">{row.orders} pedidos</strong></>} />
+        <Section title="Pedidos por status" note="Inclui todos os pedidos criados no período, inclusive pendentes e cancelados. Usa a data de criação do pedido."
+          views={listBarsAndDonut} defaultView="bars">
+          {(view) => view === 'bars' ? <HorizontalBars rows={orders_by_status.rows} getKey={(row) => row.status}
+            getLabel={(row) => statusLabels[row.status] ?? row.status} getValue={(row) => row.orders} formatValue={(row) => `${row.orders} pedidos`} />
+            : view === 'donut' ? <DonutChart rows={orders_by_status.rows} getKey={(row) => row.status}
+              getLabel={(row) => statusLabels[row.status] ?? row.status} getValue={(row) => row.orders} formatValue={(row) => `${row.orders} pedidos`} totalLabel="pedidos por status" />
+              : <Rows rows={orders_by_status.rows} getKey={(row) => row.status} renderRow={(row) => <><span className="text-sm font-medium">{statusLabels[row.status] ?? row.status}</span><strong className="text-sm">{row.orders} pedidos</strong></>} />}
         </Section>
-        <Section title="Vendas por método de pagamento" note="Somente vendas válidas, pela data do pagamento. A receita exibida é bruta.">
-          <Rows rows={sales_by_payment_method} getKey={(row) => row.method} renderRow={(row) => <><span className="text-sm font-medium">{paymentLabels[row.method] ?? row.method}</span><span className="text-right text-sm"><strong>{row.valid_sales} vendas</strong><span className="ml-2 text-black/55">{formatMoney(row.gross_revenue)}</span></span></>} />
+        <Section title="Vendas por método de pagamento" note="Somente vendas válidas, pela data do pagamento. Gráficos mostram a quantidade de vendas; a lista inclui receita bruta."
+          views={listBarsAndDonut} defaultView="bars">
+          {(view) => view === 'bars' ? <HorizontalBars rows={sales_by_payment_method} getKey={(row) => row.method}
+            getLabel={(row) => paymentLabels[row.method] ?? row.method} getValue={(row) => row.valid_sales} formatValue={(row) => `${row.valid_sales} vendas`} />
+            : view === 'donut' ? <DonutChart rows={sales_by_payment_method} getKey={(row) => row.method}
+              getLabel={(row) => paymentLabels[row.method] ?? row.method} getValue={(row) => row.valid_sales} formatValue={(row) => `${row.valid_sales} vendas`} totalLabel="vendas por método de pagamento" />
+              : <Rows rows={sales_by_payment_method} getKey={(row) => row.method} renderRow={(row) => <><span className="text-sm font-medium">{paymentLabels[row.method] ?? row.method}</span><span className="text-right text-sm"><strong>{row.valid_sales} vendas</strong><span className="ml-2 text-black/55">{formatMoney(row.gross_revenue)}</span></span></>} />}
         </Section>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Section title="Clientes" note="Cadastros consideram clientes não administrativos. Recorrentes compraram em pelo menos dois drops consecutivos.">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <MetricCard label="Total cadastrado" value={customers.total_registered} icon="users" />
-            <MetricCard label="Novos no período" value={customers.new_in_period} icon="users" />
-            <MetricCard label="Recorrentes" value={customers.recurring_customers} icon="users" />
-          </div>
+        <Section title="Clientes" note="Cadastros consideram clientes não administrativos. Recorrentes compraram em pelo menos dois drops consecutivos."
+          views={[["cards", "Cartões"], ["list", "Lista"]]} defaultView="cards">
+          {(view) => <>
+            {view === 'cards' ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+              <MetricCard label="Total cadastrado" value={customers.total_registered} icon="users" />
+              <MetricCard label="Novos no período" value={customers.new_in_period} icon="users" />
+              <MetricCard label="Recorrentes" value={customers.recurring_customers} icon="users" />
+            </div> : <Rows rows={[
+              { label: 'Total cadastrado', value: customers.total_registered },
+              { label: 'Novos no período', value: customers.new_in_period },
+              { label: 'Recorrentes', value: customers.recurring_customers },
+            ]} getKey={(row) => row.label} renderRow={(row) => <><span className="text-sm">{row.label}</span><strong className="text-sm">{row.value}</strong></>} />}
           <Link to="/admin/customers" className="mt-5 inline-block text-sm font-semibold underline underline-offset-2">Ver clientes</Link>
+          </>}
         </Section>
         <Section title="Estoque atual" note="Saldo de variações no momento da consulta. Baixo: 1 a 9 unidades; esgotado: zero. O período não altera estes totais.">
           <div className="grid gap-3 sm:grid-cols-2">

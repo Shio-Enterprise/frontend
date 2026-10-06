@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, AdminTitle, PageMarker } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
+import DashboardViewToggle from '../../../components/ui/DashboardViewToggle';
 
 const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -11,6 +12,7 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ period: 'monthly', search: '' });
   const [drillDown, setDrillDown] = useState(null);
+  const [seriesView, setSeriesView] = useState('bars');
   const navigate = useNavigate();
 
   const query = useMemo(() => {
@@ -179,37 +181,55 @@ const DashboardPage = () => {
         </AdminPanel>
       )}
 
-      {/* Chart */}
       <AdminPanel className="mx-auto mt-6 max-w-[920px] p-5 md:mt-20 md:p-8">
-        <h2 className="text-[14px] font-bold uppercase tracking-widest text-black md:text-[20px]">
-          Visão Geral de Vendas — {sales_summary?.period_days ?? 30} dias
-        </h2>
-        {chartData.length === 0 || chartData.every((d) => Number(d.total_revenue) === 0) ? (
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <h2 className="min-w-0 flex-1 basis-[180px] text-[14px] font-bold uppercase tracking-widest text-black md:text-[20px]">
+            Visão Geral de Vendas — {sales_summary?.period_days ?? 30} dias
+          </h2>
+          <DashboardViewToggle label="Visualização de vendas" views={[["bars", "Barras"], ["list", "Lista"]]} value={seriesView} onChange={setSeriesView} />
+        </div>
+        {chartData.length === 0 || chartData.every((d) => Number(d.total_revenue) === 0 && d.total_orders === 0) ? (
           <p className="mt-6 text-[14px] text-black/40">Nenhuma venda no período.</p>
+        ) : seriesView === 'list' ? (
+          <div className="mt-5 max-h-[420px] overflow-auto">
+            <table className="w-full min-w-[420px] text-left text-sm">
+              <thead className="sticky top-0 bg-white text-xs uppercase text-black/55"><tr><th className="py-2">Período</th><th className="py-2 text-right">Vendas</th><th className="py-2 text-right">Receita líquida</th><th className="py-2 text-right">Detalhamento</th></tr></thead>
+              <tbody className="divide-y divide-black/10">
+                {chartData.map((point) => <tr key={point.period}>
+                  <td className="py-2">{new Date(`${point.period}T12:00:00`).toLocaleDateString('pt-BR')}</td>
+                  <td className="py-2 text-right">{point.total_orders}</td>
+                  <td className="py-2 text-right font-semibold">{money(point.total_revenue)}</td>
+                  <td className="py-2 text-right"><button type="button" onClick={() => openDrillDown(point)} className="font-semibold underline underline-offset-2">Ver pedidos</button></td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
         ) : (
-          <>
-            <div className="mt-4 flex h-[180px] items-end gap-2 border-l-[4px] border-black pl-4 md:h-[260px] md:gap-6 md:border-l-[8px] md:pl-9">
-              {(() => {
-                const max = Math.max(...chartData.map((d) => Math.abs(Number(d.total_revenue))), 1);
-                return chartData.map((d) => (
-                  <button type="button" onClick={() => openDrillDown(d)} key={d.period} className="group relative flex h-full w-full flex-col items-center justify-end gap-1">
-                    <span className="absolute bottom-full mb-1 hidden rounded bg-black px-2 py-0.5 text-[11px] text-white group-hover:block">
-                      {money(d.total_revenue)} · {d.total_orders} pedido(s)
-                    </span>
-                    <div className="w-full rounded-t-[4px] bg-[#1f1f1f] transition-all"
-                      style={{ height: `${(Math.abs(Number(d.total_revenue)) / max) * 100}%`, minHeight: Number(d.total_revenue) !== 0 ? '4px' : '0' }} />
-                  </button>
-                ));
-              })()}
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="mt-4 flex h-[180px] items-end gap-2 border-l-[4px] border-black pl-4 md:h-[260px] md:gap-6 md:border-l-[8px] md:pl-9">
+                {(() => {
+                  const max = Math.max(...chartData.map((d) => Math.abs(Number(d.total_revenue))), 1);
+                  return chartData.map((d) => (
+                    <button type="button" onClick={() => openDrillDown(d)} key={d.period} className="group relative flex h-full w-full flex-col items-center justify-end gap-1">
+                      <span className="absolute bottom-full mb-1 hidden rounded bg-black px-2 py-0.5 text-[11px] text-white group-hover:block">
+                        {money(d.total_revenue)} · {d.total_orders} pedido(s)
+                      </span>
+                      <div className="w-full rounded-t-[4px] bg-[#1f1f1f] transition-all"
+                        style={{ height: `${(Math.abs(Number(d.total_revenue)) / max) * 100}%`, minHeight: Number(d.total_revenue) !== 0 ? '4px' : '0' }} />
+                    </button>
+                  ));
+                })()}
+              </div>
+              <div className="mt-2 flex gap-2 pl-8 md:gap-6 md:pl-[52px]">
+                {chartData.map((d) => (
+                  <p key={d.period} className="w-full text-center text-[10px] capitalize text-black/40 md:text-[12px]">
+                    {new Date(`${d.period}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                  </p>
+                ))}
+              </div>
             </div>
-            <div className="mt-2 flex gap-2 pl-8 md:gap-6 md:pl-[52px]">
-              {chartData.map((d) => (
-                <p key={d.period} className="w-full text-center text-[10px] capitalize text-black/40 md:text-[12px]">
-                  {new Date(`${d.period}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                </p>
-              ))}
-            </div>
-          </>
+          </div>
         )}
       </AdminPanel>
 

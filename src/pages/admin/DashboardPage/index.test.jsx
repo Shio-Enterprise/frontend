@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from './index';
@@ -36,5 +36,20 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Camiseta — M')).toBeInTheDocument();
     expect(screen.getByText('Nenhuma venda no período.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Análise detalhada' })).toHaveAttribute('href', '/admin/dashboard/detail');
+  });
+
+  it('alterna a série de vendas para lista', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ ...summary, series: [{ period: '2026-10-06', total_revenue: '100.00', total_orders: 1 }] }),
+    })));
+
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+    const controls = await screen.findByRole('group', { name: 'Visualização de vendas' });
+    fireEvent.click(within(controls).getByRole('button', { name: 'Lista' }));
+
+    expect(screen.getByRole('columnheader', { name: 'Receita líquida' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver pedidos' })).toBeInTheDocument();
   });
 });

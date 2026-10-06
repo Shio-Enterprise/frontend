@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DetailedDashboardPage from './index';
@@ -18,7 +18,10 @@ const detail = {
     unclassified: { units: 0, revenue: '0.00' },
   },
   item_revenue: {
-    by_drop: [{ drop_id: 'drop-1', name: 'Drop Aurora', units: 2, revenue: '120.00' }],
+    by_drop: [
+      { drop_id: 'drop-1', name: 'Drop Aurora', units: 2, revenue: '120.00' },
+      { drop_id: 'drop-2', name: 'Drop Eclipse', units: 1, revenue: '80.00' },
+    ],
     by_category: [{ category_id: 'category-1', name: 'Roupas', units: 2, revenue: '120.00' }],
     basis: 'order_item_quantity_times_unit_price',
   },
@@ -47,5 +50,34 @@ describe('DetailedDashboardPage', () => {
     expect(screen.getByRole('heading', { name: 'Estoque atual' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voltar ao resumo' })).toHaveAttribute('href', '/admin/dashboard');
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/orders/dashboard/detail/'), expect.objectContaining({ headers: { Authorization: 'Bearer admin-token' } }));
+  });
+
+  it('troca entre lista, barras e rosca usando os mesmos dados', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => detail }));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<MemoryRouter><DetailedDashboardPage /></MemoryRouter>);
+    await screen.findByRole('heading', { name: 'Dashboard detalhado' });
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Visualização de Receita e vendas ao longo do tempo' })).getByRole('button', { name: 'Lista' }));
+    expect(screen.getByRole('columnheader', { name: 'Reembolsos' })).toBeInTheDocument();
+
+    const dropSection = screen.getByRole('heading', { name: 'Receita de itens por drop' }).closest('section');
+    const donutButton = within(dropSection).getByRole('button', { name: 'Rosca' });
+    expect(donutButton.querySelector('svg')).not.toBeNull();
+    expect(donutButton).toHaveAttribute('title', 'Rosca');
+    expect(donutButton.textContent).toBe('');
+    fireEvent.click(donutButton);
+    expect(donutButton).toHaveAttribute('aria-pressed', 'true');
+    expect(within(dropSection).getByRole('img', { name: 'Gráfico de rosca: receita de itens por drop' })).toBeInTheDocument();
+    expect(within(dropSection).getByText('R$ 120,00')).toBeInTheDocument();
+    expect(within(dropSection).getByText('(60%)')).toBeInTheDocument();
+    expect(within(dropSection).getByText('(40%)')).toBeInTheDocument();
+    fireEvent.click(within(dropSection).getByRole('button', { name: 'Lista' }));
+    expect(within(dropSection).getByText('2 un.')).toBeInTheDocument();
+
+    const rankingSection = screen.getByRole('heading', { name: 'Produtos por unidades vendidas' }).closest('section');
+    fireEvent.click(within(rankingSection).getByRole('button', { name: 'Barras' }));
+    expect(within(rankingSection).getByRole('link', { name: 'Camiseta' })).toHaveAttribute('href', '/admin/products/product-1');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
