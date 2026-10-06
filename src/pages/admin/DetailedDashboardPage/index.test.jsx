@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import DetailedDashboardPage from './index';
 
 vi.mock('../../../lib/authToken', () => ({
@@ -30,6 +30,13 @@ const detail = {
   customers: { total_registered: 3, new_in_period: 1, recurring_customers: 0 },
   stock: { low_count: 1, out_count: 0, attention: [{ variation_id: 'variation-1', product_id: 'product-1', product_name: 'Camiseta', size: 'M', color: 'Preta', sku: 'CAM-M', stock_quantity: 2, admin_path: '/admin/stock/product-1' }] },
 };
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="dashboard-location">{location.search}</output>;
+}
+
+const catalogResponse = (results, next = null) => ({ ok: true, status: 200, json: async () => ({ results, next }) });
 
 describe('DetailedDashboardPage', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -78,6 +85,116 @@ describe('DetailedDashboardPage', () => {
     const rankingSection = screen.getByRole('heading', { name: 'Produtos por unidades vendidas' }).closest('section');
     fireEvent.click(within(rankingSection).getByRole('button', { name: 'Barras' }));
     expect(within(rankingSection).getByRole('link', { name: 'Camiseta' })).toHaveAttribute('href', '/admin/products/product-1');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/dashboard/detail/'))).toHaveLength(1);
+  });
+
+  it('combina filtros e datas na URL, carregando todas as opções paginadas', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const address = String(url);
+      if (address.includes('/catalog/drops/')) return address.includes('page=2')
+        ? catalogResponse([{ id: 'drop-2', name: 'Drop Eclipse' }])
+        : catalogResponse([{ id: 'drop-1', name: 'Drop Aurora' }], '/api/catalog/drops/?page=2');
+      if (address.includes('/catalog/categories/')) return catalogResponse([
+        { id: 'category-1', name: 'Roupas' }, { id: 'category-2', name: 'Acessórios' },
+      ]);
+      return { ok: true, status: 200, json: async () => detail };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<MemoryRouter initialEntries={['/admin/dashboard/detail?period=annual&drop=drop-1&category=category-1&search=shio']}>
+      <DetailedDashboardPage /><LocationProbe />
+    </MemoryRouter>);
+    await screen.findByRole('option', { name: 'Drop Eclipse' });
+    expect(screen.getByRole('combobox', { name: 'Drop' })).toHaveValue('drop-1');
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Drop' }), { target: { value: 'drop-2' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Categoria' }), { target: { value: 'category-2' } });
+    fireEvent.change(screen.getByLabelText('Data inicial'), { target: { value: '2026-09-01' } });
+    fireEvent.change(screen.getByLabelText('Data final'), { target: { value: '2026-09-30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar datas' }));
+
+    await waitFor(() => {
+      const params = new URLSearchParams(screen.getByTestId('dashboard-location').textContent);
+      expect(Object.fromEntries(params)).toMatchObject({ period: 'annual', drop: 'drop-2', category: 'category-2', start_date: '2026-09-01', end_date: '2026-09-30', search: 'shio' });
+    });
+    await waitFor(() => expect(String(fetchMock.mock.calls.filter(([url]) => String(url).includes('/dashboard/detail/')).at(-1)?.[0])).toContain('end_date=2026-09-30'));
+    expect(screen.getByRole('link', { name: 'Voltar ao resumo' }).getAttribute('href')).toContain('drop=drop-2');
+  });
+
+  it('abre os pedidos da métrica com filtros, paginação e competência correta', async () => {
+    const order = (id) => ({ id, customer_name: 'Amanda', total_amount: '125.50', status: 'DELIVERED', payment_status: 'PAID', paid_at: '2026-10-06T12:00:00Z', created_at: '2026-10-05T12:00:00Z', revenue_value: '125.50', metric_units: null, metric_item_revenue: null, admin_path: `/admin/orders/${id}` });
+    const fetchMock = vi.fn(async (url) => {
+      const address = String(url);
+      if (address.includes('/catalog/')) return catalogResponse([]);
+      if (address.includes('/dashboard/orders/')) {
+        const parsed = new URL(address, 'http://localhost');
+        if (parsed.searchParams.get('page') === '2') return { ok: true, status: 200, json: async () => ({ count: 21, next: null, previous: address.replace('&page=2', ''), results: [order('order-2')], metric: parsed.searchParams.get('metric'), date_basis: 'payment.paid_at' }) };
+        parsed.searchParams.set('page', '2');
+        return { ok: true, status: 200, json: async () => ({ count: 21, next: parsed.toString(), previous: null, results: [order('order-1')], metric: parsed.searchParams.get('metric'), date_basis: 'payment.paid_at' }) };
+      }
+      return { ok: true, status: 200, json: async () => detail };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<MemoryRouter initialEntries={['/admin/dashboard/detail?period=monthly&drop=drop-1&category=category-1']}><DetailedDashboardPage /></MemoryRouter>);
+    await screen.findByText('Receita bruta');
+    fireEvent.click(screen.getByRole('button', { name: /Receita líquida R\$/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Pedidos da receita líquida' });
+    expect(await within(dialog).findByRole('link', { name: 'SH-ORDER' })).toHaveAttribute('href', '/admin/orders/order-1');
+    const firstOrderUrl = fetchMock.mock.calls.find(([url]) => String(url).includes('/dashboard/orders/'))[0];
+    expect(Object.fromEntries(new URL(String(firstOrderUrl), 'http://localhost').searchParams)).toMatchObject({ metric: 'net_revenue', drop: 'drop-1', category: 'category-1', period: 'monthly' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Próxima' }));
+    await waitFor(() => expect(within(dialog).getByText('21 pedido(s) · página 2')).toBeInTheDocument());
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar detalhamento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver pedidos de Entregue' }));
+    await screen.findByRole('dialog', { name: 'Pedidos · Entregue' });
+    const statusCall = fetchMock.mock.calls.filter(([url]) => String(url).includes('/dashboard/orders/')).at(-1)[0];
+    expect(Object.fromEntries(new URL(String(statusCall), 'http://localhost').searchParams)).toMatchObject({ metric: 'status', status: 'DELIVERED', drop: 'drop-1', category: 'category-1' });
+  });
+
+  it('limita buckets mensais à janela efetiva e detalha itens sem classificação', async () => {
+    const annual = {
+      ...detail,
+      period: { ...detail.period, start_date: '2026-01-15', end_date: '2026-12-31', granularity: 'month' },
+      sales_series: [{ ...detail.sales_series[0], period: '2026-01-01' }],
+      item_revenue: { ...detail.item_revenue, by_drop: [{ drop_id: null, name: 'Sem classificação', units: 1, revenue: '12.00' }] },
+    };
+    const fetchMock = vi.fn(async (url) => String(url).includes('/dashboard/orders/')
+      ? { ok: true, status: 200, json: async () => ({ count: 0, next: null, previous: null, results: [], metric: 'net_revenue', date_basis: 'payment.paid_at' }) }
+      : String(url).includes('/catalog/') ? catalogResponse([])
+        : { ok: true, status: 200, json: async () => annual });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<MemoryRouter initialEntries={['/admin/dashboard/detail?period=annual&category=category-1&start_date=2026-01-15&end_date=2026-12-31']}><DetailedDashboardPage /></MemoryRouter>);
+    await screen.findByText('Receita bruta');
+    fireEvent.click(screen.getByRole('button', { name: /Ver pedidos da receita líquida de 01\/01\/2026/ }));
+    await screen.findByRole('dialog');
+    const seriesUrl = fetchMock.mock.calls.filter(([url]) => String(url).includes('/dashboard/orders/')).at(-1)[0];
+    expect(Object.fromEntries(new URL(String(seriesUrl), 'http://localhost').searchParams)).toMatchObject({ metric: 'net_revenue', start_date: '2026-01-15', end_date: '2026-01-31', category: 'category-1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar detalhamento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver pedidos de Sem classificação' }));
+    await screen.findByRole('dialog');
+    const unclassified = new URL(String(fetchMock.mock.calls.filter(([url]) => String(url).includes('/dashboard/orders/')).at(-1)[0]), 'http://localhost').searchParams;
+    expect(Object.fromEntries(unclassified)).toMatchObject({ metric: 'drop_item_revenue', unclassified: 'true', category: 'category-1' });
+    expect(unclassified.has('drop')).toBe(false);
+  });
+
+  it('mostra erro com nova tentativa e um estado vazio após recuperar a consulta', async () => {
+    let attempts = 0;
+    const empty = { ...detail, financial: { ...detail.financial, gross_revenue: '0.00', refunds: '0.00', net_revenue: '0.00', average_ticket: '0.00', valid_sales: 0 }, sales_series: [], product_rankings: { by_units: [], by_revenue: [], unclassified: { units: 0, revenue: '0.00' } }, item_revenue: { ...detail.item_revenue, by_drop: [], by_category: [] }, orders_by_status: { date_basis: 'order_created_at', rows: [] }, sales_by_payment_method: [], stock: { low_count: 0, out_count: 0, attention: [] } };
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).includes('/catalog/')) return catalogResponse([]);
+      attempts += 1;
+      return attempts === 1 ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, status: 200, json: async () => empty };
+    }));
+
+    render(<MemoryRouter><DetailedDashboardPage /></MemoryRouter>);
+    expect(screen.getByText('Carregando análise detalhada...')).toBeInTheDocument();
+    expect(await screen.findByText('Não foi possível carregar a análise detalhada.')).toHaveAttribute('role', 'alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    expect(await screen.findByText(/Nenhuma venda válida ou reembolso neste período/)).toBeInTheDocument();
+    expect(screen.getByText('Nenhuma venda ou receita líquida no período.')).toBeInTheDocument();
   });
 });

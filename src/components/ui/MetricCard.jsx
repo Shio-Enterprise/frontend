@@ -7,7 +7,10 @@ const MetricCard = ({ label, value, change, icon, negative, onClick }) => (
     role={onClick ? 'button' : undefined}
     tabIndex={onClick ? 0 : undefined}
     onKeyDown={onClick ? (event) => {
-      if (event.key === 'Enter' || event.key === ' ') onClick();
+      if (event.key === 'Enter' || event.key === ' ') {
+        if (event.key === ' ') event.preventDefault();
+        onClick();
+      }
     } : undefined}
   >
     <div className="flex items-start justify-between">

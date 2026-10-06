@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from './index';
@@ -9,6 +9,7 @@ vi.mock('../../../lib/authToken', () => ({
 }));
 
 const summary = {
+  period: { start_date: '2026-09-07', end_date: '2026-10-06', granularity: 'day' },
   sales_summary: { total_revenue: '0.00', total_orders: 0 },
   customers_summary: { total_registered: 3, new_in_period: 1, recurring_customers: 0 },
   series: [],
@@ -51,5 +52,45 @@ describe('DashboardPage', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Receita líquida' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver pedidos' })).toBeInTheDocument();
+  });
+
+  it('preserva os filtros da URL ao abrir o detalhe e voltar ao resumo', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => summary }));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<MemoryRouter initialEntries={['/admin/dashboard?period=annual&drop=drop-1&category=category-1&search=camiseta']}><DashboardPage /></MemoryRouter>);
+
+    const detailLink = await screen.findByRole('link', { name: 'Análise detalhada' });
+    expect(detailLink.getAttribute('href')).toContain('drop=drop-1');
+    expect(detailLink.getAttribute('href')).toContain('category=category-1');
+    expect(detailLink.getAttribute('href')).toContain('search=camiseta');
+    expect(screen.getByRole('combobox', { name: 'Período' })).toHaveValue('annual');
+    expect(screen.getByText('Filtros adicionais ativos:')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Pesquisar dashboard' }), { target: { value: 'camiseta preta' } });
+    expect(screen.getByRole('textbox', { name: 'Pesquisar dashboard' })).toHaveValue('camiseta preta');
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('search=camiseta+preta'))).toBe(true));
+  });
+
+  it('abre vendas válidas com os filtros do resumo e estado vazio do detalhamento', async () => {
+    const fetchMock = vi.fn(async (url) => ({
+      ok: true,
+      status: 200,
+      json: async () => String(url).includes('/dashboard/orders/')
+        ? { count: 0, next: null, previous: null, results: [] }
+        : summary,
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<MemoryRouter initialEntries={['/admin/dashboard?period=annual&drop=drop-1&search=camiseta']}><DashboardPage /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /Pedidos \(30d\)/ }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Vendas válidas' });
+    expect(await within(dialog).findByText('Nenhum pedido compõe esta métrica.')).toBeInTheDocument();
+    const drillUrl = fetchMock.mock.calls.find(([url]) => String(url).includes('/dashboard/orders/'))[0];
+    expect(Object.fromEntries(new URL(String(drillUrl), 'http://localhost').searchParams)).toMatchObject({
+      period: 'annual', drop: 'drop-1', search: 'camiseta', metric: 'valid_sales',
+    });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
