@@ -55,18 +55,25 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     const refresh = getRefreshToken();
-    if (refresh) {
-      try {
-        await apiClient.post('/auth/logout/', { refresh });
-      } catch (err) {
-        console.error('Erro ao fazer logout no servidor', err);
-      }
-    }
+    const access = getAccessToken();
+
     clearAuthTokens();
     localStorage.removeItem('user');
     setAccessToken(null);
     setUser(null);
     setIsAdmin(false);
+
+    if (refresh && access) {
+      try {
+        await apiClient.post(
+          '/auth/logout/',
+          { refresh },
+          { headers: { Authorization: `Bearer ${access}` } },
+        );
+      } catch (err) {
+        console.error('Erro ao fazer logout no servidor', err);
+      }
+    }
   };
 
   const loginWithPassword = async (email, password) => {
