@@ -1,9 +1,19 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { BrowserRouter, createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Navbar from './Navbar';
+import { useAuth } from '../../../context/AuthContext';
+
+vi.mock('../../../context/AuthContext', () => ({
+  useAuth: vi.fn(),
+}));
 
 describe('Navbar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuth.mockReturnValue({ isAdmin: false });
+  });
+
   it.each(['desktop', 'mobile'])('envia search codificado pela busca %s', async (viewport) => {
     const router = createMemoryRouter(
       [{ path: '*', element: <Navbar /> }],
@@ -58,6 +68,34 @@ describe('Navbar', () => {
 
     const myAccountLink = screen.getByTestId('my-account-link');
     expect(myAccountLink).toBeInTheDocument();
+  });
+
+
+  it('exibe acesso ao painel para administrador', () => {
+    useAuth.mockReturnValue({ isAdmin: true });
+
+    render(
+      <BrowserRouter>
+        <Navbar />
+      </BrowserRouter>
+    );
+
+    const adminLink = screen.getByTestId('admin-panel-link');
+    expect(adminLink).toHaveAttribute('href', '/admin/dashboard');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir menu' }));
+    expect(screen.getByText('Painel administrativo')).toHaveAttribute('href', '/admin/dashboard');
+  });
+
+  it('não exibe acesso ao painel para usuário comum', () => {
+    render(
+      <BrowserRouter>
+        <Navbar />
+      </BrowserRouter>
+    );
+
+    expect(screen.queryByTestId('admin-panel-link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /painel administrativo/i })).not.toBeInTheDocument();
   });
 
   it('should show the correct welcome discount in the banner', () => {
