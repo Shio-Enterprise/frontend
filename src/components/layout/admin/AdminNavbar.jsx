@@ -14,7 +14,7 @@ const navItems = [
 ];
 
 function isActive(item, pathname) {
-  if (item.to === '/admin/dashboard') return pathname === item.to;
+  if (item.to === '/admin/dashboard') return pathname === item.to || pathname.startsWith(`${item.to}/`);
   return pathname.startsWith(item.to);
 }
 
