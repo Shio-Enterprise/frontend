@@ -28,6 +28,7 @@ const EditDropPage = lazy(() => import("../pages/admin/EditDropPage"));
 const DropsPage = lazy(() => import("../pages/admin/DropsPage"));
 const DropDetailsPage = lazy(() => import("../pages/admin/DropDetailsPage"));
 const CustomersPage = lazy(() => import("../pages/admin/CustomersPage"));
+const ReviewsPage = lazy(() => import("../pages/admin/ReviewsPage"));
 
 const routes = [
   // Public routes
@@ -172,6 +173,11 @@ const routes = [
   {
     path: "/admin/customers/:id",
     component: <AdminLayout><CustomersPage /></AdminLayout>,
+    isAdmin: true,
+  },
+  {
+    path: "/admin/reviews",
+    component: <AdminLayout><ReviewsPage /></AdminLayout>,
     isAdmin: true,
   },
 ];
