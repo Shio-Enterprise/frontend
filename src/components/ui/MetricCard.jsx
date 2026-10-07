@@ -2,12 +2,15 @@ import { AdminPanel, Icon } from './ShioDesign';
 
 const MetricCard = ({ label, value, change, icon, negative, onClick }) => (
   <AdminPanel
-    className={`p-5 md:p-6 ${onClick ? 'cursor-pointer transition hover:ring-2 hover:ring-black/15' : ''}`}
+    className={`min-w-0 p-5 md:p-6 ${onClick ? 'cursor-pointer transition hover:ring-2 hover:ring-black/15' : ''}`}
     onClick={onClick}
     role={onClick ? 'button' : undefined}
     tabIndex={onClick ? 0 : undefined}
     onKeyDown={onClick ? (event) => {
-      if (event.key === 'Enter' || event.key === ' ') onClick();
+      if (event.key === 'Enter' || event.key === ' ') {
+        if (event.key === ' ') event.preventDefault();
+        onClick();
+      }
     } : undefined}
   >
     <div className="flex items-start justify-between">
@@ -21,7 +24,7 @@ const MetricCard = ({ label, value, change, icon, negative, onClick }) => (
       )}
     </div>
     <p className="mt-3 text-[14px] text-black/80 md:text-[20px]">{label}</p>
-    <p className="mt-1 text-[22px] font-bold text-black md:mt-2 md:text-[26px]">{value}</p>
+    <p className="mt-1 text-[22px] font-bold text-black [overflow-wrap:anywhere] md:mt-2 md:text-[26px]">{value}</p>
   </AdminPanel>
 );
 
