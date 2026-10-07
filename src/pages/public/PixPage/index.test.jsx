@@ -4,6 +4,10 @@ import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import PixPage from './index';
 import { getAccessToken } from '../../../lib/authToken';
 
+vi.mock('../../../context/AuthContext', () => ({
+  useAuth: () => ({ isAdmin: false }),
+}));
+
 vi.mock('../../../lib/authToken', () => ({
   getAccessToken: vi.fn(() => null),
 }));
@@ -11,7 +15,7 @@ vi.mock('../../../lib/authToken', () => ({
 afterEach(() => {
   vi.clearAllMocks();
   getAccessToken.mockReturnValue(null);
-  delete global.fetch;
+  delete globalThis.fetch;
 });
 
 describe('PixPage', () => {
@@ -37,7 +41,7 @@ describe('PixPage', () => {
   it('should show the discount fetched from the order detail on the real redirect flow', async () => {
     getAccessToken.mockReturnValue('fake-token');
 
-    global.fetch = vi.fn((url) => {
+    globalThis.fetch = vi.fn((url) => {
       if (String(url).includes('pagamento-sucesso')) {
         return Promise.resolve({
           ok: true,
@@ -67,7 +71,7 @@ describe('PixPage', () => {
     expect(screen.getByText('- R$ 20.00')).toBeInTheDocument();
     expect(screen.getByText('R$ 95.00')).toBeInTheDocument();
     expect(
-      global.fetch.mock.calls.some(([url]) => String(url).includes('/api/orders/my-orders/PED-123/'))
+      globalThis.fetch.mock.calls.some(([url]) => String(url).includes('/api/orders/my-orders/PED-123/'))
     ).toBe(true);
   });
 });

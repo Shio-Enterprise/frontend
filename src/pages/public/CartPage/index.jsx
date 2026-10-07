@@ -180,14 +180,6 @@ const CartPage = () => {
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_120px]">
-                <label className="flex h-12 items-center gap-3 rounded-full bg-[#f0f0f0] px-5 text-black/40">
-                  <Icon name="tag" className="h-5 w-5 shrink-0" />
-                  <input className="w-full bg-transparent text-sm outline-none placeholder:text-black/35" placeholder="Código promocional" />
-                </label>
-                <button className="h-12 rounded-full bg-black text-sm font-medium text-white">Aplicar</button>
-              </div>
-
               <Link to={hasUnavailableItems ? '#' : '/payment'}
                 aria-disabled={items.length === 0 || hasUnavailableItems}
                 onClick={(e) => { if (items.length === 0 || hasUnavailableItems) e.preventDefault(); }}

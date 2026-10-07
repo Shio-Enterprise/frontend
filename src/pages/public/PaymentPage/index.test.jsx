@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import PaymentPage from './index';
 
+vi.mock('../../../context/AuthContext', () => ({
+  useAuth: () => ({ isAdmin: false }),
+}));
+
 const cart = {
   subtotal: '200.00',
   items: [{ variation_id: 'variation-1', product_id: 'product-1', product_name: 'Camiseta', size: 'M', quantity: 2, unit_price: '100.00' }],
