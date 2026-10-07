@@ -54,6 +54,32 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: 'Ver pedidos' })).toBeInTheDocument();
   });
 
+  it('mostra receita e pedidos do período destacado sem recortar o hover do gráfico', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...summary,
+        series: [
+          { period: '2026-10-05', total_revenue: '75.00', total_orders: 1 },
+          { period: '2026-10-06', total_revenue: '200.00', total_orders: 2 },
+        ],
+      }),
+    })));
+
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+    const highlighted = await screen.findByRole('group', { name: 'Período em destaque' });
+    expect(highlighted).toHaveTextContent('06/10/2026');
+    expect(highlighted).toHaveTextContent('2 pedidos');
+
+    const firstBar = screen.getByRole('button', { name: /Ver pedidos de 05\/10\/2026/ });
+    fireEvent.mouseEnter(firstBar);
+    expect(highlighted).toHaveTextContent('05/10/2026');
+    expect(highlighted).toHaveTextContent('R$ 75,00 · 1 pedido');
+    fireEvent.mouseLeave(firstBar.parentElement);
+    expect(highlighted).toHaveTextContent('06/10/2026');
+  });
+
   it('preserva os filtros da URL ao abrir o detalhe e voltar ao resumo', async () => {
     const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => summary }));
     vi.stubGlobal('fetch', fetchMock);

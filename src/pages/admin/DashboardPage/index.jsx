@@ -7,6 +7,10 @@ import DashboardViewToggle from '../../../components/ui/DashboardViewToggle';
 import OrderDrilldown from '../../../components/dashboard/OrderDrilldown';
 
 const money = (value) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const seriesPeriod = (date, granularity) => {
+  const [year, month, day] = date.split('-');
+  return granularity === 'month' ? `${month}/${year}` : `${day}/${month}/${year}`;
+};
 
 const DashboardPage = () => {
   const [snapshot, setSnapshot] = useState({ query: null, data: null });
@@ -15,6 +19,7 @@ const DashboardPage = () => {
   const [attempt, setAttempt] = useState(0);
   const [drillDown, setDrillDown] = useState(null);
   const [seriesView, setSeriesView] = useState('bars');
+  const [hoveredPeriod, setHoveredPeriod] = useState(null);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.toString();
@@ -147,6 +152,7 @@ const DashboardPage = () => {
 
   const { sales_summary, customers_summary, recent_orders, low_stock_alerts } = data;
   const chartData = data.series ?? [];
+  const highlightedPoint = chartData.find((point) => point.period === hoveredPeriod) ?? chartData.at(-1);
 
   const metrics = [
     { 
@@ -233,28 +239,38 @@ const DashboardPage = () => {
             </table>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[640px]">
-              <div className="mt-4 flex h-[180px] items-end gap-2 border-l-[4px] border-black pl-4 md:h-[260px] md:gap-6 md:border-l-[8px] md:pl-9">
-                {(() => {
-                  const max = Math.max(...chartData.map((d) => Math.abs(Number(d.total_revenue))), 1);
-                  return chartData.map((d) => (
-                    <button type="button" onClick={() => openDrillDown('net_revenue', d)} key={d.period} className="group relative flex h-full w-full flex-col items-center justify-end gap-1">
-                      <span className="absolute bottom-full mb-1 hidden rounded bg-black px-2 py-0.5 text-[11px] text-white group-hover:block">
-                        {money(d.total_revenue)} · {d.total_orders} pedido(s)
-                      </span>
-                      <div className="w-full rounded-t-[4px] bg-[#1f1f1f] transition-all"
-                        style={{ height: `${(Math.abs(Number(d.total_revenue)) / max) * 100}%`, minHeight: Number(d.total_revenue) !== 0 ? '4px' : '0' }} />
-                    </button>
-                  ));
-                })()}
-              </div>
-              <div className="mt-2 flex gap-2 pl-8 md:gap-6 md:pl-[52px]">
-                {chartData.map((d) => (
-                  <p key={d.period} className="w-full text-center text-[10px] capitalize text-black/40 md:text-[12px]">
-                    {new Date(`${d.period}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                  </p>
-                ))}
+          <div>
+            <div role="group" aria-label="Período em destaque" className="mt-5 flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg bg-black/[0.04] px-4 py-3 text-sm">
+              <span className="font-semibold tabular-nums">{seriesPeriod(highlightedPoint.period, data.period.granularity)}</span>
+              <span className="font-bold tabular-nums [overflow-wrap:anywhere]">
+                {money(highlightedPoint.total_revenue)} · {highlightedPoint.total_orders} {highlightedPoint.total_orders === 1 ? 'pedido' : 'pedidos'}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: `${Math.max(640, chartData.length * 56)}px` }}>
+                <div className="mt-4 flex h-[180px] items-end gap-2 border-l-[4px] border-black pl-4 md:h-[260px] md:gap-6 md:border-l-[8px] md:pl-9"
+                  onMouseLeave={() => setHoveredPeriod(null)}
+                  onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHoveredPeriod(null); }}>
+                  {(() => {
+                    const max = Math.max(...chartData.map((d) => Math.abs(Number(d.total_revenue))), 1);
+                    return chartData.map((d) => (
+                      <button type="button" key={d.period} onClick={() => openDrillDown('net_revenue', d)}
+                        onMouseEnter={() => setHoveredPeriod(d.period)} onFocus={() => setHoveredPeriod(d.period)}
+                        aria-label={`Ver pedidos de ${seriesPeriod(d.period, data.period.granularity)}: ${money(d.total_revenue)}, ${d.total_orders} ${d.total_orders === 1 ? 'pedido' : 'pedidos'}`}
+                        className="flex h-full w-full flex-col items-center justify-end gap-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
+                        <div className="w-full rounded-t-[4px] bg-[#1f1f1f] transition-all"
+                          style={{ height: `${(Math.abs(Number(d.total_revenue)) / max) * 100}%`, minHeight: Number(d.total_revenue) !== 0 ? '4px' : '0' }} />
+                      </button>
+                    ));
+                  })()}
+                </div>
+                <div className="mt-2 flex gap-2 pl-8 md:gap-6 md:pl-[52px]">
+                  {chartData.map((d) => (
+                    <p key={d.period} className="w-full text-center text-[10px] capitalize text-black/40 md:text-[12px]">
+                      {new Date(`${d.period}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                    </p>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
