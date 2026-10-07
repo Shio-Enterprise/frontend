@@ -11,6 +11,8 @@ const CartPage = lazy(() => import("../pages/public/CartPage"));
 
 // User pages
 const LoginPage = lazy(() => import("../pages/user/LoginPage"));
+const ForgotPasswordPage = lazy(() => import("../pages/user/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("../pages/user/ResetPasswordPage"));
 const SignUpPage = lazy(() => import("../pages/user/SignUpPage"));
 const MyAccountPage = lazy(() => import("../pages/user/MyAccountPage"));
 const MyOrdersPage = lazy(() => import("../pages/user/MyOrdersPage"));
@@ -67,6 +69,16 @@ const routes = [
   {
     path: "/login",
     component: <LoginPage />,
+    isPrivate: false,
+  },
+  {
+    path: "/forgot-password",
+    component: <ForgotPasswordPage />,
+    isPrivate: false,
+  },
+  {
+    path: "/reset-password/:uid/:token",
+    component: <ResetPasswordPage />,
     isPrivate: false,
   },
   {
