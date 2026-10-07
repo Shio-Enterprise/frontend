@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
+import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from '../../../lib/payment';
 import ReviewModal from '../../../components/reviews/ReviewModal';
 import { removalText } from '../../../lib/reviewLabels';
 import { getAllMyReviews } from '../../../lib/reviewsApi';
@@ -390,8 +391,8 @@ const OrderDetailsPage = () => {
           {order.payment && (
             <Section title="Pagamento">
               <div className="space-y-1 text-[14px] text-black/70">
-                <p>Método: <span className="font-semibold text-black">{order.payment.method}</span></p>
-                <p>Status: <span className="font-semibold text-black">{order.payment.status}</span></p>
+                <p>Método: <span className="font-semibold text-black">{PAYMENT_METHOD_LABEL[order.payment.method] ?? PAYMENT_METHOD_LABEL.UNKNOWN}</span></p>
+                <p>Status: <span className="font-semibold text-black">{PAYMENT_STATUS_LABEL[order.payment.status] ?? 'A confirmar'}</span></p>
               </div>
             </Section>
           )}
