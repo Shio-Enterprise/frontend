@@ -65,6 +65,7 @@ describe('DetailedDashboardPage', () => {
     render(<MemoryRouter><DetailedDashboardPage /></MemoryRouter>);
     await screen.findByRole('heading', { name: 'Dashboard detalhado' });
 
+    expect(screen.getByRole('button', { name: /Ver pedidos de receita líquida de 06\/10\/2026/ })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('group', { name: 'Visualização de Receita e vendas ao longo do tempo' })).getByRole('button', { name: 'Lista' }));
     expect(screen.getByRole('columnheader', { name: 'Reembolsos' })).toBeInTheDocument();
 
@@ -86,6 +87,52 @@ describe('DetailedDashboardPage', () => {
     fireEvent.click(within(rankingSection).getByRole('button', { name: 'Barras' }));
     expect(within(rankingSection).getByRole('link', { name: 'Camiseta' })).toHaveAttribute('href', '/admin/products/product-1');
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/dashboard/detail/'))).toHaveLength(1);
+  });
+
+  it('mantém as barras, apresenta períodos brasileiros e permite ordenar as duas visões', async () => {
+    const annual = {
+      ...detail,
+      period: { ...detail.period, start_date: '2025-12-01', end_date: '2026-02-28', granularity: 'month' },
+      sales_series: [
+        { period: '2025-12-01', gross_revenue: '20.00', refunds: '0.00', net_revenue: '20.00', valid_sales: 1 },
+        { period: '2026-01-01', gross_revenue: '0.00', refunds: '10.00', net_revenue: '-10.00', valid_sales: 0 },
+        { period: '2026-02-01', gross_revenue: '200.00', refunds: '0.00', net_revenue: '200.00', valid_sales: 2 },
+      ],
+    };
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url).includes('/catalog/')) return catalogResponse([]);
+      if (String(url).includes('/dashboard/orders/')) return { ok: true, status: 200, json: async () => ({ count: 0, next: null, previous: null, results: [], metric: 'valid_sales', date_basis: 'payment.paid_at' }) };
+      return { ok: true, status: 200, json: async () => annual };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<MemoryRouter><DetailedDashboardPage /></MemoryRouter>);
+    await screen.findByText('Receita bruta');
+
+    const section = screen.getByRole('heading', { name: 'Receita e vendas ao longo do tempo' }).closest('section');
+    const chartButtons = () => within(section).getByRole('group', { name: 'Série de receita líquida e vendas válidas por período' }).querySelectorAll('button');
+    expect(chartButtons()[0]).toHaveTextContent('02/2026');
+    expect(chartButtons()[1]).toHaveTextContent('01/2026');
+    expect(chartButtons()[1]).toHaveTextContent('0 vendas válidas');
+    expect(chartButtons()[2]).toHaveTextContent('12/2025');
+    expect(section).not.toHaveTextContent('2026-01');
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Vendas válidas' }));
+    expect(chartButtons()[0]).toHaveTextContent('2 vendas válidas');
+    expect(chartButtons()[0]).toHaveTextContent('R$ 200,00');
+    expect(chartButtons()[0]).toHaveAttribute('aria-label', expect.stringContaining('Ver pedidos de vendas válidas'));
+
+    fireEvent.change(within(section).getByRole('combobox', { name: 'Ordenar períodos' }), { target: { value: 'oldest' } });
+    expect(chartButtons()[0]).toHaveTextContent('12/2025');
+    fireEvent.click(within(section).getByRole('button', { name: 'Lista' }));
+    expect(within(section).getAllByRole('row')[1]).toHaveTextContent('12/2025');
+    expect(within(section).getByRole('columnheader', { name: 'Vendas válidas' })).toBeInTheDocument();
+    fireEvent.change(within(section).getByRole('combobox', { name: 'Ordenar períodos' }), { target: { value: 'newest' } });
+    expect(within(section).getAllByRole('row')[1]).toHaveTextContent('02/2026');
+    fireEvent.click(within(section).getByRole('button', { name: 'Barras' }));
+    fireEvent.click(within(section).getByRole('button', { name: /Ver pedidos de vendas válidas de 02\/2026/ }));
+    await screen.findByRole('dialog');
+    const ordersUrl = fetchMock.mock.calls.find(([url]) => String(url).includes('/dashboard/orders/'))[0];
+    expect(Object.fromEntries(new URL(String(ordersUrl), 'http://localhost').searchParams)).toMatchObject({ metric: 'valid_sales', start_date: '2026-02-01', end_date: '2026-02-28' });
   });
 
   it('combina filtros e datas na URL, carregando todas as opções paginadas', async () => {
@@ -168,7 +215,7 @@ describe('DetailedDashboardPage', () => {
 
     render(<MemoryRouter initialEntries={['/admin/dashboard/detail?period=annual&category=category-1&start_date=2026-01-15&end_date=2026-12-31']}><DetailedDashboardPage /></MemoryRouter>);
     await screen.findByText('Receita bruta');
-    fireEvent.click(screen.getByRole('button', { name: /Ver pedidos da receita líquida de 01\/01\/2026/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Ver pedidos de receita líquida de 01\/2026/ }));
     await screen.findByRole('dialog');
     const seriesUrl = fetchMock.mock.calls.filter(([url]) => String(url).includes('/dashboard/orders/')).at(-1)[0];
     expect(Object.fromEntries(new URL(String(seriesUrl), 'http://localhost').searchParams)).toMatchObject({ metric: 'net_revenue', start_date: '2026-01-15', end_date: '2026-01-31', category: 'category-1' });

@@ -65,6 +65,12 @@ const formatMoney = (value) => {
 };
 
 const formatDate = (date) => date?.split('-').reverse().join('/') ?? '—';
+const formatSeriesPeriod = (date, granularity) => {
+  const [year, month, day] = date.split('-');
+  return granularity === 'month' ? `${month}/${year}` : `${day}/${month}/${year}`;
+};
+const formatCount = (value) => Number(value).toLocaleString('pt-BR');
+const formatSales = (value) => `${formatCount(value)} ${Number(value) === 1 ? 'venda válida' : 'vendas válidas'}`;
 
 const statusLabels = {
   AWAITING_PAYMENT: 'Aguardando pagamento',
@@ -113,51 +119,67 @@ function DrillButton({ onClick, label }) {
   </button>;
 }
 
-function SeriesChart({ points, granularity, onSelect }) {
+function SeriesChart({ points, granularity, metric, onSelect }) {
   const active = points?.some((point) => Number(point.net_revenue) !== 0 || point.valid_sales > 0);
   if (!active) return <Empty>Nenhuma venda ou receita líquida no período.</Empty>;
-  const max = Math.max(1, ...points.map((point) => Math.abs(Number(point.net_revenue))));
+  const max = Math.max(1, ...points.map((point) => Math.abs(Number(point[metric]))));
+  const hasNegative = metric === 'net_revenue' && points.some((point) => Number(point.net_revenue) < 0);
+  const plotHeight = hasNegative ? 72 : 144;
 
   return (
-    <div className="overflow-x-auto pb-2" role="group" aria-label="Série de receita líquida e vendas válidas por período">
-      <div className="flex min-w-max items-end gap-2 border-b border-black/20 px-2 pt-5 md:gap-3">
-        {points.map((point) => {
-          const value = Number(point.net_revenue);
-          const label = granularity === 'month' ? point.period.slice(0, 7) : point.period.slice(5);
-          return (
-            <button key={point.period} type="button" onClick={() => onSelect(point)}
-              aria-label={`Ver pedidos da receita líquida de ${formatDate(point.period)}: ${formatMoney(point.net_revenue)}`}
-              className="flex w-11 flex-col items-center gap-2 rounded-t focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black md:w-14">
-              <span className="text-[11px] font-semibold text-black/70">{point.valid_sales}</span>
-              <div className="flex h-36 w-full items-end justify-center">
-                <div className={`w-7 rounded-t ${value < 0 ? 'bg-[#ff3333]' : 'bg-black'}`}
-                  style={{ height: `${Math.max(value === 0 ? 0 : 4, Math.abs(value) / max * 100)}%` }} />
-              </div>
-              <span className="whitespace-nowrap text-[10px] text-black/55">{label}</span>
-            </button>
-          );
-        })}
+    <div role="group" aria-label="Série de receita líquida e vendas válidas por período">
+      <div className="overflow-x-auto rounded-xl border border-black/10 bg-black/[0.025] px-3 py-4">
+        <div className="flex min-w-max items-end gap-2 md:gap-3">
+          {points.map((point) => {
+            const value = Number(point[metric]);
+            const negative = value < 0;
+            const label = formatSeriesPeriod(point.period, granularity);
+            const barHeight = value === 0 ? 0 : Math.max(4, Math.round(Math.abs(value) / max * plotHeight));
+            return (
+              <button key={point.period} type="button" onClick={() => onSelect(point, metric)}
+                aria-label={`Ver pedidos de ${metric === 'net_revenue' ? 'receita líquida' : 'vendas válidas'} de ${label}: ${metric === 'net_revenue' ? formatMoney(point.net_revenue) : formatSales(point.valid_sales)}`}
+                className="flex w-[108px] shrink-0 flex-col items-center rounded-lg px-1 py-2 text-center transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
+                <span className={`flex min-h-8 items-end justify-center text-[11px] font-bold tabular-nums ${negative ? 'text-[#b42318]' : 'text-black'}`}>
+                  {metric === 'net_revenue' ? formatMoney(point.net_revenue) : formatSales(point.valid_sales)}
+                </span>
+                <div className="mt-2 w-full">
+                  <span className={`flex items-end justify-center ${hasNegative ? 'h-[72px]' : 'h-[144px]'}`}>
+                    {!negative && value !== 0 && <span className="w-9 rounded-t-md bg-black" style={{ height: `${barHeight}px` }} />}
+                  </span>
+                  <span className="block h-px w-full bg-black/30" />
+                  {hasNegative && <span className="flex h-[72px] items-start justify-center">
+                    {negative && <span className="w-9 rounded-b-md bg-[#b42318]" style={{ height: `${barHeight}px` }} />}
+                  </span>}
+                </div>
+                <span className="mt-3 text-xs font-bold tabular-nums">{label}</span>
+                <span className="mt-1 text-[11px] leading-tight text-black/60">
+                  {metric === 'net_revenue' ? formatSales(point.valid_sales) : formatMoney(point.net_revenue)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <p className="mt-3 text-xs text-black/55">Altura: receita líquida · número acima: vendas válidas · vermelho: receita líquida negativa.</p>
+      <p className="mt-3 text-xs text-black/55">Altura das barras: {metric === 'net_revenue' ? 'receita líquida' : 'vendas válidas'}. {hasNegative ? 'Barras vermelhas abaixo da linha indicam receita negativa. ' : ''}Toque em um período para ver os pedidos.</p>
     </div>
   );
 }
 
-function SeriesTable({ points, onSelect }) {
+function SeriesTable({ points, granularity, onSelect }) {
   if (!points?.some((point) => Number(point.net_revenue) !== 0 || point.valid_sales > 0)) return <Empty>Nenhuma venda ou receita líquida no período.</Empty>;
   return <div className="max-h-[420px] overflow-auto">
     <table className="w-full min-w-[560px] text-left text-sm">
       <thead className="sticky top-0 bg-white text-xs uppercase text-black/55">
-        <tr><th className="py-2 pr-4">Período</th><th className="py-2 pr-4 text-right">Vendas</th><th className="py-2 pr-4 text-right">Bruto</th><th className="py-2 pr-4 text-right">Reembolsos</th><th className="py-2 pr-4 text-right">Líquido</th><th className="py-2 text-right">Pedidos</th></tr>
+        <tr><th className="py-2 pr-4">Período</th><th className="py-2 pr-4 text-right">Vendas válidas</th><th className="py-2 pr-4 text-right">Bruto</th><th className="py-2 pr-4 text-right">Reembolsos</th><th className="py-2 pr-4 text-right">Líquido</th><th className="py-2 text-right">Pedidos</th></tr>
       </thead>
       <tbody className="divide-y divide-black/10">
         {points.map((point) => <tr key={point.period}>
-          <td className="py-2 pr-4">{formatDate(point.period)}</td>
-          <td className="py-2 pr-4 text-right">{point.valid_sales}</td>
+          <td className="py-2 pr-4 tabular-nums">{formatSeriesPeriod(point.period, granularity)}</td>
+          <td className="py-2 pr-4 text-right tabular-nums">{formatCount(point.valid_sales)}</td>
           <td className="py-2 pr-4 text-right">{formatMoney(point.gross_revenue)}</td>
           <td className="py-2 pr-4 text-right">{formatMoney(point.refunds)}</td>
           <td className="py-2 pr-4 text-right font-semibold">{formatMoney(point.net_revenue)}</td>
-          <td className="py-2 text-right"><DrillButton onClick={() => onSelect(point)} label={`Ver pedidos de ${formatDate(point.period)}`} /></td>
+          <td className="py-2 text-right"><DrillButton onClick={() => onSelect(point, 'net_revenue')} label={`Ver pedidos da receita líquida de ${formatSeriesPeriod(point.period, granularity)}`} /></td>
         </tr>)}
       </tbody>
     </table>
@@ -196,6 +218,8 @@ export default function DetailedDashboardPage() {
   const [catalog, setCatalog] = useState({ drops: [], categories: [], loading: true, error: '' });
   const [dateError, setDateError] = useState('');
   const [selection, setSelection] = useState(null);
+  const [seriesOrder, setSeriesOrder] = useState('newest');
+  const [seriesMetric, setSeriesMetric] = useState('net_revenue');
 
   const updateFilters = (changes) => {
     setDateError('');
@@ -379,12 +403,15 @@ export default function DetailedDashboardPage() {
   if (currentError || !data) return <div className="mx-auto max-w-[1280px]">{header}{filterPanel}<AdminPanel className="p-6"><p role="alert" className="text-[#b42318]">{currentError || 'Não foi possível carregar a análise detalhada.'}</p><button type="button" onClick={() => setAttempt((current) => current + 1)} className="mt-4 rounded-lg bg-black px-5 py-2 text-sm font-bold text-white">Tentar novamente</button></AdminPanel></div>;
 
   const { period, financial, sales_series, product_rankings, item_revenue, orders_by_status, sales_by_payment_method, customers, stock } = data;
+  const orderedSeries = [...sales_series].sort((a, b) => seriesOrder === 'newest'
+    ? b.period.localeCompare(a.period) : a.period.localeCompare(b.period));
   const openProductOrders = (row, metric) => openOrders(metric, `Pedidos de ${row.product_name}`, { product_id: row.product_id });
   const openDropOrders = (row) => openOrders('drop_item_revenue', `Receita de itens · ${row.name}`,
     row.drop_id ? { drop: row.drop_id } : { drop: null, unclassified: 'true' });
   const openCategoryOrders = (row) => openOrders('category_item_revenue', `Receita de itens · ${row.name}`,
     row.category_id ? { category: row.category_id } : { category: null, unclassified: 'true' });
-  const openSeriesOrders = (point) => openOrders('net_revenue', `Receita líquida · ${formatDate(point.period)}`, {}, point);
+  const openSeriesOrders = (point, metric) => openOrders(metric,
+    `${metric === 'valid_sales' ? 'Vendas válidas' : 'Receita líquida'} · ${formatSeriesPeriod(point.period, period.granularity)}`, {}, point);
 
   return <div className="mx-auto max-w-[1280px]">
     {header}
@@ -404,9 +431,30 @@ export default function DetailedDashboardPage() {
     <p className="mt-3 text-xs leading-relaxed text-black/55">Financeiro usa a data do pagamento. Vendas válidas: pedidos entregues e pagos. Receita líquida = receita bruta − reembolsos; ticket médio = receita líquida ÷ vendas válidas.</p>
 
     <div className="mt-8 grid gap-6">
-      <Section title="Receita e vendas ao longo do tempo" note="Cada ponto usa a data do pagamento. O período mensal cobre 30 dias móveis; o anual, 365 dias móveis."
+      <Section title="Receita e vendas ao longo do tempo" note="Cada ponto usa a data do pagamento. Vendas válidas são pedidos entregues e pagos; reembolsos podem deixar a receita líquida negativa. O período mensal cobre 30 dias móveis; o anual, 365 dias móveis."
         views={listAndBars} defaultView="bars">
-        {(view) => view === 'list' ? <SeriesTable points={sales_series} onSelect={openSeriesOrders} /> : <SeriesChart points={sales_series} granularity={period.granularity} onSelect={openSeriesOrders} />}
+        {(view) => <>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            {view === 'bars' && <div role="group" aria-label="Métrica das barras" className="inline-flex rounded-lg border border-black/15 bg-black/[0.03] p-1">
+              {[['net_revenue', 'Receita líquida'], ['valid_sales', 'Vendas válidas']].map(([metric, label]) => (
+                <button key={metric} type="button" aria-pressed={seriesMetric === metric} onClick={() => setSeriesMetric(metric)}
+                  className={`rounded-md px-3 py-2 text-xs font-bold transition-colors sm:text-sm ${seriesMetric === metric ? 'bg-black text-white' : 'text-black/65 hover:bg-black/5'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>}
+            <label className="ml-auto grid gap-1 text-xs font-semibold text-black/65">Ordenar períodos
+              <select aria-label="Ordenar períodos" value={seriesOrder} onChange={(event) => setSeriesOrder(event.target.value)}
+                className="h-10 min-w-[160px] rounded-lg border border-black/20 bg-white px-3 text-sm font-medium text-black">
+                <option value="newest">Mais recentes primeiro</option>
+                <option value="oldest">Mais antigos primeiro</option>
+              </select>
+            </label>
+          </div>
+          {view === 'list'
+            ? <SeriesTable points={orderedSeries} granularity={period.granularity} onSelect={openSeriesOrders} />
+            : <SeriesChart points={orderedSeries} granularity={period.granularity} metric={seriesMetric} onSelect={openSeriesOrders} />}
+        </>}
       </Section>
 
       <div className="grid gap-6 xl:grid-cols-2">
