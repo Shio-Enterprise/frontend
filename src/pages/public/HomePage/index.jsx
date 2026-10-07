@@ -19,7 +19,8 @@ const toCardShape = (p) => {
     oldPrice: promo ? `R$ ${base.toFixed(2)}` : null,
     discount: promo ? `-${Math.round((1 - promo / base) * 100)}%` : null,
     image: p.images?.[0]?.image ?? null,
-    rating: null,
+    ratingAvg: p.rating_avg ?? 0,
+    ratingCount: p.rating_count ?? 0,
     unavailable: p.is_sellable === false,
   };
 };

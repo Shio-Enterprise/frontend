@@ -83,6 +83,12 @@ const LoginPage = () => {
           >
             {isLoading ? 'Autenticando...' : 'Entrar'}
           </button>
+          
+          <div className="w-full text-right">
+            <Link to="/forgot-password" className="text-sm text-gray-500 hover:text-black hover:underline">
+              Esqueceu a senha?
+            </Link>
+          </div>
         </form>
 
         {displayedError && (
