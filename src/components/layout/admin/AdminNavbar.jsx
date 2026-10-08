@@ -10,10 +10,11 @@ const navItems = [
   { label: 'Produtos',  to: '/admin/products',  icon: 'box'   },
   { label: 'Pedidos',   to: '/admin/orders',    icon: 'bag'   },
   { label: 'Clientes',  to: '/admin/customers', icon: 'users' },
+  { label: 'Avaliações', to: '/admin/reviews',   icon: 'star'  },
 ];
 
 function isActive(item, pathname) {
-  if (item.to === '/admin/dashboard') return pathname === item.to;
+  if (item.to === '/admin/dashboard') return pathname === item.to || pathname.startsWith(`${item.to}/`);
   return pathname.startsWith(item.to);
 }
 

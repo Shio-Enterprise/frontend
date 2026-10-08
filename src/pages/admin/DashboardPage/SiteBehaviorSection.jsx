@@ -139,8 +139,13 @@ const SiteBehaviorSection = () => {
       return <p className="mt-6 text-[14px] text-[#ff3333]">Não foi possível carregar as métricas.</p>;
     }
 
-    const { visitors, events_by_type: byType, series, top_products: topProducts, group_by: groupBy } =
-      overview.data;
+    const {
+      visitors = { registered: 0, anonymous: 0 },
+      events_by_type: byType = {},
+      series = [],
+      top_products: topProducts = [],
+      group_by: groupBy = 'day',
+    } = overview.data;
     const max = Math.max(...series.map((point) => point.total), 1);
     const hasEvents = series.some((point) => point.total > 0);
 
