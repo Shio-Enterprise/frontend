@@ -34,6 +34,9 @@ export function Icon({ name, className = 'h-5 w-5' }) {
     trash: <path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" />,
     tag: <path d="M20 12 12 20 4 12V4h8l8 8ZM8 8h.01" />,
     grid: <path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z" />,
+    list: <><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></>,
+    chartBar: <path d="M3 20h18M5 20v-7h4v7m3 0V5h4v15m3 0v-10h2v10" />,
+    chartDonut: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /><path d="M12 3v5M20 16l-4-2" /></>,
     box: <path d="m21 8-9-5-9 5 9 5 9-5ZM3 8v8l9 5 9-5V8M12 13v8" />,
     users: <path d="M16 19a4 4 0 0 0-8 0m4-8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7 8a3 3 0 0 0-4-2.8m2-8.2a2.5 2.5 0 1 1-1.5 4.5" />,
     bag: <path d="M6 8h12l-1 12H7L6 8Zm3 0a3 3 0 0 1 6 0" />,
@@ -42,6 +45,7 @@ export function Icon({ name, className = 'h-5 w-5' }) {
     save: <path d="M5 4h12l2 2v14H5V4Zm3 0v6h8V4M8 20v-7h8v7" />,
     refresh: <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />,
     heart: <path d="M20.8 8.8c0 5.1-8.8 10.2-8.8 10.2S3.2 13.9 3.2 8.8A4.8 4.8 0 0 1 12 6.2a4.8 4.8 0 0 1 8.8 2.6Z" />,
+    shield: <path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3Zm0 5v5m0 3h.01" />,
     star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
   };
 
@@ -324,11 +328,10 @@ export function ActionMenu({ label, items }) {
           if (item.separator) {
             return <div key={item.key ?? `sep-${i}`} className="mx-4 border-t border-black/10" />;
           }
-          const cls = `flex w-full items-center gap-2.5 px-5 py-3 text-[15px] text-left ${
-            item.danger
+          const cls = `flex w-full items-center gap-2.5 px-5 py-3 text-[15px] text-left ${item.danger
               ? 'font-semibold text-[#ff3333] hover:bg-[#fff5f5]'
               : 'text-black hover:bg-[#f5f5f5]'
-          }`;
+            }`;
           if (item.to) {
             return (
               <Link key={item.label} to={item.to} className={cls} onClick={close}>

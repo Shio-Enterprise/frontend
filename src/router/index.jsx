@@ -14,7 +14,7 @@ const Router = () => {
               path={route.path}
               element={
                 (route.isPrivate || route.isAdmin)
-                  ? <ProtectedRoute requireAdmin={route.isAdmin}>{route.component}</ProtectedRoute>
+                  ? <ProtectedRoute requireAdmin={route.isAdmin} requiredPermission={route.requiredPermission}>{route.component}</ProtectedRoute>
                   : route.component
               }
             />
