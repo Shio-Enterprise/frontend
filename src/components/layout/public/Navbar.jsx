@@ -12,7 +12,7 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { cartCount } = useCart();
-  const { isAdmin } = useAuth();
+  const { isAdmin, adminHomePath } = useAuth();
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -89,7 +89,7 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           {isAdmin && (
             <Link
-              to="/admin/dashboard"
+              to={adminHomePath || "/admin/dashboard"}
               className="hidden h-10 items-center gap-2 rounded-full border border-black/20 px-4 text-[13px] font-semibold transition hover:bg-black hover:text-white lg:flex"
               aria-label="Painel administrativo"
               data-testid="admin-panel-link"
@@ -167,7 +167,7 @@ export default function Navbar() {
             </Link>
             {isAdmin && (
               <Link
-                to="/admin/dashboard"
+                to={adminHomePath || "/admin/dashboard"}
                 onClick={closeMenu}
                 className="flex h-14 items-center gap-3 border-b border-black/10 px-6 text-[16px] font-semibold text-black"
               >

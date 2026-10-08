@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import logo from '../../../assets/logo/logo.svg';
 import { Icon } from '../../ui/ShioDesign';
+import { ADMIN_PERMISSIONS } from '../../../lib/adminPermissions';
 
 const navItems = [
   {
@@ -11,30 +12,42 @@ const navItems = [
     icon: 'grid',
     matches: ['/admin/dashboard'],
     exact: true,
+    permission: ADMIN_PERMISSIONS.DASHBOARD,
   },
   {
     label: 'Drops',
     to: '/admin/drops',
     icon: 'tag',
     matches: ['/admin/drops', '/admin/new-drop', '/admin/edit-drop'],
+    permission: ADMIN_PERMISSIONS.DROPS,
   },
   {
     label: 'Produtos',
     to: '/admin/products',
     icon: 'box',
     matches: ['/admin/products', '/admin/new-product', '/admin/edit-product', '/admin/stock'],
+    permission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
     label: 'Pedidos',
     to: '/admin/orders',
     icon: 'bag',
     matches: ['/admin/orders'],
+    permission: ADMIN_PERMISSIONS.ORDERS,
   },
   {
     label: 'Clientes',
     to: '/admin/customers',
     icon: 'users',
     matches: ['/admin/customers'],
+    permission: ADMIN_PERMISSIONS.CUSTOMERS,
+  },
+  {
+    label: 'Permissões',
+    to: '/admin/permissions',
+    icon: 'shield',
+    matches: ['/admin/permissions'],
+    permission: ADMIN_PERMISSIONS.ADMIN_PERMISSIONS,
   },
 ];
 
@@ -60,9 +73,11 @@ function getUserIdentity(user) {
 export default function AdminNavbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, hasAdminPermission } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const currentSection = navItems.find((item) => isActive(item, pathname)) ?? navItems[0];
+  const canAccess = hasAdminPermission ?? (() => true);
+  const visibleNavItems = navItems.filter((item) => canAccess(item.permission));
+  const currentSection = visibleNavItems.find((item) => isActive(item, pathname)) ?? visibleNavItems[0] ?? navItems[0];
   const identity = getUserIdentity(user);
 
   const handleLogout = async () => {
@@ -81,7 +96,7 @@ export default function AdminNavbar() {
         </div>
 
         <nav className="space-y-5 px-5 py-6" aria-label="Navegação administrativa">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const active = isActive(item, pathname);
             return (
               <Link
@@ -181,7 +196,7 @@ export default function AdminNavbar() {
         )}
 
         <nav className="flex border-b border-black/10 bg-white" aria-label="Navegação administrativa">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const active = isActive(item, pathname);
             return (
               <Link

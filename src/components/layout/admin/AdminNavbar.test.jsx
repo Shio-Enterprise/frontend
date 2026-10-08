@@ -92,4 +92,25 @@ describe('AdminNavbar', () => {
     expect(screen.getAllByRole('link', { name: /voltar para loja/i }).length).toBeGreaterThan(1);
     expect(screen.getAllByRole('button', { name: 'Sair' }).length).toBeGreaterThan(1);
   });
+  it('exibe apenas as seções permitidas para o administrador', () => {
+    useAuth.mockReturnValue({
+      user: {
+        name: 'Admin Pedidos',
+        email: 'pedidos@shio.com',
+        is_admin: true,
+      },
+      logout: logoutMock,
+      hasAdminPermission: (permission) =>
+        ['manage_orders', 'manage_admin_permissions'].includes(permission),
+    });
+
+    renderNavbar('/admin/orders');
+
+    expect(screen.getAllByRole('link', { name: 'Pedidos' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Permissões' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: 'Produtos' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Drops' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Clientes' })).not.toBeInTheDocument();
+  });
+
 });

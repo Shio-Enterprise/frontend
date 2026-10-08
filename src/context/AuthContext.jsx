@@ -2,6 +2,7 @@ import { createContext, useState, useContext, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from '../lib/authToken';
 import apiClient from '../lib/axios';
+import { firstAllowedAdminRoute, resolveAdminPermissions } from '../lib/adminPermissions';
 
 const AuthContext = createContext(null);
 
@@ -76,6 +77,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshUser = async () => {
+    const response = await apiClient.get('/auth/me/');
+    const userData = response.data;
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+    setIsAdmin(
+      userData.is_admin ||
+      userData.is_staff ||
+      userData.is_superuser ||
+      false
+    );
+    return userData;
+  };
+
   const loginWithPassword = async (email, password) => {
     const response = await apiClient.post('/auth/login/', { email, password });
     login(response.data);
@@ -88,7 +103,25 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
-  const value = { user, accessToken, isAdmin, isAuthLoading, login, logout, loginWithPassword, registerWithPassword };
+  const adminPermissions = resolveAdminPermissions(user, isAdmin);
+  const hasAdminPermission = (permission) =>
+    Boolean(isAdmin && adminPermissions.includes(permission));
+  const adminHomePath = firstAllowedAdminRoute(adminPermissions);
+
+  const value = {
+    user,
+    accessToken,
+    isAdmin,
+    adminPermissions,
+    hasAdminPermission,
+    adminHomePath,
+    isAuthLoading,
+    login,
+    logout,
+    loginWithPassword,
+    registerWithPassword,
+    refreshUser,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

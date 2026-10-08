@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import AdminLayout from "../components/layout/admin/AdminLayout";
+import { ADMIN_PERMISSIONS } from "../lib/adminPermissions";
 
 // Public pages
 const HomePage = lazy(() => import("../pages/public/HomePage"));
@@ -27,6 +28,7 @@ const EditDropPage = lazy(() => import("../pages/admin/EditDropPage"));
 const DropsPage = lazy(() => import("../pages/admin/DropsPage"));
 const DropDetailsPage = lazy(() => import("../pages/admin/DropDetailsPage"));
 const CustomersPage = lazy(() => import("../pages/admin/CustomersPage"));
+const AdminPermissionsPage = lazy(() => import("../pages/admin/AdminPermissionsPage"));
 
 const routes = [
   // Public routes
@@ -102,71 +104,91 @@ const routes = [
     path: "/admin/dashboard",
     component: <AdminLayout><DashboardPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.DASHBOARD,
   },
   {
     path: "/admin/products",
     component: <AdminLayout><ProductsPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
     path: "/admin/products/:id",
     component: <AdminLayout><ProductsPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
     path: "/admin/edit-product/:id",
     component: <AdminLayout><ProductsPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
     path: "/admin/stock/:id",
     component: <AdminLayout><ProductsPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
     path: "/admin/new-product",
     component: <AdminLayout><NewProductPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
     path: "/admin/orders",
     component: <AdminLayout><OrdersPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.ORDERS,
   },
   {
     path: "/admin/orders/:id",
     component: <AdminLayout><OrdersPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.ORDERS,
   },
   {
     path: "/admin/new-drop",
     component: <AdminLayout><NewDropPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.DROPS,
   },
   {
     path: "/admin/edit-drop/:id",
     component: <AdminLayout><EditDropPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.DROPS,
   },
   {
     path: "/admin/drops",
     component: <AdminLayout><DropsPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.DROPS,
   },
   {
     path: "/admin/drops/:id",
     component: <AdminLayout><DropDetailsPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.DROPS,
   },
   {
     path: "/admin/customers",
     component: <AdminLayout><CustomersPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CUSTOMERS,
   },
   {
     path: "/admin/customers/:id",
     component: <AdminLayout><CustomersPage /></AdminLayout>,
     isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CUSTOMERS,
+  },
+  {
+    path: "/admin/permissions",
+    component: <AdminLayout><AdminPermissionsPage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.ADMIN_PERMISSIONS,
   },
 ];
 

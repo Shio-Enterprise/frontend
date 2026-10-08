@@ -70,4 +70,33 @@ describe('ProtectedRoute', () => {
 
     expect(screen.getByText('Área administrativa')).toBeInTheDocument();
   });
+  it('redireciona administrador sem a permissão exigida para sua primeira área permitida', () => {
+    getAccessToken.mockReturnValue('token');
+    useAuth.mockReturnValue({
+      isAdmin: true,
+      isAuthLoading: false,
+      hasAdminPermission: (permission) => permission === 'manage_catalog',
+      adminHomePath: '/admin/products',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/admin/dashboard']}>
+        <Routes>
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute requireAdmin requiredPermission="access_admin_dashboard">
+                <div>Dashboard restrito</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/admin/products" element={<div>Produtos permitidos</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Produtos permitidos')).toBeInTheDocument();
+    expect(screen.queryByText('Dashboard restrito')).not.toBeInTheDocument();
+  });
+
 });
