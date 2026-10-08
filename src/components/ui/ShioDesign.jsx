@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import apiClient from '../../lib/axios';
+import { useWishlist } from '../../context/WishlistContext';
 
 export function PageMarker({ name }) {
   return <span className="sr-only">{name}</span>;
@@ -43,6 +44,7 @@ export function Icon({ name, className = 'h-5 w-5' }) {
     logout: <path d="M14 8V5H5v14h9v-3m-3-4h9m-3-3 3 3-3 3" />,
     save: <path d="M5 4h12l2 2v14H5V4Zm3 0v6h8V4M8 20v-7h8v7" />,
     refresh: <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />,
+    heart: <path d="M20.8 8.8c0 5.1-8.8 10.2-8.8 10.2S3.2 13.9 3.2 8.8A4.8 4.8 0 0 1 12 6.2a4.8 4.8 0 0 1 8.8 2.6Z" />,
     shield: <path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3Zm0 5v5m0 3h.01" />,
     star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
   };
@@ -86,21 +88,50 @@ export function Rating({ value, count }) {
 }
 
 export function ProductCard({ product }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated, isWishlisted, pending, loading, idsError, refreshWishlist, toggleWishlist } = useWishlist();
+  const [wishlistError, setWishlistError] = useState(false);
+  const productId = product.id ?? '1';
+  const unavailable = product.unavailable || product.is_sellable === false || (Array.isArray(product.variations) && product.variations.every((variation) => Number(variation.stock_quantity ?? 0) <= 0));
+  const wishlisted = isWishlisted(productId);
+  const isPending = pending.has(productId);
+  const handleWishlist = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!isAuthenticated) { navigate('/login', { state: { from: location } }); return; }
+    setWishlistError(false);
+    const succeeded = await toggleWishlist(productId);
+    if (!succeeded) setWishlistError(true);
+
+  };
   return (
     <article className="group">
-      <Link to={`/product/${product.id ?? '1'}`} className={`relative block overflow-hidden rounded-[16px] bg-[#f0efed] ${product.unavailable ? 'opacity-60' : ''}`}>
+      <div className="relative">
+        <Link to={`/product/${productId}`} className={`relative block overflow-hidden rounded-[16px] bg-[#f0efed] ${unavailable ? 'opacity-60' : ''}`}>
         {product.image ? (
           <img src={product.image} alt={product.name}
             className="aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.03]"
             onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
         ) : null}
         <div className={`aspect-square w-full bg-[#f0efed] ${product.image ? 'hidden' : 'block'}`} />
-        {product.unavailable && (
+        {unavailable && (
           <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">
             Indisponível
           </span>
         )}
-      </Link>
+        </Link>
+        <button type="button" onClick={handleWishlist} disabled={isPending || (isAuthenticated && (loading || Boolean(idsError)))} aria-busy={isPending || loading} aria-label={wishlisted ? `Remover ${product.name} dos favoritos` : `Adicionar ${product.name} aos favoritos`} aria-pressed={wishlisted} className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-black shadow-sm transition hover:bg-white disabled:opacity-50">
+          <Icon name="heart" className={`h-5 w-5 ${wishlisted ? 'fill-black' : ''}`} />
+        </button>
+      </div>
+      {isAuthenticated && idsError && (
+        <div className="mt-2 text-xs text-[#ff3333]">
+          <p role="alert">Não foi possível consultar os favoritos.</p>
+          <button type="button" onClick={() => refreshWishlist()} className="mt-1 underline">Tentar novamente</button>
+        </div>
+      )}
+      {wishlistError && <p role="alert" className="mt-2 text-xs text-[#ff3333]">Não foi possível atualizar os favoritos.</p>}
       <h3 className="mt-4 text-[16px] font-semibold leading-tight text-black">{product.name}</h3>
       {product.ratingCount > 0 && (
         <div className="mt-2">

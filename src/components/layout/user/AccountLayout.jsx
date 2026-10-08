@@ -7,6 +7,7 @@ const navItems = [
   { label: 'Meus Dados', to: '/my-account', icon: 'users' },
   { label: 'Meus Pedidos', to: '/my-orders', icon: 'box' },
   { label: 'Endereços', to: '/addresses', icon: 'tag' },
+  { label: 'Favoritos', to: '/my-favorites', icon: 'heart' },
 ];
 
 export default function AccountLayout({ children }) {
