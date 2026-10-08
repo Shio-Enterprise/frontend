@@ -1,13 +1,41 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { createReview, deleteReview, getAllMyReviews, updateReview } from '../../../lib/reviewsApi';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+} from 'react-router-dom';
+
+import {
+  createReview,
+  deleteReview,
+  getAllMyReviews,
+  updateReview,
+} from '../../../lib/reviewsApi';
+
 import OrderDetailsPage from './index';
 
 vi.mock('../../../components/layout/user/AccountLayout', () => ({
   default: ({ children }) => <main>{children}</main>,
 }));
-vi.mock('../../../lib/authToken', () => ({ getAccessToken: () => 'token' }));
+
+vi.mock('../../../lib/authToken', () => ({
+  getAccessToken: () => 'token',
+}));
+
 vi.mock('../../../lib/reviewsApi', async (importOriginal) => ({
   ...(await importOriginal()),
   createReview: vi.fn(),
@@ -17,37 +45,88 @@ vi.mock('../../../lib/reviewsApi', async (importOriginal) => ({
 }));
 
 const item = (overrides = {}) => ({
-  id: 'i1', product_id: 'p1', product_name: 'Camiseta Shio', sku_snapshot: 'CAM-M',
-  quantity: 1, unit_price: '100.00', updated_at: '2026-09-01T10:00:00Z',
-  can_review: true, review_id: null, ...overrides,
+  id: 'i1',
+  product_id: 'p1',
+  product_name: 'Camiseta Shio',
+  sku_snapshot: 'CAM-M',
+  quantity: 1,
+  unit_price: '100.00',
+  updated_at: '2026-09-01T10:00:00Z',
+  can_review: true,
+  review_id: null,
+  ...overrides,
 });
+
 const order = (items) => ({
-  id: 'abcdef12-0000-0000-0000-000000000000', status: 'DELIVERED', created_at: '2026-09-01T10:00:00Z',
-  items, status_logs: [], tracking_code: null, payment: null,
-  subtotal: '100.00', shipping_cost: '0.00', discount_amount: '0.00', total_amount: '100.00',
-  shipping_street: 'Rua A', shipping_number: '1', shipping_complement: '', shipping_neighborhood: 'Centro',
-  shipping_city: 'Brasília', shipping_state: 'DF', shipping_zip_code: '70000-000',
+  id: 'abcdef12-0000-0000-0000-000000000000',
+  status: 'DELIVERED',
+  created_at: '2026-09-01T10:00:00Z',
+  items,
+  status_logs: [],
+  tracking_code: null,
+  payment: null,
+  subtotal: '100.00',
+  shipping_cost: '0.00',
+  discount_amount: '0.00',
+  total_amount: '100.00',
+  shipping_street: 'Rua A',
+  shipping_number: '1',
+  shipping_complement: '',
+  shipping_neighborhood: 'Centro',
+  shipping_city: 'Brasília',
+  shipping_state: 'DF',
+  shipping_zip_code: '70000-000',
 });
+
 const mine = (overrides = {}) => ({
-  id: 'r1', product_id: 'p1', product_name: 'Camiseta Shio', rating: 2, comment: 'Compre em x.com',
-  fit: '', status: 'PUBLISHED', removal_reason_label: null, removal_note: '', ...overrides,
+  id: 'r1',
+  product_id: 'p1',
+  product_name: 'Camiseta Shio',
+  rating: 2,
+  comment: 'Compre em x.com',
+  fit: '',
+  status: 'PUBLISHED',
+  removal_reason_label: null,
+  removal_note: '',
+  ...overrides,
 });
 
 const mount = (items) => {
-  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => order(items) })));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: async () => order(items),
+      }),
+    ),
+  );
+
   return render(
     <MemoryRouter initialEntries={['/my-orders/abcdef12']}>
       <Routes>
-        <Route path="/my-orders/:id" element={<OrderDetailsPage />} />
+        <Route
+          path="/my-orders/:id"
+          element={<OrderDetailsPage />}
+        />
       </Routes>
     </MemoryRouter>,
   );
 };
-const WARNING = 'Não foi possível carregar sua avaliação. Ao salvar, o comentário e o caimento anteriores serão substituídos.';
-const dialog = (name) => screen.getByRole('dialog', { name });
 
-beforeEach(() => vi.clearAllMocks());
-afterEach(() => vi.unstubAllGlobals());
+const WARNING =
+  'Não foi possível carregar sua avaliação. Ao salvar, o comentário e o caimento anteriores serão substituídos.';
+
+const dialog = (name) =>
+  screen.getByRole('dialog', { name });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('OrderDetailsPage', () => {
   it('renders headline', async () => {

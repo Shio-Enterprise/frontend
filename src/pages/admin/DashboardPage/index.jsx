@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, AdminTitle, PageMarker } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
@@ -21,8 +26,11 @@ const DashboardPage = () => {
   const [seriesView, setSeriesView] = useState('bars');
   const [hoveredPeriod, setHoveredPeriod] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.toString();
+
   const filters = useMemo(() => {
     const params = new URLSearchParams(urlQuery);
     return { period: params.get('period') === 'annual' ? 'annual' : 'monthly', search: params.get('search') || '' };
@@ -86,28 +94,41 @@ const DashboardPage = () => {
       setLoadError(null);
       try {
         const token = getAccessToken();
-        if (!token) { navigate('/admin/login'); return; }
+        if (!token) {
+          navigate('/login', { state: { from: location }, replace: true });
+          return;
+        }
 
         const headers = { Authorization: `Bearer ${token}` };
         const base = import.meta.env.VITE_API_URL;
 
         const summaryRes = await fetch(`${base}/api/orders/dashboard/summary/?${query}`, { headers, signal: controller.signal });
 
-        if (summaryRes.status === 401 || summaryRes.status === 403) {
+        if (summaryRes.status === 401) {
           clearAuthTokens();
-          navigate('/admin/login', {
+          navigate('/login', {
             state: {
-              error: summaryRes.status === 403
-                ? "Acesso negado. Esta conta não possui permissão de administrador."
-                : "Sua sessão expirou. Faça login novamente."
+              from: location,
+              error: "Sua sessão expirou. Faça login novamente.",
             },
-            replace: true
+            replace: true,
           });
           return;
         }
 
-        if (!summaryRes.ok) throw new Error('Não foi possível carregar o resumo.');
-        setSnapshot({ query, data: await summaryRes.json() });
+        if (summaryRes.status === 403) {
+          navigate('/', { replace: true });
+          return;
+        }
+
+        if (!summaryRes.ok) {
+          throw new Error('Não foi possível carregar o resumo.');
+        }
+
+        setSnapshot({
+          query,
+          data: await summaryRes.json(),
+        });
       } catch (error) {
         if (error.name !== 'AbortError') setLoadError({ query, message: error.message || 'Não foi possível carregar o resumo.' });
       } finally {
@@ -116,8 +137,10 @@ const DashboardPage = () => {
     };
 
     fetchAll();
+    fetchAll();
+
     return () => controller.abort();
-  }, [navigate, query, attempt]);
+  }, [location, navigate, query, attempt]);
 
   const activeParams = new URLSearchParams(urlQuery);
   const header = <>
@@ -155,22 +178,22 @@ const DashboardPage = () => {
   const highlightedPoint = chartData.find((point) => point.period === hoveredPeriod) ?? chartData.at(-1);
 
   const metrics = [
-    { 
-      label: 'Receita total', 
+    {
+      label: 'Receita total',
       value: money(sales_summary?.total_revenue),
       icon: '$',
       onClick: () => openDrillDown('net_revenue'),
     },
-    { 
+    {
       label: `Pedidos (${sales_summary?.period_days ?? 30}d)`,
-      value: sales_summary?.total_orders || 0, 
+      value: sales_summary?.total_orders || 0,
       icon: 'bag',
       onClick: () => openDrillDown('valid_sales'),
     },
-    { 
+    {
       label: 'Clientes cadastrados',
-      value: customers_summary?.total_registered || 0, 
-      change: `+${customers_summary?.new_in_period || 0} no período`, 
+      value: customers_summary?.total_registered || 0,
+      change: `+${customers_summary?.new_in_period || 0} no período`,
       icon: 'users',
       negative: false,
       onClick: () => navigate('/admin/customers'),
@@ -181,10 +204,10 @@ const DashboardPage = () => {
       icon: 'users',
       onClick: () => navigate('/admin/customers'),
     },
-    { 
+    {
       label: 'Alertas exibidos (até 50)',
-      value: low_stock_alerts?.length || 0, 
-      icon: 'box', 
+      value: low_stock_alerts?.length || 0,
+      icon: 'box',
       negative: (low_stock_alerts?.length || 0) > 0,
       onClick: () => navigate(`/admin/dashboard/detail${urlQuery ? `?${urlQuery}` : ''}#estoque`),
     },
