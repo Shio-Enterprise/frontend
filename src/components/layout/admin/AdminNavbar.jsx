@@ -25,7 +25,12 @@ const navItems = [
     label: 'Produtos',
     to: '/admin/products',
     icon: 'box',
-    matches: ['/admin/products', '/admin/new-product', '/admin/edit-product', '/admin/stock'],
+    matches: [
+      '/admin/products',
+      '/admin/new-product',
+      '/admin/edit-product',
+      '/admin/stock',
+    ],
     permission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
@@ -43,6 +48,13 @@ const navItems = [
     permission: ADMIN_PERMISSIONS.CUSTOMERS,
   },
   {
+    label: 'Avaliações',
+    to: '/admin/reviews',
+    icon: 'star',
+    matches: ['/admin/reviews'],
+    permission: ADMIN_PERMISSIONS.CATALOG,
+  },
+  {
     label: 'Permissões',
     to: '/admin/permissions',
     icon: 'shield',
@@ -52,8 +64,13 @@ const navItems = [
 ];
 
 function isActive(item, pathname) {
-  if (item.exact) return item.matches.includes(pathname);
-  return item.matches.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  if (item.exact) {
+    return item.matches.includes(pathname);
+  }
+
+  return item.matches.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
 }
 
 function getUserIdentity(user) {
@@ -65,7 +82,10 @@ function getUserIdentity(user) {
     user?.email ||
     'Administrador';
 
-  const email = user?.email && user.email !== name ? user.email : null;
+  const email =
+    user?.email && user.email !== name
+      ? user.email
+      : null;
 
   return { name, email };
 }
