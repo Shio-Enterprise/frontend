@@ -71,7 +71,9 @@ describe('AdminPermissionsPage', () => {
   it('lista administradores e permissões configuráveis', async () => {
     render(<AdminPermissionsPage />);
 
-    expect(await screen.findByText('Admin Principal')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /Admin Principal/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Admin Pedidos')).toBeInTheDocument();
     expect(screen.getByText('Produtos e estoque')).toBeInTheDocument();
     expect(screen.getByText('Pedidos')).toBeInTheDocument();
@@ -110,7 +112,7 @@ describe('AdminPermissionsPage', () => {
   it('não permite remover de si mesmo o acesso à gestão de permissões', async () => {
     render(<AdminPermissionsPage />);
 
-    await screen.findByText('Admin Principal');
+    await screen.findByRole('button', { name: /Admin Principal/i });
     const ownPermission = screen.getByRole('checkbox', { name: /Permissões/i });
     expect(ownPermission).toBeChecked();
     expect(ownPermission).toBeDisabled();
