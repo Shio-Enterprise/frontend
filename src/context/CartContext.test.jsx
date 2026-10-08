@@ -13,7 +13,7 @@ const okCartResponse = () =>
   });
 
 beforeEach(() => {
-  global.fetch = vi.fn(okCartResponse);
+  globalThis.fetch = vi.fn(okCartResponse);
 });
 
 function Probe() {
@@ -49,7 +49,7 @@ describe('CartContext', () => {
     render(<CartProvider><ProbeWithRefresh /></CartProvider>);
     expect(await screen.findByText('true-20.00-1-2')).toBeInTheDocument();
 
-    global.fetch = vi.fn(() => Promise.resolve({ ok: false, json: () => Promise.resolve({}) }));
+    globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, json: () => Promise.resolve({}) }));
     await clickRefresh();
 
     expect(screen.getByTestId('probe')).toHaveTextContent('false-0.00-0-0');
@@ -59,7 +59,7 @@ describe('CartContext', () => {
     render(<CartProvider><ProbeWithRefresh /></CartProvider>);
     expect(await screen.findByText('true-20.00-1-2')).toBeInTheDocument();
 
-    global.fetch = vi.fn(() => Promise.reject(new Error('network down')));
+    globalThis.fetch = vi.fn(() => Promise.reject(new Error('network down')));
     await clickRefresh();
 
     expect(screen.getByTestId('probe')).toHaveTextContent('false-0.00-0-0');
