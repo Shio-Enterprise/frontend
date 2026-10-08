@@ -3,18 +3,24 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import WelcomeModal from './WelcomeModal';
 
+// Mock getAccessToken so we control logged-in state
+vi.mock('../../lib/authToken', () => ({
+  getAccessToken: vi.fn(() => null),
+}));
+
+import { getAccessToken } from '../../lib/authToken';
+
 describe('WelcomeModal', () => {
   beforeEach(() => {
-    // Limpa o localStorage antes de cada teste
     localStorage.clear();
-    // Usa timers falsos do vitest para não ter que esperar 3 segundos reais nos testes
     vi.useFakeTimers();
+    getAccessToken.mockReturnValue(null);
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
-    document.body.style.overflow = 'unset'; // Reseta o scroll
+    document.body.style.overflow = 'unset';
   });
 
   const renderModal = () => {
@@ -25,8 +31,8 @@ describe('WelcomeModal', () => {
     );
   };
 
-  it('não deve renderizar se o usuário estiver logado (accessToken presente)', () => {
-    localStorage.setItem('accessToken', 'fake-token');
+  it('não deve renderizar se o usuário estiver logado (accessToken válido presente)', () => {
+    getAccessToken.mockReturnValue('valid-token');
     renderModal();
 
     act(() => {
@@ -36,8 +42,18 @@ describe('WelcomeModal', () => {
     expect(screen.queryByText('Seja muito bem-vindo(a)!')).not.toBeInTheDocument();
   });
 
+  it('deve renderizar se getAccessToken retornar null (token expirado ou ausente)', () => {
+    getAccessToken.mockReturnValue(null);
+    renderModal();
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
+  });
+
   it('não deve renderizar se o modal foi fechado há menos de 1 dia', () => {
-    // Simula que foi fechado agora
     localStorage.setItem('welcomeModalClosedAt', Date.now().toString());
     renderModal();
 
@@ -51,25 +67,20 @@ describe('WelcomeModal', () => {
   it('deve renderizar após 3 segundos se o usuário não estiver logado e não tiver visto o modal recentemente', () => {
     renderModal();
 
-    // Antes dos 3 segundos
     expect(screen.queryByText('Seja muito bem-vindo(a)!')).not.toBeInTheDocument();
 
     act(() => {
-      // Avança o tempo em 3 segundos
       vi.advanceTimersByTime(3000);
     });
 
-    // Agora o modal deve estar na tela
     expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
-    
-    // Verifica se o scroll foi travado
     expect(document.body.style.overflow).toBe('hidden');
   });
 
   it('deve renderizar se o modal foi fechado há mais de 1 dia', () => {
     const doisDiasAtras = Date.now() - (2 * 24 * 60 * 60 * 1000);
     localStorage.setItem('welcomeModalClosedAt', doisDiasAtras.toString());
-    
+
     renderModal();
 
     act(() => {
@@ -88,10 +99,8 @@ describe('WelcomeModal', () => {
 
     expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
 
-    // Encontra o botão de fechar (pelo aria-label ou texto)
     const closeButton = screen.getByLabelText('Fechar');
-    
-    // Mock do Date.now para testar o timestamp exato
+
     const mockNow = 1600000000000;
     vi.spyOn(Date, 'now').mockReturnValue(mockNow);
 
@@ -99,13 +108,59 @@ describe('WelcomeModal', () => {
       fireEvent.click(closeButton);
     });
 
-    // O modal deve sumir
     expect(screen.queryByText('Seja muito bem-vindo(a)!')).not.toBeInTheDocument();
-    
-    // O scroll deve destravar
-    expect(document.body.style.overflow).toBe('unset');
-
-    // O localStorage deve ter sido atualizado com o timestamp
     expect(localStorage.getItem('welcomeModalClosedAt')).toBe(mockNow.toString());
+  });
+
+  it('deve fechar o modal ao pressionar Esc', () => {
+    renderModal();
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.keyDown(document, { key: 'Escape' });
+    });
+
+    expect(screen.queryByText('Seja muito bem-vindo(a)!')).not.toBeInTheDocument();
+  });
+
+  it('deve fechar o modal ao clicar no backdrop', () => {
+    const { container } = renderModal();
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
+
+    // Clica no backdrop (o div externo)
+    const backdrop = container.querySelector('.fixed.inset-0');
+    act(() => {
+      fireEvent.click(backdrop);
+    });
+
+    expect(screen.queryByText('Seja muito bem-vindo(a)!')).not.toBeInTheDocument();
+  });
+
+  it('não deve fechar o modal ao clicar dentro do conteúdo', () => {
+    renderModal();
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
+
+    // Clica no conteúdo (o div interno com role=dialog)
+    const dialog = screen.getByRole('dialog');
+    act(() => {
+      fireEvent.click(dialog);
+    });
+
+    expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
   });
 });

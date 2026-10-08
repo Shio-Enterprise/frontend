@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../../assets/logo/logo.svg';
+import { getAccessToken } from '../../lib/authToken';
 
 const WelcomeModal = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const dialogRef = useRef(null);
 
   useEffect(() => {
-
     const modalClosedAt = localStorage.getItem('welcomeModalClosedAt');
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('user');
+    const token = getAccessToken();
 
     let shouldShow = false;
 
@@ -17,10 +18,9 @@ const WelcomeModal = () => {
         shouldShow = true;
       } else {
         const closedTime = parseInt(modalClosedAt, 10);
-        const threeDaysInMs = 1 * 24 * 60 * 60 * 1000;
+        const oneDayInMs = 1 * 24 * 60 * 60 * 1000;
 
-
-        if (Date.now() - closedTime > threeDaysInMs) {
+        if (Date.now() - closedTime > oneDayInMs) {
           shouldShow = true;
         }
       }
@@ -36,26 +36,47 @@ const WelcomeModal = () => {
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsOpen(false);
     localStorage.setItem('welcomeModalClosedAt', Date.now().toString());
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') handleClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md overflow-hidden rounded-xl shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={handleClose}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="welcome-modal-title"
+        tabIndex={-1}
+        className="relative w-full max-w-md overflow-hidden rounded-xl shadow-2xl outline-none"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={handleClose}
           className="absolute right-4 top-4 z-10 text-white/70 transition-colors hover:text-white"
@@ -75,7 +96,7 @@ const WelcomeModal = () => {
         </div>
 
         <div className="bg-white p-8 text-center">
-          <h2 className="mb-2 text-2xl font-black uppercase text-black">
+          <h2 id="welcome-modal-title" className="mb-2 text-2xl font-black uppercase text-black">
             Seja muito bem-vindo(a)!
           </h2>
           <p className="mb-6 text-black/70">
