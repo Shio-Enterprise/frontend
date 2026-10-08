@@ -7,6 +7,10 @@ vi.mock('../../../components/layout/public/PublicLayout', () => ({
   default: ({ children }) => <main>{children}</main>,
 }));
 
+vi.mock('../../../components/reviews/ProductReviews', () => ({
+  default: ({ productId }) => <div data-testid="product-reviews">{productId}</div>,
+}));
+
 const product = (id) => ({
   id, name: `Produto ${id}`, base_price: '100.00', images: [], variations: [],
 });
@@ -130,6 +134,15 @@ describe('ProductDetailPage', () => {
     fetch.mock.calls.forEach(([, options]) => expect(options.signal.aborted).toBe(true));
   });
 
+  it('mostra a nota das recomendações avaliadas', async () => {
+    fetch.mockImplementation((url) => Promise.resolve(url.includes('/recommendations/')
+      ? response({ count: 1, next: null, previous: null, results: [{ ...product(25), rating_avg: '4.00', rating_count: 2 }] })
+      : response(product('1'))));
+    mount();
+    await screen.findByText('Produto 25');
+    expect(section().getByRole('img', { name: 'Nota 4,0 de 5' })).toBeInTheDocument();
+  });
+
   it('mostra produto não encontrado quando o detalhe retorna 404', async () => {
     fetch.mockImplementation((url) => Promise.resolve(
       url.includes('/recommendations/') ? recommendations([]) : { ok: false, status: 404 },
@@ -137,5 +150,22 @@ describe('ProductDetailPage', () => {
     mount();
     expect(await screen.findByText('Produto não encontrado.')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Recomendações para você' })).not.toBeInTheDocument();
+  });
+
+  it('mostra a nota no topo e monta a seção de avaliações do produto', async () => {
+    fetch.mockImplementation((url) => Promise.resolve(url.includes('/recommendations/')
+      ? recommendations([])
+      : response({ ...product('1'), rating_avg: '4.50', rating_count: 8 })));
+    mount();
+    expect(await screen.findByRole('img', { name: 'Nota 4,5 de 5' })).toBeInTheDocument();
+    expect(screen.getByText('4,5 (8)')).toBeInTheDocument();
+    expect(screen.getByTestId('product-reviews')).toHaveTextContent('1');
+  });
+
+  it('não mostra estrelas no topo sem avaliações', async () => {
+    mount();
+    await screen.findByRole('heading', { name: 'Produto 1' });
+    await screen.findByText('Produto 25');
+    expect(screen.queryByRole('img', { name: /^Nota/ })).not.toBeInTheDocument();
   });
 });

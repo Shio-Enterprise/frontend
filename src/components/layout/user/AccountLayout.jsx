@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import PublicLayout from '../public/PublicLayout';
 import { Icon } from '../../ui/ShioDesign';
-import { clearAuthTokens } from '../../../lib/authToken';
+import { useAuth } from '../../../context/AuthContext';
 
 const navItems = [
   { label: 'Meus Dados', to: '/my-account', icon: 'users' },
@@ -12,9 +12,10 @@ const navItems = [
 export default function AccountLayout({ children }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  const handleLogout = () => {
-    clearAuthTokens();
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 

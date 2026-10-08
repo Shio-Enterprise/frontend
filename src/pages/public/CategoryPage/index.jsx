@@ -20,7 +20,8 @@ const toCardShape = (p) => {
     oldPrice: promo ? `R$ ${base.toFixed(2)}` : null,
     discount: promo ? `-${Math.round((1 - promo / base) * 100)}%` : null,
     image: p.images?.[0]?.image ?? null,
-    rating: null,
+    ratingAvg: p.rating_avg ?? 0,
+    ratingCount: p.rating_count ?? 0,
     unavailable: p.is_sellable === false,
   };
 };
@@ -32,6 +33,7 @@ const ORDERING = {
   "price-asc": "base_price",
   "price-desc": "-base_price",
   sales: "-sales_count",
+  rating: "-rating_avg",
 };
 
 const COLOR_HEX = {
@@ -500,6 +502,7 @@ const CategoryCatalog = ({ category, search }) => {
         <option value="price-asc">Menor preço</option>
         <option value="price-desc">Maior preço</option>
         <option value="sales">Mais vendidos</option>
+        <option value="rating">Mais bem avaliados</option>
       </select>
     </div>
   );

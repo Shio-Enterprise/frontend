@@ -3,6 +3,10 @@ import { Link, useParams } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
+import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from '../../../lib/payment';
+import ReviewModal from '../../../components/reviews/ReviewModal';
+import { removalText } from '../../../lib/reviewLabels';
+import { getAllMyReviews } from '../../../lib/reviewsApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -30,6 +34,23 @@ const Section = ({ title, children }) => (
   </div>
 );
 
+const ReviewAction = ({ item, review, onOpen }) => {
+  if (!review && !item.can_review) return null;
+  const removed = review?.status === 'REMOVED';
+  return (
+    <div className="mt-2 grid justify-items-start gap-1">
+      {removed && <p className="text-[13px] text-[#cc0000]">{removalText(review)}</p>}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="text-[13px] font-semibold text-black underline underline-offset-2 transition hover:text-black/60"
+      >
+        {!review ? 'Avaliar' : removed ? 'Editar e republicar' : 'Editar avaliação'}
+      </button>
+    </div>
+  );
+};
+
 const OrderDetailsPage = () => {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
@@ -37,6 +58,8 @@ const OrderDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [myReviews, setMyReviews] = useState({});
+  const [reviewItem, setReviewItem] = useState(null);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -48,6 +71,11 @@ const OrderDetailsPage = () => {
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((data) => {
         setOrder(data);
+        if (data.items?.some((item) => item.review_id)) {
+          getAllMyReviews()
+            .then((reviews) => setMyReviews(Object.fromEntries(reviews.map((review) => [review.product_id, review]))))
+            .catch(() => {});
+        }
         if (data.tracking_code) {
           setTrackingLoading(true);
           fetch(`${API_BASE_URL}/api/orders/correios/${id}/tracking/`, {
@@ -62,6 +90,32 @@ const OrderDetailsPage = () => {
       .catch(() => setError('Pedido não encontrado.'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Sem os dados de mine/ (falha de rede), o item ainda abre o modal de edição só com o id.
+  const reviewFor = (item) => (item.review_id ? (myReviews[item.product_id] ?? { id: item.review_id }) : null);
+
+  const handleReviewSaved = (saved) => {
+    setMyReviews((current) => ({ ...current, [saved.product_id]: saved }));
+    setOrder((current) => ({
+      ...current,
+      items: current.items.map((item) => (item.product_id === saved.product_id ? { ...item, review_id: saved.id } : item)),
+    }));
+    setReviewItem(null);
+  };
+
+  const handleReviewDeleted = () => {
+    const productId = reviewItem.product_id;
+    setMyReviews((current) => {
+      const next = { ...current };
+      delete next[productId];
+      return next;
+    });
+    setOrder((current) => ({
+      ...current,
+      items: current.items.map((item) => (item.product_id === productId ? { ...item, review_id: null } : item)),
+    }));
+    setReviewItem(null);
+  };
 
   if (loading) {
     return (
@@ -126,8 +180,9 @@ const OrderDetailsPage = () => {
                   <div>
                     <p className="text-[15px] font-semibold text-black">{item.product_name}</p>
                     <p className="text-[13px] text-black/40">SKU: {item.sku_snapshot}</p>
+                    <ReviewAction item={item} review={reviewFor(item)} onOpen={() => setReviewItem(item)} />
                   </div>
-                  <div className="text-right">
+                  <div className="shrink-0 whitespace-nowrap text-right">
                     <p className="text-[14px] font-semibold text-black">
                       {item.quantity}× R$ {Number(item.unit_price).toFixed(2)}
                     </p>
@@ -336,13 +391,25 @@ const OrderDetailsPage = () => {
           {order.payment && (
             <Section title="Pagamento">
               <div className="space-y-1 text-[14px] text-black/70">
-                <p>Método: <span className="font-semibold text-black">{order.payment.method}</span></p>
-                <p>Status: <span className="font-semibold text-black">{order.payment.status}</span></p>
+                <p>Método: <span className="font-semibold text-black">{PAYMENT_METHOD_LABEL[order.payment.method] ?? PAYMENT_METHOD_LABEL.UNKNOWN}</span></p>
+                <p>Status: <span className="font-semibold text-black">{PAYMENT_STATUS_LABEL[order.payment.status] ?? 'A confirmar'}</span></p>
               </div>
             </Section>
           )}
         </div>
       </div>
+
+      {reviewItem && (
+        <ReviewModal
+          key={reviewFor(reviewItem)?.rating != null ? 'full' : 'stub'}
+          productId={reviewItem.product_id}
+          productName={reviewItem.product_name}
+          review={reviewFor(reviewItem)}
+          onClose={() => setReviewItem(null)}
+          onSaved={handleReviewSaved}
+          onDeleted={handleReviewDeleted}
+        />
+      )}
     </AccountLayout>
   );
 };

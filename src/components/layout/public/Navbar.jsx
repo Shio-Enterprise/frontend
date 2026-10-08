@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import logo from '../../../assets/logo/logo.svg';
 import { Icon } from '../../ui/ShioDesign';
 import { useCart } from '../../../context/CartContext';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,6 +12,7 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { cartCount } = useCart();
+  const { isAdmin, adminHomePath } = useAuth();
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -85,6 +87,18 @@ export default function Navbar() {
 
         {/* Right icons */}
         <div className="flex items-center gap-4">
+          {isAdmin && (
+            <Link
+              to={adminHomePath || "/admin/dashboard"}
+              className="hidden h-10 items-center gap-2 rounded-full border border-black/20 px-4 text-[13px] font-semibold transition hover:bg-black hover:text-white lg:flex"
+              aria-label="Painel administrativo"
+              data-testid="admin-panel-link"
+            >
+              <Icon name="grid" className="h-4 w-4" />
+              Painel admin
+            </Link>
+          )}
+
           {/* Search icon — mobile only */}
           <button
             className="lg:hidden"
@@ -151,6 +165,16 @@ export default function Navbar() {
             >
               Produtos
             </Link>
+            {isAdmin && (
+              <Link
+                to={adminHomePath || "/admin/dashboard"}
+                onClick={closeMenu}
+                className="flex h-14 items-center gap-3 border-b border-black/10 px-6 text-[16px] font-semibold text-black"
+              >
+                <Icon name="grid" className="h-5 w-5" />
+                Painel administrativo
+              </Link>
+            )}
             <button
               onClick={() => {
                 closeMenu();

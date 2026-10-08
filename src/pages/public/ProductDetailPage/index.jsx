@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
-import { PageMarker, ProductCard, SectionTitle } from '../../../components/ui/ShioDesign';
+import { PageMarker, ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
+import ProductReviews from '../../../components/reviews/ProductReviews';
 import { getAccessToken } from '../../../lib/authToken';
 import { useCart } from '../../../context/CartContext';
 
@@ -14,7 +15,8 @@ const toCardShape = (p) => ({
   oldPrice: p.is_promotion_active ? `R$ ${Number(p.base_price).toFixed(2)}` : null,
   discount: p.is_promotion_active ? `-${Math.round((1 - Number(p.effective_price) / Number(p.base_price)) * 100)}%` : null,
   image: p.images?.[0]?.image ?? null,
-  rating: null,
+  ratingAvg: p.rating_avg ?? 0,
+  ratingCount: p.rating_count ?? 0,
   unavailable: p.is_sellable === false,
 });
 
@@ -181,6 +183,12 @@ const ProductDetailContent = ({ id }) => {
               <p className="mt-2 text-[14px] font-semibold uppercase text-black/45">{product.category.name}</p>
             )}
 
+            {Number(product.rating_count) > 0 && (
+              <div className="mt-3">
+                <Rating value={product.rating_avg} count={product.rating_count} />
+              </div>
+            )}
+
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <span className="text-[32px] font-bold text-black">R$ {price}</span>
               {promoPrice && (
@@ -252,6 +260,8 @@ const ProductDetailContent = ({ id }) => {
           </div>
         </div>
       </section>
+
+      <ProductReviews productId={product.id} />
 
       <section className="mx-auto max-w-[1240px] border-t border-black/10 px-6 py-16">
         <SectionTitle>Recomendações para você</SectionTitle>

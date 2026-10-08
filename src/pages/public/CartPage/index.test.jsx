@@ -5,6 +5,10 @@ import { MemoryRouter } from 'react-router-dom';
 import CartPage from './index';
 import { useCart } from '../../../context/CartContext';
 
+vi.mock('../../../context/AuthContext', () => ({
+  useAuth: () => ({ isAdmin: false }),
+}));
+
 vi.mock('../../../context/CartContext', () => ({
   useCart: vi.fn(),
 }));

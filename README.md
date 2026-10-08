@@ -61,9 +61,11 @@ Cada página em `src/pages/` é um diretório com `index.jsx` (componente) e `in
 | `/new-address` | NewAddressPage | obrigatória |
 
 ### Admin
+
+O painel administrativo utiliza a mesma rota de autenticação `/login`. O acesso às rotas abaixo exige uma conta com permissão administrativa.
+
 | Rota | Página |
 |---|---|
-| `/admin/login` | AdminLoginPage |
 | `/admin/dashboard` | DashboardPage |
 | `/admin/products` | ProductsPage |
 | `/admin/new-product` | NewProductPage |
