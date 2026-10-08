@@ -76,6 +76,11 @@ const PaymentPage = () => {
   const [expiredQuoteId, setExpiredQuoteId] = useState(null);
   const [confirmedQuoteId, setConfirmedQuoteId] = useState(null);
 
+  // Coupon
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState('');
+  const [couponError, setCouponError] = useState(null);
+
   // Profile
   const [userProfile, setUserProfile] = useState(null);
 
@@ -166,10 +171,20 @@ const PaymentPage = () => {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ address_id: selectedAddressId }),
+        body: JSON.stringify(appliedCoupon
+          ? { address_id: selectedAddressId, coupon_code: appliedCoupon }
+          : { address_id: selectedAddressId }),
       }
     ).then(async (r) => {
       const data = await r.json();
+      if (!r.ok && Array.isArray(data.coupon_code)) {
+        // Cupom recusado: mostra o motivo e refaz a cotação sem ele.
+        if (!cancelled) {
+          setCouponError(data.coupon_code[0]);
+          setAppliedCoupon('');
+        }
+        return;
+      }
       if (!r.ok) throw new Error(data.message || data.detail || 'Cálculo indisponível.');
       if (!data.shipping_quote_id || !Number.isFinite(Date.parse(data.expires_at))) {
         throw new Error('Não foi possível validar a cotação. Calcule novamente.');
@@ -183,7 +198,7 @@ const PaymentPage = () => {
       if (!cancelled) setCalculationError({ message: error.message, addressId: selectedAddressId, cartSnapshot: cart });
     });
     return () => { cancelled = true; };
-  }, [selectedAddressId, cart, cartUpdating, quoteRequest, checkoutAttempt, quoteInvalidated]);
+  }, [selectedAddressId, cart, cartUpdating, quoteRequest, checkoutAttempt, quoteInvalidated, appliedCoupon]);
 
   useEffect(() => {
     if (!freightData?.shipping_quote_id) return;
@@ -211,6 +226,29 @@ const PaymentPage = () => {
     await Promise.all([fetchCart(), fetchAddresses()]);
     setCartUpdating(false);
     setQuoteRequest((value) => value + 1);
+  };
+
+  const changeCoupon = (code) => {
+    setFreightData(null);
+    setCalculationError(null);
+    setConfirmedQuoteId(null);
+    setQuoteInvalidated(false);
+    setAppliedCoupon(code);
+  };
+
+  const handleApplyCoupon = (event) => {
+    event.preventDefault();
+    const code = couponInput.trim().toUpperCase();
+    if (!code || code === appliedCoupon || cartUpdating || submitting || checkoutAttempt) return;
+    setCouponError(null);
+    changeCoupon(code);
+  };
+
+  const handleRemoveCoupon = () => {
+    if (cartUpdating || submitting || checkoutAttempt) return;
+    setCouponInput('');
+    setCouponError(null);
+    if (appliedCoupon) changeCoupon('');
   };
 
   const handleSelectAddress = (id) => {
@@ -298,6 +336,16 @@ const PaymentPage = () => {
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 400 && Array.isArray(data.coupon_code)) {
+        // O cupom deixou de valer depois da cotação: recalcula sem ele.
+        sessionStorage.removeItem(`checkout-attempt:${userProfile.id}`);
+        setCheckoutAttempt(null);
+        setFreightData(null);
+        setConfirmedQuoteId(null);
+        setCouponError(data.coupon_code[0]);
+        setAppliedCoupon('');
+        return;
+      }
       if (!res.ok && ((res.status === 400 && data.shipping_quote_id) || (res.status === 409 && data.code === 'price_changed'))) {
         sessionStorage.removeItem(`checkout-attempt:${userProfile.id}`);
         setCheckoutAttempt(null);
@@ -364,7 +412,9 @@ const PaymentPage = () => {
   const subtotal = hasCalculation ? Number(freightData.subtotal) : null;
   const FRETE = hasCalculation ? Number(freightData.shipping_cost) : null;
   const total = hasCalculation ? Number(freightData.total_amount) : null;
-  const welcomeDiscount = hasCalculation ? Number(freightData.discount_amount ?? 0) : 0;
+  const discount = hasCalculation ? Number(freightData.discount_amount ?? 0) : 0;
+  const discountCouponCode = hasCalculation ? freightData.coupon?.code : null;
+  const couponDisabled = submitting || cartUpdating || freightLoading || Boolean(checkoutAttempt);
   const selectedAddress = selectedAddressId ? {
     ...addresses.find((a) => a.id === selectedAddressId),
     ...(hasCalculation ? freightData.address : {}),
@@ -581,16 +631,46 @@ const PaymentPage = () => {
                   })}
                 </div>
 
+                {/* Coupon */}
+                <form onSubmit={handleApplyCoupon} className="space-y-2">
+                  <label htmlFor="coupon-code" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40">
+                    Cupom de desconto
+                  </label>
+                  <div className="flex gap-2">
+                    <input id="coupon-code" type="text" value={couponInput} maxLength={50}
+                      placeholder="Digite o código" autoComplete="off"
+                      onChange={(event) => setCouponInput(event.target.value)}
+                      disabled={couponDisabled || Boolean(appliedCoupon)}
+                      aria-invalid={Boolean(couponError)}
+                      aria-describedby={couponError ? 'coupon-error' : undefined}
+                      className="h-11 min-w-0 flex-1 rounded-full border border-black/20 px-4 text-[14px] uppercase text-black outline-none focus:border-black disabled:bg-black/5" />
+                    {appliedCoupon ? (
+                      <button type="button" onClick={handleRemoveCoupon} disabled={couponDisabled}
+                        className="h-11 shrink-0 rounded-full border border-black/20 px-5 text-[13px] font-bold text-black transition hover:bg-black/5 disabled:opacity-50">
+                        Remover
+                      </button>
+                    ) : (
+                      <button type="submit" disabled={couponDisabled || !couponInput.trim()}
+                        className="h-11 shrink-0 rounded-full bg-black px-5 text-[13px] font-bold text-white transition hover:bg-black/85 disabled:bg-black/35">
+                        Aplicar
+                      </button>
+                    )}
+                  </div>
+                  {couponError && (
+                    <p id="coupon-error" role="alert" className="text-[13px] text-[#cc0000]">{couponError}</p>
+                  )}
+                </form>
+
                 {/* Totals */}
                 <div className="space-y-2 text-[14px]">
                   <div className="flex justify-between text-black/55">
                     <span>Subtotal</span>
                     <span className="font-medium text-black">{subtotal === null ? 'A calcular' : `R$ ${subtotal.toFixed(2)}`}</span>
                   </div>
-                  {welcomeDiscount > 0 && (
+                  {discount > 0 && (
                     <div className="flex justify-between text-[#10a545]">
-                      <span>Desconto de boas-vindas</span>
-                      <span className="font-medium">- R$ {welcomeDiscount.toFixed(2)}</span>
+                      <span>{discountCouponCode ? `Cupom ${discountCouponCode}` : 'Desconto'}</span>
+                      <span className="font-medium">- R$ {discount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-black/55">

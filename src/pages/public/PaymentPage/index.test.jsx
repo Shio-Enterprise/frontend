@@ -325,4 +325,104 @@ describe('PaymentPage', () => {
     const calls = fetch.mock.calls.filter(([url]) => url.endsWith('/checkout/'));
     expect(JSON.parse(calls[1][1].body)).toEqual(original);
   });
+
+  describe('cupom de desconto', () => {
+    // Função: calculation.expires_at só é preenchido no beforeEach.
+    const withCoupon = () => ({
+      ...calculation,
+      discount_amount: '10.00',
+      total_amount: '49.90',
+      coupon: { code: 'VERAO20', type: 'PERCENTAGE', value: '20.00' },
+    });
+    const calculateBodies = () => fetch.mock.calls
+      .filter(([url]) => url.endsWith('/checkout/calculate/'))
+      .map(([, options]) => JSON.parse(options.body));
+    const applyCoupon = (code) => {
+      fireEvent.change(screen.getByLabelText('Cupom de desconto'), { target: { value: code } });
+      fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+    };
+
+    beforeEach(() => {
+      calculationResponse = async (options) => (JSON.parse(options.body).coupon_code === 'VERAO20'
+        ? jsonResponse(withCoupon())
+        : jsonResponse(calculation));
+    });
+
+    it('aplica o cupom na cotação e mostra o desconto com o código', async () => {
+      renderPage();
+      await showReview();
+
+      applyCoupon(' verao20 ');
+
+      expect(await screen.findByText('Cupom VERAO20')).toBeInTheDocument();
+      expect(screen.getByText('- R$ 10.00')).toBeInTheDocument();
+      expect(screen.getByText('R$ 49.90')).toBeInTheDocument();
+      expect(calculateBodies().at(-1)).toEqual({ address_id: 'address-1', coupon_code: 'VERAO20' });
+    });
+
+    it('mostra o motivo do cupom recusado e recalcula sem ele', async () => {
+      calculationResponse = async (options) => (JSON.parse(options.body).coupon_code
+        ? jsonResponse({ coupon_code: ['Este cupom expirou.'], code: 'coupon_expired' }, false)
+        : jsonResponse(calculation));
+      renderPage();
+      await showReview();
+
+      applyCoupon('VELHO10');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Este cupom expirou.');
+      await waitFor(() => expect(calculateBodies().at(-1)).toEqual({ address_id: 'address-1' }));
+      expect(await screen.findByText('R$ 59.90')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Aplicar' })).toBeInTheDocument();
+    });
+
+    it('remove o cupom e recalcula sem desconto', async () => {
+      renderPage();
+      await showReview();
+      applyCoupon('VERAO20');
+      await screen.findByText('Cupom VERAO20');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remover' }));
+
+      await waitFor(() => expect(screen.queryByText('Cupom VERAO20')).not.toBeInTheDocument());
+      expect(await screen.findByText('R$ 59.90')).toBeInTheDocument();
+      expect(calculateBodies().at(-1)).toEqual({ address_id: 'address-1' });
+      expect(screen.getByLabelText('Cupom de desconto')).toHaveValue('');
+    });
+
+    it('mostra o cupom automático com o código, sem enviar coupon_code', async () => {
+      calculationResponse = async () => jsonResponse({
+        ...calculation,
+        discount_amount: '4.00',
+        total_amount: '55.90',
+        coupon: { code: 'BEMVINDO10', type: 'PERCENTAGE', value: '10.00' },
+      });
+      renderPage();
+      await showReview();
+
+      expect(screen.getByText('Cupom BEMVINDO10')).toBeInTheDocument();
+      expect(screen.queryByText('Desconto de boas-vindas')).not.toBeInTheDocument();
+      expect(calculateBodies()).toEqual([{ address_id: 'address-1' }]);
+    });
+
+    it('cupom que deixou de valer no checkout é removido e a cotação refeita', async () => {
+      checkoutResponse = async () => jsonResponse(
+        { coupon_code: ['Este cupom esgotou.'], code: 'coupon_limit_reached' }, false,
+      );
+      renderPage();
+      await showReview();
+      applyCoupon('VERAO20');
+      await screen.findByText('Cupom VERAO20');
+      confirmQuote();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Este cupom esgotou.');
+      await waitFor(() => expect(calculateBodies().at(-1)).toEqual({ address_id: 'address-1' }));
+      await screen.findByText('R$ 59.90');
+      expect(screen.getByRole('checkbox', { name: /Conferi os itens/ })).not.toBeChecked();
+      expect(sessionStorage.getItem('checkout-attempt:1')).toBeNull();
+      const checkout = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
+      expect(JSON.parse(checkout[1].body)).not.toHaveProperty('coupon_code');
+    });
+  });
 });
