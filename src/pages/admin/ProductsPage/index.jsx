@@ -1,3 +1,6 @@
+import { pricePayload, apiError, toSaoPauloInput } from '../../../components/admin/productForm';
+import VariationManager from '../../../components/admin/VariationManager';
+import { ProductPriceFields, VariationFields, MarginSummary } from '../../../components/admin/ProductFields';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useMatch, useNavigate } from 'react-router-dom';
@@ -39,6 +42,7 @@ function ProductDetailDrawer({ id }) {
                 {product.is_active ? 'Ativo' : 'Rascunho'}
               </span>
               <h3 className="mt-3 text-[22px] font-black leading-tight text-black">{product.name}</h3>
+              <MarginSummary product={product} />
 
               <div className="mt-5 space-y-3 text-[15px]">
                 <div className="flex justify-between gap-4">
@@ -51,7 +55,7 @@ function ProductDetailDrawer({ id }) {
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-black/55">Preço</span>
-                  <span className="text-right font-medium">R$ {Number(product.base_price).toFixed(2)}</span>
+                  <span className="text-right font-medium">R$ {Number(product.effective_price ?? product.base_price).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-black/55">Estoque</span>
@@ -119,6 +123,9 @@ function ProductEditDrawer({ id, refetchList }) {
       description: product.description || '',
       base_price: product.base_price || '',
       promotional_price: product.promotional_price || '',
+      cost_price: product.cost_price ?? '',
+      promo_start: toSaoPauloInput(product.promo_start),
+      promo_end: toSaoPauloInput(product.promo_end),
       drop: product.drop?.id ?? '',
       category: product.category?.id ?? '',
       is_active: product.is_active,
@@ -141,7 +148,7 @@ function ProductEditDrawer({ id, refetchList }) {
           name: form.name,
           description: form.description || '',
           base_price: isNaN(price) ? product.base_price : price,
-          promotional_price: form.promotional_price ? parseFloat(form.promotional_price) : null,
+          ...pricePayload(form),
           drop: form.drop || null,
           category: form.category || null,
           is_active: form.is_active,
@@ -149,9 +156,7 @@ function ProductEditDrawer({ id, refetchList }) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const msg = Object.entries(data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join(' | ') || 'Falha ao salvar.';
+        const msg = apiError(data) || 'Falha ao salvar.';
         throw new Error(msg);
       }
       refetchList?.();
@@ -221,21 +226,7 @@ function ProductEditDrawer({ id, refetchList }) {
                   className="mt-2 h-11 w-full rounded-[8px] border border-black/20 px-4 text-[15px] outline-none focus:border-black" />
               </label>
 
-              <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">
-                  Preço promocional
-                  <span className="ml-2 normal-case font-normal text-black/35">(deixe vazio para sem promoção)</span>
-                </span>
-                <input type="number" step="0.01" value={form.promotional_price}
-                  onChange={(e) => setForm((f) => ({ ...f, promotional_price: e.target.value }))}
-                  placeholder="Ex: 89.90"
-                  className="mt-2 h-11 w-full rounded-[8px] border border-black/20 px-4 text-[15px] outline-none focus:border-black" />
-                {form.promotional_price && parseFloat(form.promotional_price) < parseFloat(form.base_price) && (
-                  <span className="mt-1.5 inline-block rounded-full bg-red-50 px-3 py-0.5 text-[12px] font-semibold text-[#ff3333]">
-                    -{Math.round((1 - parseFloat(form.promotional_price) / parseFloat(form.base_price)) * 100)}% de desconto
-                  </span>
-                )}
-              </label>
+              <ProductPriceFields form={form} onChange={setForm} />
 
               <label className="block">
                 <span className="text-[13px] font-semibold uppercase text-black/45">Categoria</span>
@@ -297,22 +288,18 @@ function StockManagementDrawer({ id, refetchList }) {
   const [selectedVarId, setSelectedVarId] = useState(null);
   const [kind, setKind] = useState('ENTRADA');
   const [quantity, setQuantity] = useState('');
+  const [note, setNote] = useState('');
+  const [operation, setOperation] = useState(null);
+  const [openingBalance, setOpeningBalance] = useState(null);
+  const [nextMovements, setNextMovements] = useState(null);
+  const [reversesMovement, setReversesMovement] = useState(null);
   const [reason, setReason] = useState('COMPRA');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [movements, setMovements] = useState([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
   const [refreshMovements, setRefreshMovements] = useState(0);
-  const [addSizeLoading, setAddSizeLoading] = useState(false);
-  const [addSizeError, setAddSizeError] = useState(null);
-  const [customSize, setCustomSize] = useState('');
-  const [showSizePanel, setShowSizePanel] = useState(false);
-  const [deletingSizeId, setDeletingSizeId] = useState(null);
-  const [showColorPanel, setShowColorPanel] = useState(false);
-  const [newColorHex, setNewColorHex] = useState('#000000');
-  const [addColorLoading, setAddColorLoading] = useState(false);
-  const [addColorError, setAddColorError] = useState(null);
-  const [deletingColorHex, setDeletingColorHex] = useState(null);
+
 
   useEffect(() => {
     if (!product) return;
@@ -321,9 +308,6 @@ function StockManagementDrawer({ id, refetchList }) {
     }
   }, [product]);
 
-  useEffect(() => {
-    setReason(kind === 'ENTRADA' ? 'COMPRA' : 'VENDA');
-  }, [kind]);
 
   useEffect(() => {
     const varId = selectedVarId ?? product?.variations?.[0]?.id ?? null;
@@ -336,97 +320,13 @@ function StockManagementDrawer({ id, refetchList }) {
       .then((r) => r.ok ? r.json() : Promise.resolve([]))
       .then((data) => {
         const list = Array.isArray(data) ? data : (data.results ?? []);
-        setMovements(list.slice(0, 5));
+        setMovements(list);
+        setOpeningBalance(data.opening_balance);
+        setNextMovements(data.next);
       })
       .catch(() => {})
       .finally(() => setMovementsLoading(false));
   }, [selectedVarId, refreshMovements, product]);
-
-  const handleAddSize = async (size) => {
-    setAddSizeLoading(true);
-    setAddSizeError(null);
-    try {
-      const token = getAccessToken();
-      const sku = `${size.toUpperCase().replace(/\s+/g, '-')}-${id.replace(/-/g, '').substring(0, 8).toUpperCase()}`;
-      const res = await fetch(`${API_BASE_URL}/api/catalog/products/${id}/variations/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ size, sku, stock_quantity: 0 }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || data.size?.[0] || data.sku?.[0] || 'Falha ao adicionar tamanho.');
-      }
-      setCustomSize('');
-      setShowSizePanel(false);
-      refetchProduct();
-    } catch (e) {
-      setAddSizeError(e.message);
-    } finally {
-      setAddSizeLoading(false);
-    }
-  };
-
-  const handleAddColor = async (hex) => {
-    setAddColorLoading(true);
-    setAddColorError(null);
-    try {
-      const token = getAccessToken();
-      const sku = `CLR-${hex.replace('#', '').toUpperCase()}-${id.replace(/-/g, '').substring(0, 8).toUpperCase()}`;
-      const res = await fetch(`${API_BASE_URL}/api/catalog/products/${id}/variations/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ size: 'Único', color: hex, sku, stock_quantity: 0 }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || data.color?.[0] || data.sku?.[0] || 'Falha ao adicionar cor.');
-      }
-      setShowColorPanel(false);
-      setNewColorHex('#000000');
-      refetchProduct();
-    } catch (e) {
-      setAddColorError(e.message);
-    } finally {
-      setAddColorLoading(false);
-    }
-  };
-
-  const handleDeleteColor = async (hex) => {
-    const varToDelete = product?.variations?.find((v) => v.color === hex);
-    if (!varToDelete) return;
-    setDeletingColorHex(hex);
-    try {
-      const token = getAccessToken();
-      await fetch(`${API_BASE_URL}/api/catalog/variations/${varToDelete.id}/`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (selectedVarId === varToDelete.id) setSelectedVarId(null);
-      refetchProduct();
-    } catch {
-      // silently ignore
-    } finally {
-      setDeletingColorHex(null);
-    }
-  };
-
-  const handleDeleteSize = async (varId) => {
-    setDeletingSizeId(varId);
-    try {
-      const token = getAccessToken();
-      await fetch(`${API_BASE_URL}/api/catalog/variations/${varId}/`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (selectedVarId === varId) setSelectedVarId(null);
-      refetchProduct();
-    } catch (e) {
-      // silently ignore; product will still refetch
-    } finally {
-      setDeletingSizeId(null);
-    }
-  };
 
   const handleSave = async () => {
     const varId = selectedVarId ?? product?.variations?.[0]?.id ?? null;
@@ -439,6 +339,10 @@ function StockManagementDrawer({ id, refetchList }) {
       setError('Informe uma quantidade válida.');
       return;
     }
+    const payload = { kind, reason, quantity: qty, note, ...(reversesMovement ? { reverses_movement: reversesMovement } : {}) };
+    const signature = JSON.stringify({ varId, ...payload });
+    const operationKey = operation?.signature === signature ? operation.key : crypto.randomUUID();
+    setOperation({ signature, key: operationKey });
     setSaving(true);
     setError(null);
     try {
@@ -446,16 +350,17 @@ function StockManagementDrawer({ id, refetchList }) {
       const res = await fetch(`${API_BASE_URL}/api/catalog/variations/${varId}/stock-movements/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ kind, reason, quantity: qty }),
+        body: JSON.stringify({ ...payload, idempotency_key: operationKey }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const msg = Object.entries(data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join(' | ') || 'Falha ao salvar estoque.';
+        const msg = apiError(data) || 'Falha ao salvar estoque.';
         throw new Error(msg);
       }
       setQuantity('');
+      setNote('');
+      setOperation(null);
+      setReversesMovement(null);
       setRefreshMovements((n) => n + 1);
       refetchProduct();
       refetchList?.();
@@ -468,12 +373,10 @@ function StockManagementDrawer({ id, refetchList }) {
 
   const totalStock = product?.variations?.reduce((s, v) => s + (v.stock_quantity || 0), 0) ?? 0;
   const firstImage = product?.images?.[0]?.image ?? null;
-  const selectedVariation = product?.variations?.find((v) => v.id === selectedVarId);
   const entryReasons = ['COMPRA', 'DEVOLUCAO', 'AJUSTE', 'OUTRO'];
-  const exitReasons = ['VENDA', 'PERDA', 'AJUSTE', 'OUTRO'];
+  const exitReasons = ['PERDA', 'AJUSTE', 'OUTRO'];
   const reasons = kind === 'ENTRADA' ? entryReasons : exitReasons;
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-  const uniqueColors = [...new Set((product?.variations ?? []).filter((v) => v.color).map((v) => v.color))];
 
   return (
     <aside className="fixed inset-0 z-30 flex flex-col bg-white lg:inset-y-0 lg:left-auto lg:right-0 lg:w-[380px] lg:border-l lg:border-black/10 lg:shadow-2xl">
@@ -516,145 +419,8 @@ function StockManagementDrawer({ id, refetchList }) {
               </span>
             </div>
 
-            {/* Size management */}
-            <div className="border-b border-black/10 px-7 py-5">
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] font-bold uppercase text-black/45">Tamanhos</p>
-                {product.variations?.length > 0 && (
-                  <button onClick={() => setShowSizePanel((v) => !v)}
-                    className="text-[13px] font-semibold text-black underline">
-                    {showSizePanel ? 'Cancelar' : '+ Adicionar'}
-                  </button>
-                )}
-              </div>
+            <VariationManager product={product} onSaved={() => { refetchProduct(); refetchList?.(); }} />
 
-              {product.variations?.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {product.variations.map((v) => (
-                    <span key={v.id}
-                      className="flex items-center gap-1.5 rounded-full bg-[#f0f0f0] pl-4 pr-2 py-1.5 text-[13px] font-semibold text-black">
-                      {v.size}
-                      <button
-                        onClick={() => handleDeleteSize(v.id)}
-                        disabled={deletingSizeId === v.id}
-                        aria-label={`Remover tamanho ${v.size}`}
-                        className="flex h-4 w-4 items-center justify-center rounded-full bg-black/15 text-[10px] font-bold text-black transition hover:bg-[#ff3333] hover:text-white disabled:opacity-40">
-                        {deletingSizeId === v.id ? '…' : '×'}
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {(showSizePanel || product.variations?.length === 0) && (
-                <div className={product.variations?.length > 0 ? 'mt-4' : ''}>
-                  {product.variations?.length === 0 && (
-                    <p className="mb-3 text-[13px] text-black/45">
-                      Nenhum tamanho cadastrado. Adicione tamanhos para gerenciar o estoque.
-                    </p>
-                  )}
-                  <p className="mb-2 text-[12px] font-semibold uppercase text-black/35">Tamanhos rápidos</p>
-                  <div className="flex flex-wrap gap-2">
-                    {['P', 'M', 'G', 'GG', 'XGG', 'Único'].map((size) => {
-                      const exists = product.variations?.some((v) => v.size === size);
-                      return (
-                        <button key={size} onClick={() => !exists && handleAddSize(size)}
-                          disabled={exists || addSizeLoading}
-                          className={`rounded-full px-4 py-1.5 text-[13px] font-semibold transition ${
-                            exists
-                              ? 'cursor-default bg-black text-white'
-                              : 'bg-[#f0f0f0] text-black hover:bg-black/10 disabled:opacity-50'
-                          }`}>
-                          {exists ? `${size} ✓` : `+ ${size}`}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <input value={customSize} onChange={(e) => setCustomSize(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && customSize.trim() && handleAddSize(customSize.trim())}
-                      placeholder="Personalizado (ex: XG, 42)"
-                      className="h-10 flex-1 rounded-[8px] border border-black/20 px-4 text-[14px] outline-none focus:border-black" />
-                    <button onClick={() => customSize.trim() && handleAddSize(customSize.trim())}
-                      disabled={!customSize.trim() || addSizeLoading}
-                      className="h-10 rounded-[8px] bg-black px-4 text-[13px] font-bold text-white disabled:opacity-40">
-                      {addSizeLoading ? '...' : 'Adicionar'}
-                    </button>
-                  </div>
-                  {addSizeError && (
-                    <p className="mt-2 text-[13px] font-semibold text-[#ff3333]">{addSizeError}</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Color management */}
-            <div className="border-b border-black/10 px-7 py-5">
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] font-bold uppercase text-black/45">Cores</p>
-                <button
-                  onClick={() => setShowColorPanel((v) => !v)}
-                  className="text-[13px] font-semibold text-black underline">
-                  {showColorPanel ? 'Cancelar' : '+ Adicionar'}
-                </button>
-              </div>
-
-              {uniqueColors.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-3">
-                  {uniqueColors.map((hex) => (
-                    <div key={hex} className="relative">
-                      <div
-                        className="h-8 w-8 rounded-full border-2 border-white shadow ring-1 ring-black/15"
-                        style={{ backgroundColor: hex }}
-                        title={hex}
-                      />
-                      <button
-                        onClick={() => handleDeleteColor(hex)}
-                        disabled={deletingColorHex === hex}
-                        aria-label={`Remover cor ${hex}`}
-                        className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[10px] font-bold text-white transition hover:bg-[#ff3333] disabled:opacity-40">
-                        {deletingColorHex === hex ? '…' : '×'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {uniqueColors.length === 0 && !showColorPanel && (
-                <p className="mt-2 text-[13px] text-black/45">Nenhuma cor cadastrada.</p>
-              )}
-
-              {showColorPanel && (
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={newColorHex}
-                      onChange={(e) => setNewColorHex(e.target.value)}
-                      className="h-10 w-10 cursor-pointer rounded-[6px] border border-black/20 p-0.5"
-                    />
-                    <input
-                      type="text"
-                      value={newColorHex}
-                      onChange={(e) => setNewColorHex(e.target.value)}
-                      placeholder="#000000"
-                      className="h-10 flex-1 rounded-[8px] border border-black/20 px-4 font-mono text-[14px] outline-none focus:border-black"
-                    />
-                    <button
-                      onClick={() => handleAddColor(newColorHex)}
-                      disabled={!newColorHex || addColorLoading}
-                      className="h-10 rounded-[8px] bg-black px-4 text-[13px] font-bold text-white disabled:opacity-40">
-                      {addColorLoading ? '...' : 'Adicionar'}
-                    </button>
-                  </div>
-                  {addColorError && (
-                    <p className="text-[13px] font-semibold text-[#ff3333]">{addColorError}</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* New movement form */}
             {product.variations?.length > 0 && (
             <div className="space-y-4 border-b border-black/10 px-7 py-5">
               <p className="text-[13px] font-bold uppercase text-black/45">Nova movimentação</p>
@@ -665,7 +431,7 @@ function StockManagementDrawer({ id, refetchList }) {
                   <select value={selectedVarId ?? product.variations[0].id} onChange={(e) => setSelectedVarId(e.target.value)}
                     className="mt-2 h-11 w-full rounded-[8px] border border-black/20 bg-white px-4 text-[15px] outline-none focus:border-black">
                     {product.variations.map((v) => (
-                      <option key={v.id} value={v.id}>{v.size} — {v.stock_quantity ?? 0} un.</option>
+                      <option key={v.id} value={v.id}>{v.size} / {v.color || 'Sem cor'} — {v.stock_quantity ?? 0} un.</option>
                     ))}
                   </select>
                 </label>
@@ -681,11 +447,11 @@ function StockManagementDrawer({ id, refetchList }) {
               <div>
                 <span className="text-[13px] font-semibold uppercase text-black/45">Tipo</span>
                 <div className="mt-2 flex overflow-hidden rounded-[8px] border border-black/20">
-                  <button type="button" onClick={() => setKind('ENTRADA')}
+                  <button type="button" onClick={() => { setKind('ENTRADA'); setReason('COMPRA'); }}
                     className={`flex h-10 flex-1 items-center justify-center text-[14px] font-bold uppercase transition ${kind === 'ENTRADA' ? 'bg-[#1da64a] text-white' : 'bg-white text-black/55 hover:bg-[#f0f0f0]'}`}>
                     + Entrada
                   </button>
-                  <button type="button" onClick={() => setKind('SAIDA')}
+                  <button type="button" onClick={() => { setKind('SAIDA'); setReason('AJUSTE'); }}
                     className={`flex h-10 flex-1 items-center justify-center text-[14px] font-bold uppercase transition ${kind === 'SAIDA' ? 'bg-[#ff3333] text-white' : 'bg-white text-black/55 hover:bg-[#f0f0f0]'}`}>
                     − Saída
                   </button>
@@ -707,6 +473,8 @@ function StockManagementDrawer({ id, refetchList }) {
                 </select>
               </label>
 
+              {reversesMovement && <p className="text-sm">Compensação selecionada. <button type="button" className="underline" onClick={() => setReversesMovement(null)}>Cancelar compensação</button></p>}
+              <label className="block">Justificativa obrigatória<textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-2 w-full rounded-lg border p-3" /></label>
               {error && <p className="text-sm font-semibold text-red-500">{error}</p>}
             </div>
             )}
@@ -726,7 +494,7 @@ function StockManagementDrawer({ id, refetchList }) {
                     <tbody className="divide-y divide-black/10">
                       {product.variations.map((v) => (
                         <tr key={v.id} className={v.id === selectedVarId ? 'bg-[#f9f9f9]' : ''}>
-                          <td className="px-4 py-2.5 font-medium text-black">{v.size}</td>
+                          <td className="px-4 py-2.5 font-medium text-black">{v.size} / {v.color || 'Sem cor'}</td>
                           <td className={`px-4 py-2.5 text-right font-semibold ${(v.stock_quantity || 0) > 0 ? 'text-[#00a651]' : 'text-[#ff3333]'}`}>
                             {v.stock_quantity ?? 0} un.
                           </td>
@@ -741,6 +509,7 @@ function StockManagementDrawer({ id, refetchList }) {
             {/* Recent movements */}
             <div className="px-7 py-5">
               <p className="mb-3 text-[13px] font-bold uppercase text-black/45">Histórico recente</p>
+              {openingBalance && <p className="mb-3 text-sm">Saldo de abertura da auditoria: {openingBalance.balance} un. — {formatDate(openingBalance.created_at)}</p>}
               {movementsLoading ? (
                 <p className="text-[13px] text-black/40">Carregando...</p>
               ) : movements.length > 0 ? (
@@ -752,6 +521,10 @@ function StockManagementDrawer({ id, refetchList }) {
                           {m.kind === 'ENTRADA' ? '+' : '−'}{m.quantity} un.
                         </span>
                         <span className="ml-2 text-black/45">{REASON_LABELS[m.reason] ?? m.reason}</span>
+                        <p>Saldo: {m.balance_after == null ? 'Saldo histórico indisponível' : `${m.balance_after} un.`}</p>
+                        <p className="break-all text-xs">Origem: {m.origin_type} — {m.origin_id}</p>
+                        {m.note && <p>{m.note}</p>}
+                        {!m.is_legacy && <button type="button" className="mt-1 underline" onClick={() => { setReversesMovement(m.id); setKind(m.kind === 'ENTRADA' ? 'SAIDA' : 'ENTRADA'); setReason('AJUSTE'); setQuantity(String(m.quantity)); setNote(`Compensação: ${m.note || m.reason}`); }}>Compensar movimento</button>}
                       </div>
                       <span className="text-black/35">{formatDate(m.created_at)}</span>
                     </div>
@@ -760,6 +533,13 @@ function StockManagementDrawer({ id, refetchList }) {
               ) : (
                 <p className="text-[13px] text-black/40">Nenhuma movimentação registrada.</p>
               )}
+              {nextMovements && <button type="button" className="mt-3 underline" onClick={async () => {
+                try {
+                  const response = await fetch(nextMovements, { headers: { Authorization: `Bearer ${getAccessToken()}` } });
+                  if (!response.ok) throw new Error('Falha ao carregar histórico.');
+                  const data = await response.json(); setMovements((current) => [...current, ...data.results]); setNextMovements(data.next);
+                } catch (e) { setError(e.message); }
+              }}>Carregar movimentos anteriores</button>}
             </div>
           </div>
 
@@ -791,7 +571,7 @@ const ProductsPage = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [duplicateTarget, setDuplicateTarget] = useState(null);
-  const [duplicateForm, setDuplicateForm] = useState({ name: '', sku: '', isActive: false, copyVariations: true, copyStock: false });
+  const [duplicateForm, setDuplicateForm] = useState({ name: '', cost_price: '', variations: [] });
   const [duplicating, setDuplicating] = useState(false);
 
   const dropsMap = Object.fromEntries(
@@ -806,7 +586,7 @@ const ProductsPage = () => {
   const drawerMode = editMatch ? 'edit' : stockMatch ? 'stock' : 'detail';
 
   const formatPrice = (product) =>
-    `R$ ${Number(product.base_price ?? product.price ?? 0).toFixed(2)}`;
+    `R$ ${Number(product.effective_price ?? product.base_price ?? 0).toFixed(2)}`;
 
   const getStock = (product) => {
     if (Array.isArray(product.variations)) {
@@ -844,13 +624,9 @@ const ProductsPage = () => {
 
   const openDuplicateModal = (product) => {
     setDuplicateTarget(product);
-    const firstSku = Array.isArray(product.variations) ? (product.variations[0]?.sku ?? '') : '';
     setDuplicateForm({
-      name: `${product.name} (cópia)`,
-      sku: firstSku,
-      isActive: false,
-      copyVariations: true,
-      copyStock: false,
+      name: `${product.name} (cópia)`, cost_price: product.cost_price ?? '',
+      variations: (product.variations || []).map((v) => ({ source_id: v.id, size: v.size, color: v.color || '', sku: '', stock_quantity: 0 })),
     });
   };
 
@@ -861,58 +637,21 @@ const ProductsPage = () => {
     try {
       const token = getAccessToken();
 
-      const detailRes = await fetch(`${API_BASE_URL}/api/catalog/products/${duplicateTarget.id}/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!detailRes.ok) throw new Error('Falha ao buscar detalhes do produto.');
-      const detail = await detailRes.json();
-
-      const response = await fetch(`${API_BASE_URL}/api/catalog/products/`, {
+      const response = await fetch(`${API_BASE_URL}/api/catalog/products/${duplicateTarget.id}/duplicate/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          name: duplicateForm.name || `${detail.name} (cópia)`,
-          description: detail.description ?? '',
-          base_price: detail.base_price,
-          drop: detail.drop?.id ?? null,
-          category: detail.category?.id ?? null,
-          is_active: duplicateForm.isActive,
-          variations: duplicateForm.copyVariations && detail.variations?.length > 0
-            ? detail.variations.map((v) => ({
-                size: v.size,
-                sku: `${v.sku}-COPY`,
-                stock_quantity: duplicateForm.copyStock ? (v.stock_quantity ?? 0) : 0,
-              }))
-            : [],
+          name: duplicateForm.name,
+          cost_price: duplicateForm.cost_price === '' ? null : duplicateForm.cost_price,
+          variations: duplicateForm.variations.map(({ source_id, sku, stock_quantity }) => ({ source_id, sku, stock_quantity: Number(stock_quantity || 0) })),
         }),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join(' | ') || 'Falha ao duplicar o produto.';
+        const msg = apiError(errorData) || 'Falha ao duplicar o produto.';
         throw new Error(msg);
       }
-      const newProduct = await response.json();
-
-      if (detail.images?.length > 0) {
-        for (const img of detail.images) {
-          try {
-            const imgRes = await fetch(img.image);
-            const imgBlob = await imgRes.blob();
-            const ext = img.image.split('.').pop().split('?')[0] || 'jpg';
-            const formData = new FormData();
-            formData.append('image', imgBlob, `image-copy.${ext}`);
-            await fetch(`${API_BASE_URL}/api/catalog/products/${newProduct.id}/images/`, {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}` },
-              body: formData,
-            });
-          } catch {
-            // imagem individual falhou — continua sem bloquear
-          }
-        }
-      }
+      await response.json();
 
       setDuplicateTarget(null);
       refetch();
@@ -975,7 +714,7 @@ const ProductsPage = () => {
                 <td className="px-4 py-4 text-[13px] text-black/55 md:px-10 md:py-7 md:text-[20px]">
                   {product.drop ? (dropsMap[product.drop] ?? product.drop?.name ?? 'Carregando...') : 'Sem drop'}
                 </td>
-                <td className="px-4 py-4 text-[13px] text-black/55 md:px-10 md:py-7 md:text-[20px]">{formatPrice(product)}</td>
+                <td className="px-4 py-4 text-[13px] text-black/55 md:px-10 md:py-7 md:text-[20px]">{formatPrice(product)}<MarginSummary product={product} /></td>
                 <td className={`px-4 py-4 text-[13px] font-semibold md:px-10 md:py-7 md:text-[20px] ${getStock(product) > 0 ? 'text-[#00a651]' : 'text-[#ff3333]'}`}>
                   {getStock(product)} UN.
                 </td>
@@ -1129,50 +868,13 @@ const ProductsPage = () => {
                 />
               </label>
 
-              <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">SKU</span>
-                <input
-                  type="text"
-                  value={duplicateForm.sku}
-                  onChange={(e) => setDuplicateForm((f) => ({ ...f, sku: e.target.value }))}
-                  className="mt-2 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black"
-                />
+              <label className="block">Custo unitário (R$) *
+                <input type="number" min="0" step="0.01" value={duplicateForm.cost_price} onChange={(e) => setDuplicateForm((f) => ({ ...f, cost_price: e.target.value }))} className="mt-2 w-full rounded-lg border p-3" />
               </label>
+              <p className="text-sm">A cópia será um rascunho, sem promoção e sem estoque herdado. Imagens e combinações serão copiadas.</p>
+              <VariationFields duplicate rows={duplicateForm.variations} onChange={(variations) => setDuplicateForm((f) => ({ ...f, variations }))} />
+              {actionError && <p role="alert" className="text-red-600">{actionError}</p>}
 
-              <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">Status inicial</span>
-                <select
-                  value={duplicateForm.isActive ? 'ativo' : 'rascunho'}
-                  onChange={(e) => setDuplicateForm((f) => ({ ...f, isActive: e.target.value === 'ativo' }))}
-                  className="mt-2 h-11 w-full rounded-full border border-black/20 bg-white px-5 text-[14px] outline-none focus:border-black"
-                >
-                  <option value="rascunho">Rascunho</option>
-                  <option value="ativo">Ativo</option>
-                </select>
-              </label>
-
-              <div className="space-y-3">
-                <label className="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="radio"
-                    name="dupMode"
-                    checked={duplicateForm.copyVariations && !duplicateForm.copyStock}
-                    onChange={() => setDuplicateForm((f) => ({ ...f, copyVariations: true, copyStock: false }))}
-                    className="h-4 w-4 accent-black"
-                  />
-                  <span className="text-[14px] text-black">Duplicar variações</span>
-                </label>
-                <label className="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="radio"
-                    name="dupMode"
-                    checked={duplicateForm.copyVariations && duplicateForm.copyStock}
-                    onChange={() => setDuplicateForm((f) => ({ ...f, copyVariations: true, copyStock: true }))}
-                    className="h-4 w-4 accent-black"
-                  />
-                  <span className="text-[14px] text-black">Duplicar estoque atual</span>
-                </label>
-              </div>
 
               <p className="text-[12px] text-black/45">
                 Uma cópia do produto será então criada com os mesmos dados do original.

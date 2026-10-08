@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
@@ -38,7 +38,7 @@ function CustomerProfileDrawer({ id }) {
                 </div>
                 <span className="text-[16px] font-semibold text-black">{customer.name || '—'}</span>
               </div>
-              <span className="rounded-full bg-[#d4f7e2] px-3 py-1 text-[12px] font-semibold text-[#1da64a]">Ativo</span>
+              <span className="rounded-full bg-black/5 px-3 py-1 text-[12px] font-semibold text-black/55">Cadastrado</span>
             </div>
 
             {/* Info grid */}
@@ -81,6 +81,13 @@ function CustomerProfileDrawer({ id }) {
                     </div>
                   </div>
                 )}
+                <div className="flex items-start gap-3">
+                  <Icon name="users" className="mt-0.5 h-4 w-4 shrink-0 text-black/40" />
+                  <div className="flex flex-1 justify-between gap-4">
+                    <span className="text-black/55">Cliente recorrente</span>
+                    <span className="text-right font-medium">{customer.is_recurring ? 'Sim' : 'Não'}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -89,11 +96,12 @@ function CustomerProfileDrawer({ id }) {
               <div className="px-7 py-5">
                 <h3 className="mb-4 text-[13px] font-bold uppercase text-black/45">Histórico de Pedidos</h3>
                 <div className="space-y-2">
-                  {customer.order_history.slice(0, 5).map((order) => (
+                  {customer.order_history.map((order) => (
                     <div key={order.id} className="flex items-center justify-between rounded-[8px] border border-black/10 px-4 py-3 text-[13px]">
                       <span className="font-semibold text-black">#{String(order.id).substring(0, 8).toUpperCase()}</span>
                       <span className="text-black/55">{formatDate(order.created_at)}</span>
-                      <span className="font-semibold">{formatCurrency(order.total_amount)}</span>
+                      <span className="text-black/55">{order.status}</span>
+                      <span className="font-semibold">{order.commercial_status === 'REFUNDED' ? '- ' : ''}{formatCurrency(order.total_amount)}</span>
                     </div>
                   ))}
                 </div>
@@ -120,8 +128,18 @@ function CustomerProfileDrawer({ id }) {
 // ─── CustomersPage ────────────────────────────────────────────────────────────
 
 const CustomersPage = () => {
-  const { data: apiResponse, loading, error } = useApi('/api/auth/crm/customers/');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  const customersUrl = debouncedSearch
+    ? `/api/auth/crm/customers/?search=${encodeURIComponent(debouncedSearch)}`
+    : '/api/auth/crm/customers/';
+  const { data: apiResponse, loading, error } = useApi(customersUrl);
 
   const customerMatch = useMatch('/admin/customers/:id');
   const selectedId = customerMatch?.params?.id ?? null;
@@ -141,14 +159,7 @@ const CustomersPage = () => {
       ? Array.isArray(apiResponse) ? apiResponse : apiResponse.results ?? []
       : [];
 
-    const customers = search.trim()
-      ? allCustomers.filter((c) =>
-          c.name?.toLowerCase().includes(search.toLowerCase()) ||
-          c.email?.toLowerCase().includes(search.toLowerCase())
-        )
-      : allCustomers;
-
-    if (customers.length === 0) return <div className="p-10 text-center text-black/55">Nenhum cliente encontrado.</div>;
+    if (allCustomers.length === 0) return <div className="p-10 text-center text-black/55">Nenhum cliente encontrado.</div>;
 
     return (
       <div className="overflow-x-auto">
@@ -164,7 +175,7 @@ const CustomersPage = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-black/10">
-            {customers.map((customer) => (
+            {allCustomers.map((customer) => (
               <tr key={customer.id} className={selectedId === customer.id ? 'bg-[#f9f9f9]' : ''}>
                 <td className="px-10 py-8 text-[20px] font-semibold text-black">
                   {customer.name || '—'}
@@ -210,7 +221,7 @@ const CustomersPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-transparent text-[20px] outline-none placeholder:text-black/35"
-              placeholder="Buscar por E-mail..."
+              placeholder="Buscar por nome ou e-mail..."
             />
           </label>
         </div>

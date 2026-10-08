@@ -1,3 +1,5 @@
+import { emptyVariation, pricePayload, apiError } from '../../../components/admin/productForm';
+import { ProductPriceFields, VariationFields } from '../../../components/admin/ProductFields';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
@@ -11,24 +13,13 @@ const getResults = (apiResponse) => {
   return Array.isArray(apiResponse) ? apiResponse : apiResponse.results || [];
 };
 
-const makeSku = (name) => {
-  const base = name
-    .trim()
-    .toUpperCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-    .slice(0, 18);
-  return `SH-${base || 'PROD'}-${Date.now().toString().slice(-6)}`;
-};
-
 const NewProductPage = () => {
   const navigate = useNavigate();
   const { data: dropsResponse } = useApi('/api/catalog/drops/');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [initialStock, setInitialStock] = useState('');
+  const [pricing, setPricing] = useState({ cost_price: '', promotional_price: '', promo_start: '', promo_end: '' });
+  const [variations, setVariations] = useState([emptyVariation()]);
   const [dropId, setDropId] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState([]);
@@ -61,18 +52,15 @@ const NewProductPage = () => {
     setSubmitError(null);
     setShowSuccess(false);
 
-    const stockQuantity = Number(initialStock || 0);
+
     const productData = {
       name,
       description,
       base_price: price || '0',
       drop: dropId || null,
       is_active: true,
-      variations: stockQuantity > 0 ? [{
-        size: 'Unico',
-        sku: makeSku(name),
-        stock_quantity: stockQuantity,
-      }] : [],
+      ...pricePayload(pricing),
+      variations: variations.map((v) => ({ ...v, stock_quantity: Number(v.stock_quantity || 0) })),
     };
 
     try {
@@ -90,7 +78,7 @@ const NewProductPage = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.error || 'Falha ao criar o produto.');
+        throw new Error(apiError(errorData) || 'Falha ao criar o produto.');
       }
 
       const product = await response.json();
@@ -160,19 +148,9 @@ const NewProductPage = () => {
               />
             </label>
 
-            <label>
-              <span className="text-[15px] uppercase text-black/55">Estoque inicial</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={initialStock}
-                onChange={(event) => setInitialStock(event.target.value)}
-                placeholder="0"
-                className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
-              />
-            </label>
           </div>
+          <ProductPriceFields form={{ ...pricing, base_price: price }} onChange={setPricing} />
+          <VariationFields rows={variations} onChange={setVariations} />
 
           <label>
             <span className="text-[15px] uppercase text-black/55">Drop (Coleção)</span>

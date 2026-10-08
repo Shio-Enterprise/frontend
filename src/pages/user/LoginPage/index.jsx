@@ -8,17 +8,19 @@ import logo from '../../../assets/logo/logo.svg';
 const LoginPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const from = location.state?.from?.pathname ?? '/my-account';
+  const requestedLocation = location.state?.from;
+  const from = requestedLocation
+    ? `${requestedLocation.pathname}${requestedLocation.search ?? ''}${requestedLocation.hash ?? ''}`
+    : '/my-account';
   const { loginWithPassword } = useAuth();
   const { handleGoogleLogin, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth({
     onSuccessRedirect: from,
-    requireAdmin: false,
   });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const displayedError = error || googleError;
+  const displayedError = error || googleError || location.state?.error;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,6 +84,12 @@ const LoginPage = () => {
           >
             {isLoading ? 'Autenticando...' : 'Entrar'}
           </button>
+          
+          <div className="w-full text-right">
+            <Link to="/forgot-password" className="text-sm text-gray-500 hover:text-black hover:underline">
+              Esqueceu a senha?
+            </Link>
+          </div>
         </form>
 
         {displayedError && (
@@ -95,7 +103,7 @@ const LoginPage = () => {
         </p>
 
         <p className="mt-14 text-[11px] text-gray-400 text-center leading-relaxed max-w-[320px]">
-          Ao continuar você concorda com nossos <Link to="/termos" className="font-semibold text-gray-500 hover:text-black transition-colors">Termos de uso</Link> e <Link to="/privacidade" className="font-semibold text-gray-500 hover:text-black transition-colors">Política de Privacidade</Link>
+          Ao continuar você concorda com nossos Termos de uso e Política de Privacidade
         </p>
       </div>
     </div>

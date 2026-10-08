@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAccessToken } from '../../../lib/authToken';
+import { buildDropPayload, flattenApiError, submitDrop, validateDropForm } from '../../../lib/dropForm';
 import { AdminPanel, Icon, PageMarker } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -10,34 +11,60 @@ const NewDropPage = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [launchDate, setLaunchDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [isActive, setIsActive] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
+  const [maxQuantity, setMaxQuantity] = useState('');
+  const [banner, setBanner] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const bannerInputRef = useRef(null);
+
+  const handleBannerSelect = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError('O banner não pode passar de 5MB.');
+      return;
+    }
+    if (banner) URL.revokeObjectURL(banner.preview);
+    setBanner({ file, preview: URL.createObjectURL(file) });
+  };
+
+  const removeBanner = () => {
+    if (banner) URL.revokeObjectURL(banner.preview);
+    setBanner(null);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setIsSubmitting(true);
     setError(null);
+
+    const validationError = validateDropForm({ launchDate, endDate, maxQuantity });
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
       const token = getAccessToken();
       if (!token) throw new Error('Token de autenticação não encontrado.');
 
-      const response = await fetch(`${API_BASE_URL}/api/catalog/drops/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          name,
-          description,
-          launch_date: launchDate ? new Date(launchDate).toISOString() : null,
-          is_active: isActive,
-        }),
+      const payload = buildDropPayload({
+        name, description, launchDate, endDate, isActive, isPublic, maxQuantity,
       });
+
+      const response = await submitDrop(
+        `${API_BASE_URL}/api/catalog/drops/`, 'POST', payload, banner?.file, token
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.error || 'Falha ao criar o drop.');
+        throw new Error(flattenApiError(errorData, 'Falha ao criar o drop.'));
       }
 
       const newDrop = await response.json();
@@ -82,26 +109,65 @@ const NewDropPage = () => {
             />
           </label>
 
-          <label>
-            <span className="text-[15px] uppercase text-black/55">Data de lançamento</span>
-            <input
-              type="date"
-              value={launchDate}
-              onChange={(e) => setLaunchDate(e.target.value)}
-              className="mt-3 h-11 w-full rounded-full border border-black/25 px-7 text-[14px] outline-none focus:border-black md:h-12 md:text-[16px]"
-            />
-          </label>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <label>
+              <span className="text-[15px] uppercase text-black/55">Data de lançamento</span>
+              <input
+                type="date"
+                value={launchDate}
+                onChange={(e) => setLaunchDate(e.target.value)}
+                className="mt-3 h-11 w-full rounded-full border border-black/25 px-7 text-[14px] outline-none focus:border-black md:h-12 md:text-[16px]"
+              />
+            </label>
+
+            <label>
+              <span className="text-[15px] uppercase text-black/55">Data de encerramento</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="mt-3 h-11 w-full rounded-full border border-black/25 px-7 text-[14px] outline-none focus:border-black md:h-12 md:text-[16px]"
+              />
+            </label>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <label>
+              <span className="text-[15px] uppercase text-black/55">Status</span>
+              <select
+                value={isActive ? 'true' : 'false'}
+                onChange={(e) => setIsActive(e.target.value === 'true')}
+                className="mt-3 h-11 w-full rounded-full border border-black/25 bg-white px-7 text-[14px] text-black/65 outline-none focus:border-black md:h-12 md:text-[16px]"
+              >
+                <option value="false">Rascunho</option>
+                <option value="true">Ativo</option>
+              </select>
+            </label>
+
+            <label>
+              <span className="text-[15px] uppercase text-black/55">Visibilidade</span>
+              <select
+                value={isPublic ? 'true' : 'false'}
+                onChange={(e) => setIsPublic(e.target.value === 'true')}
+                className="mt-3 h-11 w-full rounded-full border border-black/25 bg-white px-7 text-[14px] text-black/65 outline-none focus:border-black md:h-12 md:text-[16px]"
+              >
+                <option value="true">Público</option>
+                <option value="false">Privado</option>
+              </select>
+            </label>
+          </div>
 
           <label>
-            <span className="text-[15px] uppercase text-black/55">Status</span>
-            <select
-              value={isActive ? 'true' : 'false'}
-              onChange={(e) => setIsActive(e.target.value === 'true')}
-              className="mt-3 h-11 w-full rounded-full border border-black/25 bg-white px-7 text-[14px] text-black/65 outline-none focus:border-black md:h-12 md:text-[16px]"
-            >
-              <option value="false">Rascunho</option>
-              <option value="true">Ativo</option>
-            </select>
+            <span className="text-[15px] uppercase text-black/55">Limite de unidades (Opcional)</span>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={maxQuantity}
+              onChange={(e) => setMaxQuantity(e.target.value)}
+              placeholder="Sem limite"
+              className="mt-3 h-11 w-full rounded-full border border-black/25 px-7 text-[14px] outline-none placeholder:text-black/45 focus:border-black md:h-12 md:text-[16px]"
+            />
           </label>
 
           <label>
@@ -113,6 +179,39 @@ const NewDropPage = () => {
               className="mt-3 min-h-[135px] w-full rounded-[18px] border border-black/25 px-7 py-4 text-[14px] outline-none placeholder:text-black/45 focus:border-black md:text-[16px]"
             />
           </label>
+
+          <div>
+            <span className="text-[15px] uppercase text-black/55">Banner (Opcional)</span>
+            <input
+              ref={bannerInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={handleBannerSelect}
+            />
+            {banner ? (
+              <div className="relative mt-3 overflow-hidden rounded-[18px] border border-black/15">
+                <img src={banner.preview} alt="" className="h-[140px] w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={removeBanner}
+                  aria-label="Remover banner"
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black"
+                >
+                  <Icon name="close" className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => bannerInputRef.current?.click()}
+                className="mt-3 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-black/45 transition hover:border-black/50 hover:text-black/65"
+              >
+                <Icon name="plus" className="h-5 w-5" />
+                Adicionar banner
+              </button>
+            )}
+          </div>
 
           {error && <p className="text-center text-sm font-semibold text-red-500">{error}</p>}
 

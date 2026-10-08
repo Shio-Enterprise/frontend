@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import apiClient from '../../lib/axios';
 
 export function PageMarker({ name }) {
   return <span className="sr-only">{name}</span>;
@@ -32,22 +33,54 @@ export function Icon({ name, className = 'h-5 w-5' }) {
     trash: <path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" />,
     tag: <path d="M20 12 12 20 4 12V4h8l8 8ZM8 8h.01" />,
     grid: <path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z" />,
+    list: <><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></>,
+    chartBar: <path d="M3 20h18M5 20v-7h4v7m3 0V5h4v15m3 0v-10h2v10" />,
+    chartDonut: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /><path d="M12 3v5M20 16l-4-2" /></>,
     box: <path d="m21 8-9-5-9 5 9 5 9-5ZM3 8v8l9 5 9-5V8M12 13v8" />,
     users: <path d="M16 19a4 4 0 0 0-8 0m4-8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7 8a3 3 0 0 0-4-2.8m2-8.2a2.5 2.5 0 1 1-1.5 4.5" />,
     bag: <path d="M6 8h12l-1 12H7L6 8Zm3 0a3 3 0 0 1 6 0" />,
     more: <path d="M12 6h.01M12 12h.01M12 18h.01" />,
     logout: <path d="M14 8V5H5v14h9v-3m-3-4h9m-3-3 3 3-3 3" />,
     save: <path d="M5 4h12l2 2v14H5V4Zm3 0v6h8V4M8 20v-7h8v7" />,
+    refresh: <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />,
+    shield: <path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3Zm0 5v5m0 3h.01" />,
+    star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
   };
 
   return <svg {...common}>{paths[name]}</svg>;
 }
 
-export function Rating({ value }) {
+const ratingFormatter = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+function Star({ fill }) {
   return (
-    <div className="flex items-center gap-2 text-[13px] text-black/55">
-      <span className="text-base leading-none text-[#ffc633]">★★★★★</span>
-      <span>{value}</span>
+    <span data-star={fill} aria-hidden="true" className="relative inline-block leading-none">
+      <span className="text-black/15">★</span>
+      {fill !== 'empty' && (
+        <span className={`absolute inset-y-0 left-0 overflow-hidden text-[#ffc633] ${fill === 'half' ? 'w-1/2' : 'w-full'}`}>★</span>
+      )}
+    </span>
+  );
+}
+
+export function Rating({ value, count }) {
+  const numeric = Math.min(5, Math.max(0, Number(value) || 0));
+  const rounded = Math.round(numeric * 10) / 10;
+  const full = Math.floor(rounded);
+  const half = rounded - full >= 0.5;
+  const fills = Array.from({ length: 5 }, (_, index) => {
+    if (index < full) return 'full';
+    if (index === full && half) return 'half';
+    return 'empty';
+  });
+  const label = ratingFormatter.format(rounded);
+
+  return (
+    <div role="img" aria-label={`Nota ${label} de 5`} className="flex items-center gap-2 text-[13px] text-black/55">
+      <span className="flex text-base">
+        {fills.map((fill, index) => <Star key={index} fill={fill} />)}
+      </span>
+      <span aria-hidden="true">{count == null ? label : `${label} (${count})`}</span>
     </div>
   );
 }
@@ -55,18 +88,25 @@ export function Rating({ value }) {
 export function ProductCard({ product }) {
   return (
     <article className="group">
-      <Link to={`/product/${product.id ?? '1'}`} className="block overflow-hidden rounded-[16px] bg-[#f0efed]">
+      <Link to={`/product/${product.id ?? '1'}`} className={`relative block overflow-hidden rounded-[16px] bg-[#f0efed] ${product.unavailable ? 'opacity-60' : ''}`}>
         {product.image ? (
           <img src={product.image} alt={product.name}
             className="aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.03]"
             onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
         ) : null}
         <div className={`aspect-square w-full bg-[#f0efed] ${product.image ? 'hidden' : 'block'}`} />
+        {product.unavailable && (
+          <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">
+            Indisponível
+          </span>
+        )}
       </Link>
       <h3 className="mt-4 text-[16px] font-semibold leading-tight text-black">{product.name}</h3>
-      <div className="mt-1">
-        <Rating value={product.rating} />
-      </div>
+      {product.ratingCount > 0 && (
+        <div className="mt-2">
+          <Rating value={product.ratingAvg} count={product.ratingCount} />
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-[20px] font-bold text-black">{product.price}</span>
         {product.oldPrice && <span className="text-[18px] font-bold text-black/35 line-through">{product.oldPrice}</span>}
@@ -99,18 +139,39 @@ export function ViewAllButton({ to = '/category/all' }) {
 
 export function NewsletterBand() {
   const [email, setEmail] = useState('');
+  const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState(null); // 'success' | 'error'
+  const [errorMessage, setErrorMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isEmailValid || !consent) return;
+
+    setSubmitting(true);
+    setErrorMessage('');
+    try {
+      await apiClient.post('/auth/newsletter/subscribe/', {
+        email,
+        consent_lgpd: consent,
+      });
+      setStatus('success');
+      setEmail('');
+      setConsent(false);
+      setTimeout(() => setStatus(null), 4000);
+    } catch (err) {
       setStatus('error');
-      setTimeout(() => setStatus(null), 3000);
-      return;
+      setErrorMessage(
+        err.response?.data?.email?.[0] ??
+        err.response?.data?.consent_lgpd?.[0] ??
+        'Não foi possível concluir a inscrição.'
+      );
+      setTimeout(() => setStatus(null), 4000);
+    } finally {
+      setSubmitting(false);
     }
-    setStatus('success');
-    setEmail('');
-    setTimeout(() => setStatus(null), 4000);
   };
 
   return (
@@ -137,11 +198,24 @@ export function NewsletterBand() {
               </p>
             ) : (
               <>
-                <button type="submit" className="h-12 rounded-full bg-white text-sm font-medium text-black transition hover:bg-[#f2f2f2]">
+                <label className="flex items-start gap-2 text-xs text-white/70">
+                  <input
+                    type="checkbox"
+                    checked={consent}
+                    onChange={(e) => setConsent(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  Aceito receber comunicações da Shio por e-mail, conforme a Política de Privacidade.
+                </label>
+                <button
+                  type="submit"
+                  disabled={!isEmailValid || !consent || submitting}
+                  className="h-12 rounded-full bg-white text-sm font-medium text-black transition hover:bg-[#f2f2f2] disabled:opacity-40"
+                >
                   Inscrever-se
                 </button>
                 {status === 'error' && (
-                  <p className="text-center text-xs text-red-400">Informe um e-mail válido.</p>
+                  <p className="text-center text-xs text-red-400">{errorMessage}</p>
                 )}
               </>
             )}
@@ -166,9 +240,9 @@ export function QuantityControl() {
   );
 }
 
-export function AdminPanel({ children, className = '' }) {
+export function AdminPanel({ children, className = '', ...props }) {
   return (
-    <section className={`rounded-[18px] border border-black/20 bg-white ${className}`}>
+    <section {...props} className={`rounded-[18px] border border-black/20 bg-white ${className}`}>
       {children}
     </section>
   );
@@ -223,11 +297,10 @@ export function ActionMenu({ label, items }) {
           if (item.separator) {
             return <div key={item.key ?? `sep-${i}`} className="mx-4 border-t border-black/10" />;
           }
-          const cls = `flex w-full items-center gap-2.5 px-5 py-3 text-[15px] text-left ${
-            item.danger
+          const cls = `flex w-full items-center gap-2.5 px-5 py-3 text-[15px] text-left ${item.danger
               ? 'font-semibold text-[#ff3333] hover:bg-[#fff5f5]'
               : 'text-black hover:bg-[#f5f5f5]'
-          }`;
+            }`;
           if (item.to) {
             return (
               <Link key={item.label} to={item.to} className={cls} onClick={close}>
