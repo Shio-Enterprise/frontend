@@ -7,9 +7,10 @@ import { useAuth } from '../../../context/AuthContext';
 vi.mock('../../../context/AuthContext');
 vi.mock('@react-oauth/google', () => ({
   GoogleLogin: () => <div data-testid="google-login-mock" />,
+  useGoogleLogin: () => vi.fn(),
 }));
 
-describe('LoginPage', () => {
+describe("LoginPage", () => {
   const loginWithPasswordMock = vi.fn();
 
   beforeEach(() => {
@@ -20,17 +21,19 @@ describe('LoginPage', () => {
     });
   });
 
-  it('renderiza a página de login corretamente', () => {
+  it("renderiza a página de login corretamente", () => {
     render(
       <MemoryRouter>
         <LoginPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
-    expect(screen.getByAltText('Shio Logo')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Bem vindo\(a\)/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('E-mail')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Senha')).toBeInTheDocument();
+    expect(screen.getByAltText("Shio Logo")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Bem vindo\(a\)/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("E-mail")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Senha")).toBeInTheDocument();
   });
 
   it('returns to the complete source location, including query and hash', async () => {
