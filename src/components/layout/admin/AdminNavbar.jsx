@@ -41,6 +41,13 @@ const navItems = [
     permission: ADMIN_PERMISSIONS.ORDERS,
   },
   {
+    label: 'Cupons',
+    to: '/admin/coupons',
+    icon: 'tag',
+    matches: ['/admin/coupons'],
+    permission: ADMIN_PERMISSIONS.ORDERS,
+  },
+  {
     label: 'Clientes',
     to: '/admin/customers',
     icon: 'users',
