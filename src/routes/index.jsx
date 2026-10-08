@@ -35,6 +35,7 @@ const DropDetailsPage = lazy(() => import("../pages/admin/DropDetailsPage"));
 const CustomersPage = lazy(() => import("../pages/admin/CustomersPage"));
 const AdminPermissionsPage = lazy(() => import("../pages/admin/AdminPermissionsPage"));
 const ReviewsPage = lazy(() => import("../pages/admin/ReviewsPage"));
+const CouponsPage = lazy(() => import("../pages/admin/CouponsPage"));
 
 const routes = [
   // Public routes
@@ -168,6 +169,12 @@ const routes = [
   {
     path: "/admin/orders/:id",
     component: <AdminLayout><OrdersPage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.ORDERS,
+  },
+  {
+    path: "/admin/coupons",
+    component: <AdminLayout><CouponsPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.ORDERS,
   },
