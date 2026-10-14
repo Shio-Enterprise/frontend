@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import ExportButton from '../../../components/admin/ExportButton';
 
 // ─── Customer Profile Drawer ──────────────────────────────────────────────────
 
@@ -214,8 +215,8 @@ const CustomersPage = () => {
       <AdminTitle title="Clientes" />
 
       <AdminPanel className="overflow-hidden">
-        <div className="p-5">
-          <label className="flex h-12 max-w-[675px] items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
+        <div className="flex items-center justify-between gap-4 p-5">
+          <label className="flex h-12 max-w-[675px] flex-1 items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
             <Icon name="search" className="h-5 w-5" />
             <input
               value={search}
@@ -224,6 +225,12 @@ const CustomersPage = () => {
               placeholder="Buscar por nome ou e-mail..."
             />
           </label>
+
+          <ExportButton
+            endpoint="/api/auth/crm/customers/export/"
+            params={search.trim() ? { search: search.trim() } : {}}
+            fallbackFilename="clientes"
+          />
         </div>
         {renderContent()}
       </AdminPanel>
