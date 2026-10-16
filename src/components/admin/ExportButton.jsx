@@ -3,6 +3,21 @@ import { createPortal } from 'react-dom';
 import { downloadFile } from '../../lib/downloadFile';
 import { Icon } from '../ui/ShioDesign';
 
+const GENERIC_ERROR = 'Não foi possível exportar os dados. Tente novamente.';
+
+// Com responseType 'blob', o corpo de erro da API chega como Blob
+async function getErrorMessage(err) {
+  let data = err.response?.data;
+  if (data instanceof Blob) {
+    try {
+      data = JSON.parse(await data.text());
+    } catch {
+      data = null;
+    }
+  }
+  return data?.detail || data?.message || GENERIC_ERROR;
+}
+
 export default function ExportButton({
   endpoint,
   params = {},
@@ -41,12 +56,7 @@ export default function ExportButton({
         `${fallbackFilename}.${format}`
       );
     } catch (err) {
-      const message =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.message ||
-        'Não foi possível exportar os dados. Tente novamente.';
-      setError(message);
+      setError(await getErrorMessage(err));
     } finally {
       setLoading(false);
     }

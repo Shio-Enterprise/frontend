@@ -96,14 +96,51 @@ describe('ExportButton component', () => {
     });
   });
 
-  it('exibe mensagem de erro caso o download falhe', async () => {
-    downloadFileMock.mockRejectedValueOnce(new Error('Erro de conexão com o servidor'));
+  it('exibe mensagem genérica em português caso o download falhe sem resposta da API', async () => {
+    downloadFileMock.mockRejectedValueOnce(new Error('Network Error'));
 
     render(<ExportButton endpoint="/api/orders/admin/export/" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Exportar' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /CSV/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Erro de conexão com o servidor');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível exportar os dados. Tente novamente.'
+    );
+  });
+
+  it('exibe a mensagem da API quando o erro chega como Blob', async () => {
+    const err = new Error('Request failed with status code 400');
+    err.response = {
+      status: 400,
+      data: new Blob([JSON.stringify({ detail: "Formato inválido. Use 'csv' ou 'xlsx'." })], {
+        type: 'application/json',
+      }),
+    };
+    downloadFileMock.mockRejectedValueOnce(err);
+
+    render(<ExportButton endpoint="/api/orders/admin/export/" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /CSV/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Formato inválido. Use 'csv' ou 'xlsx'."
+    );
+  });
+
+  it('exibe mensagem genérica quando o Blob de erro não é JSON', async () => {
+    const err = new Error('Request failed with status code 500');
+    err.response = { status: 500, data: new Blob(['<html>erro</html>'], { type: 'text/html' }) };
+    downloadFileMock.mockRejectedValueOnce(err);
+
+    render(<ExportButton endpoint="/api/orders/admin/export/" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /CSV/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível exportar os dados. Tente novamente.'
+    );
   });
 });
