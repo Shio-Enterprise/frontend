@@ -127,7 +127,7 @@ export default function ExportButton({
       {error && (
         <div
           role="alert"
-          className="absolute left-0 top-full z-20 mt-2 w-72 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 shadow-md"
+          className="absolute right-0 top-full z-20 mt-2 w-72 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 shadow-md"
         >
           <div className="flex items-start justify-between gap-2">
             <span>{error}</span>
