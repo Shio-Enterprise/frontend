@@ -3,6 +3,7 @@ import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import ExportButton from '../../../components/admin/ExportButton';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -516,19 +517,27 @@ const OrdersPage = () => {
             />
           </label>
 
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={loading}
-            className="flex h-10 items-center gap-2 rounded-lg bg-black px-4 text-white transition hover:bg-black/85 disabled:opacity-50"
-          >
-            <Icon
-              name="refresh"
-              className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`}
+          <div className="flex items-center gap-3">
+            <ExportButton
+              endpoint="/api/orders/admin/export/"
+              params={search.trim() ? { search: search.trim() } : {}}
+              fallbackFilename="pedidos"
             />
 
-            {loading ? 'Atualizando...' : 'Atualizar'}
-          </button>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={loading}
+              className="flex h-10 items-center gap-2 rounded-lg bg-black px-4 text-white transition hover:bg-black/85 disabled:opacity-50"
+            >
+              <Icon
+                name="refresh"
+                className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`}
+              />
+
+              {loading ? 'Atualizando...' : 'Atualizar'}
+            </button>
+          </div>
         </div>
         {renderContent()}
       </AdminPanel>
