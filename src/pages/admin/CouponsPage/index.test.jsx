@@ -99,6 +99,70 @@ describe('CouponsPage', () => {
     expect(badgeOf('DESLIGADO')).toBe('Inativo');
   });
 
+  it('vencido e esgotado ao mesmo tempo mostra Vencido', () => {
+    state.coupons = [{ ...base, expiration_date: '2020-01-01T00:00:00Z', max_uses_total: 1, uses_count: 1 }];
+    renderPage();
+    expect(screen.getByTestId('coupon-status').textContent).toBe('Vencido');
+  });
+
+  function openEdit(coupon) {
+    state.coupons = [coupon];
+    globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(coupon) }));
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Cupom' }));
+  }
+
+  const sentBody = () => JSON.parse(globalThis.fetch.mock.calls.at(-1)[1].body);
+
+  it('apagar limites ao editar envia null e volta a ser ilimitado', async () => {
+    openEdit({ ...base, max_uses_total: 10, max_uses_per_user: 2, min_order_value: '50.00', max_discount_amount: '30.00' });
+    fireEvent.change(screen.getByPlaceholderText('Ilimitado'), { target: { value: '' } });
+    fireEvent.change(screen.getByPlaceholderText('Normal: 1'), { target: { value: '' } });
+    fireEvent.change(screen.getByPlaceholderText('Aplicado ao subtotal'), { target: { value: '' } });
+    fireEvent.change(screen.getByPlaceholderText('Valor máximo descontado'), { target: { value: '' } });
+    fireEvent.submit(document.getElementById('coupon-form'));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(sentBody()).toMatchObject({ max_uses_total: null, max_uses_per_user: null, min_order_value: null, max_discount_amount: null });
+  });
+
+  it('apagar datas ao editar envia null', async () => {
+    openEdit({ ...base, starts_at: '2030-01-01T10:00:00Z', expiration_date: '2030-02-01T10:00:00Z' });
+    document.querySelectorAll('input[type="datetime-local"]').forEach((el) => fireEvent.change(el, { target: { value: '' } }));
+    fireEvent.submit(document.getElementById('coupon-form'));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(sentBody()).toMatchObject({ starts_at: null, expiration_date: null });
+  });
+
+  it('manter limite preenchido envia o número', async () => {
+    openEdit({ ...base, max_uses_total: 10 });
+    fireEvent.submit(document.getElementById('coupon-form'));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(sentBody().max_uses_total).toBe(10);
+  });
+
+  it('editar cupom antigo com limite 0 mostra 0 no campo', () => {
+    openEdit({ ...base, max_uses_total: 0 });
+    expect(screen.getByPlaceholderText('Ilimitado')).toHaveValue(0);
+  });
+
+  it('campos de limite exigem no mínimo 1', () => {
+    openEdit(base);
+    expect(screen.getByPlaceholderText('Ilimitado')).toHaveAttribute('min', '1');
+    expect(screen.getByPlaceholderText('Normal: 1')).toHaveAttribute('min', '1');
+  });
+
+  it('erro de validação do backend aparece legível', async () => {
+    openEdit(base);
+    globalThis.fetch = vi.fn(() => Promise.resolve({
+      ok: false,
+      json: () => Promise.resolve({ max_uses_total: ['Certifique-se que este valor seja maior ou igual a 1.'] }),
+    }));
+    fireEvent.submit(document.getElementById('coupon-form'));
+    expect(await screen.findByText('Usos Totais: Certifique-se que este valor seja maior ou igual a 1.')).toBeInTheDocument();
+    expect(screen.queryByText(/\{"max_uses_total"/)).not.toBeInTheDocument();
+  });
+
   it('limite de usos 0 não aparece como Ilimitado', () => {
     state.coupons = [{ ...base, max_uses_total: 0, uses_count: 0, remaining_uses: 0 }];
     renderPage();

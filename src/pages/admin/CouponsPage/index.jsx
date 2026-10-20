@@ -27,6 +27,37 @@ const STATUS_STYLES = {
   Esgotado: 'bg-amber-50 text-amber-800 ring-amber-600/20',
 };
 
+function optional(value, parse) {
+  return value === '' || value == null ? null : parse(value);
+}
+
+const FIELD_LABELS = {
+  code: 'Código',
+  description: 'Descrição',
+  discount_type: 'Tipo de Desconto',
+  discount_value: 'Valor',
+  max_discount_amount: 'Teto de Desconto',
+  min_order_value: 'Valor Mínimo do Pedido',
+  starts_at: 'Início',
+  expiration_date: 'Fim',
+  max_uses_total: 'Usos Totais',
+  max_uses_per_user: 'Usos por Usuário',
+  drops: 'Drops Válidos',
+  categories: 'Categorias Válidas',
+  partner: 'Parceiro',
+};
+
+// Erros do DRF chegam como { campo: ["mensagem"] }; vira "Rótulo: mensagem".
+function formatSaveError(data) {
+  if (!data || typeof data !== 'object') return 'Erro ao salvar cupom';
+  if (data.detail) return data.detail;
+  const lines = Object.entries(data).map(([field, messages]) => {
+    const text = Array.isArray(messages) ? messages.join(' ') : String(messages);
+    return field === 'non_field_errors' ? text : `${FIELD_LABELS[field] || field}: ${text}`;
+  });
+  return lines.join('\n') || 'Erro ao salvar cupom';
+}
+
 // ─── Drawer Component ────────────────────────────────────────────────────────
 
 function CouponDrawer({ coupon, onClose, onSaved }) {
@@ -78,12 +109,13 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
       categories: selectedCategories
     };
 
-    if (maxDiscountAmount) payload.max_discount_amount = maxDiscountAmount;
-    if (minOrderValue) payload.min_order_value = minOrderValue;
-    if (startsAt) payload.starts_at = new Date(startsAt).toISOString();
-    if (expirationDate) payload.expiration_date = new Date(expirationDate).toISOString();
-    if (maxUsesTotal) payload.max_uses_total = parseInt(maxUsesTotal, 10);
-    if (maxUsesPerUser) payload.max_uses_per_user = parseInt(maxUsesPerUser, 10);
+    // Campo vazio vira null: ao editar, é assim que o limite volta a "sem limite".
+    payload.max_discount_amount = optional(maxDiscountAmount, (v) => v);
+    payload.min_order_value = optional(minOrderValue, (v) => v);
+    payload.starts_at = optional(startsAt, (v) => new Date(v).toISOString());
+    payload.expiration_date = optional(expirationDate, (v) => new Date(v).toISOString());
+    payload.max_uses_total = optional(maxUsesTotal, (v) => parseInt(v, 10));
+    payload.max_uses_per_user = optional(maxUsesPerUser, (v) => parseInt(v, 10));
 
     try {
       const token = getAccessToken();
@@ -102,7 +134,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || JSON.stringify(data) || 'Erro ao salvar cupom');
+        throw new Error(formatSaveError(data));
       }
 
       onSaved(data, { created: !isEditing });
@@ -125,7 +157,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
         
         <div className="flex-1 overflow-y-auto p-6">
           <form id="coupon-form" onSubmit={handleSave} className="space-y-5">
-            {error && <div className="p-3 bg-red-100 text-red-700 text-sm rounded-md">{error}</div>}
+            {error && <div className="p-3 bg-red-100 text-red-700 text-sm rounded-md whitespace-pre-line">{error}</div>}
             
             <div>
               <label className="block text-sm font-semibold mb-1">Código</label>
