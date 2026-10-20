@@ -97,7 +97,7 @@ describe('CouponEmailModal', () => {
     });
     render(<CouponEmailModal coupon={coupon} onClose={() => {}} />);
     await screen.findByText('87 pessoas');
-    expect(screen.getByText(/Ana · 50 enviados · 1 falhas/)).toBeInTheDocument();
+    expect(screen.getByText(/Ana · 50 enviados · 1 falha/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 pessoas' }));
     expect(screen.getByText(/Este cupom já foi enviado em \d{2}\/\d{2} para 50 pessoas\. Enviar de novo\?/)).toBeInTheDocument();
   });
@@ -149,6 +149,45 @@ describe('CouponEmailModal', () => {
     expect(ta).toHaveAttribute('maxLength', '500');
     fireEvent.change(ta, { target: { value: 'a'.repeat(520) } });
     expect(screen.getByText('500/500')).toBeInTheDocument();
+  });
+
+  it('singular com 1 pessoa, 1 enviado e 1 falha', async () => {
+    setupFetch({
+      info: {
+        block_reason: null,
+        audience: { ...AUDIENCE, total: 1 },
+        history: [{ sent_at: '2026-10-05T15:30:00Z', sent_by_name: 'Ana', sent_count: 1, failed_count: 1 }],
+      },
+      send: () => json({ sent_count: 1, failed_count: 0 }, 201),
+    });
+    render(<CouponEmailModal coupon={coupon} onClose={() => {}} />);
+    expect(await screen.findByText('1 pessoa')).toBeInTheDocument();
+    expect(screen.getByText(/Ana · 1 enviado · 1 falha$/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 1 pessoa' }));
+    expect(screen.getByText('Enviar para 1 pessoa? Não dá para desfazer.')).toBeInTheDocument();
+    expect(screen.getByText(/para 1 pessoa\. Enviar de novo\?/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+    expect(await screen.findByText('1 enviado, 0 falhas')).toBeInTheDocument();
+  });
+
+  it('não fecha por Esc, × ou Cancelar enquanto envia', async () => {
+    let resolveSend;
+    setupFetch({
+      send: () => new Promise((r) => { resolveSend = () => r({ ok: true, status: 201, json: () => Promise.resolve({ sent_count: 87, failed_count: 0 }) }); }),
+    });
+    const onClose = vi.fn();
+    render(<CouponEmailModal coupon={coupon} onClose={onClose} />);
+    await screen.findByText('87 pessoas');
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 pessoas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => { resolveSend(); });
+    expect(await screen.findByText('87 enviados, 0 falhas')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('Esc fecha', async () => {

@@ -16,6 +16,10 @@ const fmtDateTime = (iso) => {
   return `${fmtDate(iso)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+const pessoas = (n) => `${n} ${n === 1 ? 'pessoa' : 'pessoas'}`;
+const enviados = (n) => `${n} ${n === 1 ? 'enviado' : 'enviados'}`;
+const falhas = (n) => `${n} ${n === 1 ? 'falha' : 'falhas'}`;
+
 export default function CouponEmailModal({ coupon, onClose }) {
   const baseUrl = `${import.meta.env.VITE_API_URL}/api/orders/admin/coupons/${coupon.id}/email/`;
   const [info, setInfo] = useState(null);
@@ -46,11 +50,11 @@ export default function CouponEmailModal({ coupon, onClose }) {
   useEffect(() => {
     titleRef.current?.focus();
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !sending) onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, sending]);
 
   useEffect(() => {
     let active = true;
@@ -139,7 +143,7 @@ export default function CouponEmailModal({ coupon, onClose }) {
           >
             Enviar cupom {coupon.code} por e-mail
           </h2>
-          <button type="button" aria-label="Fechar" onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+          <button type="button" aria-label="Fechar" onClick={onClose} disabled={sending} className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-50">
             <Icon name="close" />
           </button>
         </div>
@@ -157,7 +161,7 @@ export default function CouponEmailModal({ coupon, onClose }) {
 
           {audience && (
             <div className="rounded-md bg-gray-50 border p-4 text-sm space-y-1">
-              <p className="text-base font-bold">{audience.total} pessoas</p>
+              <p className="text-base font-bold">{pessoas(audience.total)}</p>
               <p>{audience.buyers} clientes que já compraram</p>
               <p>{audience.subscribers} inscritos na newsletter / cadastro</p>
               <p>{audience.overlap} aparecem nos dois (recebem 1 e-mail)</p>
@@ -170,7 +174,7 @@ export default function CouponEmailModal({ coupon, onClose }) {
               <p className="font-semibold uppercase tracking-wider">Envios anteriores</p>
               {history.map((h) => (
                 <p key={h.sent_at}>
-                  {fmtDateTime(h.sent_at)} · {h.sent_by_name || '—'} · {h.sent_count} enviados · {h.failed_count} falhas
+                  {fmtDateTime(h.sent_at)} · {h.sent_by_name || '—'} · {enviados(h.sent_count)} · {falhas(h.failed_count)}
                 </p>
               ))}
             </div>
@@ -206,18 +210,18 @@ export default function CouponEmailModal({ coupon, onClose }) {
           {error && <div className="p-3 bg-red-100 text-red-700 text-sm rounded-md">{error}</div>}
           {result && (
             <div role="status" className="p-3 bg-green-50 text-green-800 text-sm rounded-md">
-              {result.sent_count} enviados, {result.failed_count} falhas
+              {enviados(result.sent_count)}, {falhas(result.failed_count)}
             </div>
           )}
 
           {confirming && !result && (
             <div className="p-4 border-2 border-black rounded-md space-y-3">
               <p className="text-sm font-semibold">
-                Enviar para {audience.total} pessoas? Não dá para desfazer.
+                Enviar para {pessoas(audience.total)}? Não dá para desfazer.
               </p>
               {lastSend && (
                 <p className="text-sm text-amber-700">
-                  Este cupom já foi enviado em {fmtDate(lastSend.sent_at)} para {lastSend.sent_count} pessoas. Enviar de novo?
+                  Este cupom já foi enviado em {fmtDate(lastSend.sent_at)} para {pessoas(lastSend.sent_count)}. Enviar de novo?
                 </p>
               )}
               <div className="flex gap-3">
@@ -238,7 +242,7 @@ export default function CouponEmailModal({ coupon, onClose }) {
         </div>
 
         <div className="p-4 border-t bg-gray-50 flex justify-end gap-3 shrink-0">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold border rounded-md hover:bg-gray-100">
+          <button type="button" onClick={onClose} disabled={sending} className="px-4 py-2 text-sm font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50">
             {result ? 'Fechar' : 'Cancelar'}
           </button>
           <button
@@ -250,7 +254,7 @@ export default function CouponEmailModal({ coupon, onClose }) {
             Enviar teste para mim
           </button>
           <BlackButton onClick={() => setConfirming(true)} disabled={blocked || !!result || confirming || sending}>
-            Enviar para {audience?.total ?? 0} pessoas
+            Enviar para {pessoas(audience?.total ?? 0)}
           </BlackButton>
         </div>
       </div>

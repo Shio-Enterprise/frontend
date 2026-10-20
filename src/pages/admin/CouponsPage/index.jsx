@@ -472,7 +472,7 @@ export default function CouponsPage() {
       {justCreated && !emailCoupon && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl space-y-4">
-            <p className="text-sm font-semibold">Quer enviar este cupom por e-mail para os clientes agora?</p>
+            <p className="text-sm font-semibold">Cupom {justCreated.code} criado. Quer enviar este cupom por e-mail para os clientes agora?</p>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setJustCreated(null)} className="px-4 py-2 text-sm font-bold border rounded-md hover:bg-gray-100">
                 Agora não

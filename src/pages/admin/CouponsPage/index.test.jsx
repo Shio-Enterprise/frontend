@@ -47,7 +47,7 @@ describe('CouponsPage', () => {
     fireEvent.change(screen.getByPlaceholderText('Ex: VERAO20'), { target: { value: 'novo' } });
     fireEvent.change(document.querySelector('input[type=number][step="0.01"]'), { target: { value: '10' } });
     fireEvent.submit(document.getElementById('coupon-form'));
-    expect(await screen.findByText('Quer enviar este cupom por e-mail para os clientes agora?')).toBeInTheDocument();
+    expect(await screen.findByText('Cupom NOVO criado. Quer enviar este cupom por e-mail para os clientes agora?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Agora não' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enviar por e-mail' }));
     expect(screen.getByText('modal-email NOVO')).toBeInTheDocument();
