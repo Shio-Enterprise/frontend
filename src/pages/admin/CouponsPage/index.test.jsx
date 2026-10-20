@@ -83,4 +83,26 @@ describe('CouponsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enviar por e-mail' }));
     expect(screen.getByText('modal-email VERAO20')).toBeInTheDocument();
   });
+
+  it('selo mostra Vencido, Esgotado, Inativo ou Ativo', () => {
+    state.coupons = [
+      { ...base, id: 1, code: 'VALIDO' },
+      { ...base, id: 2, code: 'VENCIDO', expiration_date: '2020-01-01T00:00:00Z' },
+      { ...base, id: 3, code: 'ESGOTADO', max_uses_total: 5, uses_count: 5, remaining_uses: 0 },
+      { ...base, id: 4, code: 'DESLIGADO', is_active: false, expiration_date: '2020-01-01T00:00:00Z' },
+    ];
+    renderPage();
+    const badgeOf = (code) => screen.getByText(code).closest('tr').querySelector('[data-testid="coupon-status"]').textContent;
+    expect(badgeOf('VALIDO')).toBe('Ativo');
+    expect(badgeOf('VENCIDO')).toBe('Vencido');
+    expect(badgeOf('ESGOTADO')).toBe('Esgotado');
+    expect(badgeOf('DESLIGADO')).toBe('Inativo');
+  });
+
+  it('limite de usos 0 não aparece como Ilimitado', () => {
+    state.coupons = [{ ...base, max_uses_total: 0, uses_count: 0, remaining_uses: 0 }];
+    renderPage();
+    expect(screen.getByText('0 restantes')).toBeInTheDocument();
+    expect(screen.queryByText('Ilimitado')).not.toBeInTheDocument();
+  });
 });

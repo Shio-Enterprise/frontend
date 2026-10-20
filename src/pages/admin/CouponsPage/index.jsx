@@ -12,6 +12,21 @@ function formatMoney(value) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
+// Mesma ordem de prioridade que o backend usa para recusar o envio por e-mail.
+function couponStatus(coupon) {
+  if (!coupon.is_active) return 'Inativo';
+  if (coupon.expiration_date && new Date(coupon.expiration_date) < new Date()) return 'Vencido';
+  if (coupon.max_uses_total != null && coupon.uses_count >= coupon.max_uses_total) return 'Esgotado';
+  return 'Ativo';
+}
+
+const STATUS_STYLES = {
+  Ativo: 'bg-green-50 text-green-700 ring-green-600/20',
+  Inativo: 'bg-red-50 text-red-700 ring-red-600/10',
+  Vencido: 'bg-amber-50 text-amber-800 ring-amber-600/20',
+  Esgotado: 'bg-amber-50 text-amber-800 ring-amber-600/20',
+};
+
 // ─── Drawer Component ────────────────────────────────────────────────────────
 
 function CouponDrawer({ coupon, onClose, onSaved }) {
@@ -28,7 +43,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
   const [minOrderValue, setMinOrderValue] = useState(coupon?.min_order_value || '');
   const [startsAt, setStartsAt] = useState(coupon?.starts_at ? coupon.starts_at.slice(0, 16) : '');
   const [expirationDate, setExpirationDate] = useState(coupon?.expiration_date ? coupon.expiration_date.slice(0, 16) : '');
-  const [maxUsesTotal, setMaxUsesTotal] = useState(coupon?.max_uses_total || '');
+  const [maxUsesTotal, setMaxUsesTotal] = useState(coupon?.max_uses_total ?? '');
   const [maxUsesPerUser, setMaxUsesPerUser] = useState(coupon?.max_uses_per_user || '');
   const [firstPurchaseOnly, setFirstPurchaseOnly] = useState(coupon?.first_purchase_only || false);
   const [autoApply, setAutoApply] = useState(coupon?.auto_apply || false);
@@ -216,6 +231,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
                 <label className="block text-sm font-semibold mb-1">Usos Totais</label>
                 <input
                   type="number"
+                  min="1"
                   value={maxUsesTotal}
                   onChange={(e) => setMaxUsesTotal(e.target.value)}
                   className="w-full border rounded-md px-3 py-2"
@@ -226,6 +242,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
                 <label className="block text-sm font-semibold mb-1">Usos por Usuário</label>
                 <input
                   type="number"
+                  min="1"
                   value={maxUsesPerUser}
                   onChange={(e) => setMaxUsesPerUser(e.target.value)}
                   className="w-full border rounded-md px-3 py-2"
@@ -362,10 +379,8 @@ export default function CouponsPage() {
   };
 
   const emailDisabledReason = (coupon) => {
-    if (!coupon.is_active) return 'Cupom inativo';
-    if (coupon.expiration_date && new Date(coupon.expiration_date) < new Date()) return 'Cupom vencido';
-    if (coupon.max_uses_total != null && coupon.uses_count >= coupon.max_uses_total) return 'Cupom esgotado';
-    return null;
+    const status = couponStatus(coupon);
+    return status === 'Ativo' ? null : `Cupom ${status.toLowerCase()}`;
   };
 
   return (
@@ -400,11 +415,9 @@ export default function CouponsPage() {
                       <span className="font-bold text-gray-900">{coupon.code}</span>
                       <span className="text-xs text-gray-500">{coupon.description || 'Sem descrição'}</span>
                       <div className="mt-2 flex gap-2">
-                        {coupon.is_active ? (
-                          <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Ativo</span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">Inativo</span>
-                        )}
+                        <span data-testid="coupon-status" className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_STYLES[couponStatus(coupon)]}`}>
+                          {couponStatus(coupon)}
+                        </span>
                         {coupon.auto_apply && (
                           <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-600/20">Automático</span>
                         )}
@@ -421,7 +434,7 @@ export default function CouponsPage() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="font-semibold text-gray-900">{coupon.uses_count} usos</span>
-                      {coupon.max_uses_total ? (
+                      {coupon.max_uses_total != null ? (
                         <span className="text-xs text-gray-500">{coupon.remaining_uses} restantes</span>
                       ) : (
                         <span className="text-xs text-gray-500">Ilimitado</span>
