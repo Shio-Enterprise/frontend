@@ -130,11 +130,12 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
-  const registerWithPassword = async (name, email, password) => {
+  const registerWithPassword = async (name, email, password, marketingOptIn = false) => {
     const response = await apiClient.post("/auth/register/", {
       name,
       email,
       password,
+      marketing_opt_in: marketingOptIn,
     });
     login(response.data);
     return response.data;

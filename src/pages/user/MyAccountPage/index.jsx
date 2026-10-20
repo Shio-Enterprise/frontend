@@ -3,6 +3,7 @@ import AccountLayout from '../../../components/layout/user/AccountLayout';
 import { PageMarker } from '../../../components/ui/ShioDesign';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
+import apiClient from '../../../lib/axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -14,6 +15,39 @@ const MyAccountPage = () => {
   const [cpf, setCpf] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
+
+  const [receives, setReceives] = useState(null);
+  const [savingMarketing, setSavingMarketing] = useState(false);
+  const [marketingError, setMarketingError] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    apiClient
+      .get('/auth/me/marketing/')
+      .then((res) => {
+        if (active) setReceives(Boolean(res.data?.receives));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const toggleMarketing = async () => {
+    const previous = receives;
+    setReceives(!previous);
+    setSavingMarketing(true);
+    setMarketingError(null);
+    try {
+      const res = await apiClient.put('/auth/me/marketing/', { receives: !previous });
+      setReceives(Boolean(res.data?.receives));
+    } catch {
+      setReceives(previous);
+      setMarketingError('Não foi possível salvar sua preferência.');
+    } finally {
+      setSavingMarketing(false);
+    }
+  };
 
   useEffect(() => {
     if (!me) return;
@@ -121,6 +155,31 @@ const MyAccountPage = () => {
             </button>
           </div>
         </form>
+      )}
+
+      {receives !== null && (
+        <section className="mt-8 rounded-[18px] border border-black/20 p-5 md:p-8 lg:p-12">
+          <h2 className="mb-4 text-[20px] font-bold text-black">Comunicações</h2>
+          <div className="flex items-center justify-between gap-4">
+            <span id="marketing-switch-label" className="text-[14px] text-black/70 lg:text-base">
+              Quero receber novidades e cupons por e-mail
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={receives}
+              aria-labelledby="marketing-switch-label"
+              disabled={savingMarketing}
+              onClick={toggleMarketing}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${receives ? 'bg-black' : 'bg-black/25'}`}
+            >
+              <span
+                className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white transition-transform ${receives ? 'translate-x-5' : ''}`}
+              />
+            </button>
+          </div>
+          {marketingError && <p className="mt-3 text-sm font-semibold text-[#ff3333]">{marketingError}</p>}
+        </section>
       )}
     </AccountLayout>
   );
