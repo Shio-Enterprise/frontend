@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
+import CouponEmailModal from '../../../components/admin/CouponEmailModal';
 import { AdminPanel, AdminTitle, BlackButton, Icon, ActionMenu } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -89,7 +90,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
         throw new Error(data.detail || JSON.stringify(data) || 'Erro ao salvar cupom');
       }
 
-      onSaved();
+      onSaved(data, { created: !isEditing });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -308,6 +309,8 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
 export default function CouponsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState(null);
+  const [emailCoupon, setEmailCoupon] = useState(null);
+  const [justCreated, setJustCreated] = useState(null);
   
   const { data: responseData, loading, refetch } = useApi('/api/orders/admin/coupons/');
   const coupons = responseData?.results || responseData || [];
@@ -356,6 +359,13 @@ export default function CouponsPage() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const emailDisabledReason = (coupon) => {
+    if (!coupon.is_active) return 'Cupom inativo';
+    if (coupon.expiration_date && new Date(coupon.expiration_date) < new Date()) return 'Cupom vencido';
+    if (coupon.max_uses_total != null && coupon.uses_count >= coupon.max_uses_total) return 'Cupom esgotado';
+    return null;
   };
 
   return (
@@ -429,6 +439,12 @@ export default function CouponsPage() {
                       label="Ações"
                       items={[
                         { label: 'Editar Cupom', onClick: () => handleEdit(coupon) },
+                        {
+                          label: 'Enviar por e-mail',
+                          disabled: !!emailDisabledReason(coupon),
+                          title: emailDisabledReason(coupon) || undefined,
+                          onClick: () => setEmailCoupon(coupon),
+                        },
                         { label: coupon.is_active ? 'Desativar' : 'Reativar', onClick: () => handleToggleActive(coupon) },
                         { label: 'Deletar', onClick: () => handleDelete(coupon) },
                       ]}
@@ -445,8 +461,33 @@ export default function CouponsPage() {
         <CouponDrawer 
           coupon={editingCoupon} 
           onClose={() => setDrawerOpen(false)} 
-          onSaved={() => { setDrawerOpen(false); refetch(); }} 
+          onSaved={(saved, { created }) => {
+            setDrawerOpen(false);
+            refetch();
+            if (created && saved?.id) setJustCreated(saved);
+          }} 
         />
+      )}
+
+      {justCreated && !emailCoupon && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl space-y-4">
+            <p className="text-sm font-semibold">Quer enviar este cupom por e-mail para os clientes agora?</p>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setJustCreated(null)} className="px-4 py-2 text-sm font-bold border rounded-md hover:bg-gray-100">
+                Agora não
+              </button>
+              <BlackButton onClick={() => { setEmailCoupon(justCreated); setJustCreated(null); }}>
+                Enviar por e-mail
+              </BlackButton>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {emailCoupon && (
+        <CouponEmailModal coupon={emailCoupon} onClose={() => setEmailCoupon(null)} />
       )}
     </AdminPanel>
   );

@@ -342,7 +342,14 @@ export function ActionMenu({ label, items }) {
             );
           }
           return (
-            <button key={item.label} type="button" className={cls} onClick={() => { close(); item.onClick?.(); }}>
+            <button
+              key={item.label}
+              type="button"
+              className={`${cls}${item.disabled ? ' cursor-not-allowed opacity-40 hover:bg-transparent' : ''}`}
+              disabled={item.disabled}
+              title={item.title}
+              onClick={() => { close(); item.onClick?.(); }}
+            >
               {item.icon && <Icon name={item.icon} className="h-4 w-4 shrink-0" />}
               {item.label}
             </button>
