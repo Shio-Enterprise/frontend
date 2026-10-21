@@ -85,6 +85,7 @@ export default function MyStockAlertsPage() {
                 <button
                   type="button"
                   disabled={cancelingId === item.id}
+                  aria-label={`Cancelar aviso de ${item.product.name}`}
                   onClick={() => handleCancel(item.id)}
                   className="shrink-0 rounded-full border border-black px-4 py-2 text-sm disabled:opacity-40"
                 >

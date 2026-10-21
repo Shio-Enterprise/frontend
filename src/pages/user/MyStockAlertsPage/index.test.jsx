@@ -45,7 +45,7 @@ describe('MyStockAlertsPage', () => {
     cancelStockAlert.mockResolvedValue();
     renderPage();
     await screen.findByText('Produto 1');
-    fireEvent.click(screen.getAllByRole('button', { name: /cancelar/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar aviso de Produto 1' }));
     await waitFor(() => expect(screen.queryByText('Produto 1')).not.toBeInTheDocument());
     expect(cancelStockAlert).toHaveBeenCalledWith(1);
     expect(screen.getByText('Produto 3')).toBeInTheDocument();
