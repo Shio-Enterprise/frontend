@@ -51,6 +51,18 @@ describe('MyStockAlertsPage', () => {
     expect(screen.getByText('Produto 3')).toBeInTheDocument();
   });
 
+  it('falha ao cancelar mostra erro e mantém a linha', async () => {
+    listStockAlerts.mockResolvedValue([alert(1)]);
+    cancelStockAlert.mockRejectedValue(new Error('network'));
+    renderPage();
+    await screen.findByText('Produto 1');
+    const cancelButton = screen.getByRole('button', { name: 'Cancelar aviso de Produto 1' });
+    fireEvent.click(cancelButton);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível cancelar o aviso.');
+    expect(screen.getByText('Produto 1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancelar aviso de Produto 1' })).toBeEnabled();
+  });
+
   it('estado vazio explica o recurso', async () => {
     listStockAlerts.mockResolvedValue([]);
     renderPage();
