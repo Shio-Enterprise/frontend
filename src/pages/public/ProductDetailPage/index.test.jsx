@@ -2,10 +2,10 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import ProductDetailPage from './index';
-import { useAuth } from '../../../context/AuthContext';
+import { getAccessToken } from '../../../lib/authToken';
 import { createStockAlert, getPendingStockAlertVariationIds } from '../../../lib/stockAlertsApi';
 
-vi.mock('../../../context/AuthContext', () => ({ useAuth: vi.fn() }));
+vi.mock('../../../lib/authToken', () => ({ getAccessToken: vi.fn() }));
 vi.mock('../../../lib/stockAlertsApi', () => ({
   createStockAlert: vi.fn(),
   getPendingStockAlertVariationIds: vi.fn(),
@@ -38,7 +38,7 @@ const mount = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useAuth.mockReturnValue({ user: { id: 'u1' } });
+  getAccessToken.mockReturnValue('token');
   getPendingStockAlertVariationIds.mockResolvedValue([]);
   vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(
     url.includes('/recommendations/') ? recommendations([25, 9, 3, 12]) : response(product('1')),
@@ -240,7 +240,7 @@ describe('ProductDetailPage', () => {
     });
 
     it('visitante vai para o login com retorno ao produto', async () => {
-      useAuth.mockReturnValue({ user: null });
+      getAccessToken.mockReturnValue(null);
       const { router } = mountWith(withVariations());
       await pickM();
       fireEvent.click(screen.getByRole('button', { name: 'Avise-me quando chegar' }));
@@ -248,6 +248,24 @@ describe('ProductDetailPage', () => {
       expect(router.state.location.state.from.pathname).toBe('/product/1');
       expect(createStockAlert).not.toHaveBeenCalled();
       expect(getPendingStockAlertVariationIds).not.toHaveBeenCalled();
+    });
+
+    it('sessão expirada (user sem token) vai para o login', async () => {
+      getAccessToken.mockReturnValue(null);
+      const { router } = mountWith(withVariations());
+      await pickM();
+      fireEvent.click(screen.getByRole('button', { name: 'Avise-me quando chegar' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+      expect(createStockAlert).not.toHaveBeenCalled();
+    });
+
+    it('401 ao pedir aviso vai para o login', async () => {
+      createStockAlert.mockRejectedValue({ response: { status: 401, data: { detail: 'Authentication credentials were not provided.' } } });
+      const { router } = mountWith(withVariations());
+      await pickM();
+      fireEvent.click(screen.getByRole('button', { name: 'Avise-me quando chegar' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+      expect(router.state.location.state.from.pathname).toBe('/product/1');
     });
 
     it('produto não vendável continua Indisponível sem aviso', async () => {

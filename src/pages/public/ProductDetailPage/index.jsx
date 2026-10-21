@@ -5,7 +5,6 @@ import { PageMarker, ProductCard, Rating, SectionTitle } from '../../../componen
 import ProductReviews from '../../../components/reviews/ProductReviews';
 import { getAccessToken } from '../../../lib/authToken';
 import { useCart } from '../../../context/CartContext';
-import { useAuth } from '../../../context/AuthContext';
 import {
   createStockAlert, getPendingStockAlertVariationIds, stockAlertErrorMessage,
 } from '../../../lib/stockAlertsApi';
@@ -40,10 +39,11 @@ const ProductDetailContent = ({ id }) => {
   const [alertSaving, setAlertSaving] = useState(false);
   const [alertError, setAlertError] = useState(null);
   const { cartItems, setCartData } = useCart();
-  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const isLoggedIn = Boolean(user);
+  // Mesmo critério do ProtectedRoute: token de acesso válido (o user fica no
+  // localStorage mesmo depois que o token expira).
+  const isLoggedIn = Boolean(getAccessToken());
 
   useEffect(() => {
     if (!isLoggedIn) return undefined;
@@ -146,7 +146,11 @@ const ProductDetailContent = ({ id }) => {
       await createStockAlert(selectedVarId);
       setPendingAlertIds((ids) => [...ids, String(selectedVarId)]);
     } catch (e) {
-      setAlertError(stockAlertErrorMessage(e));
+      if (e?.response?.status === 401) {
+        navigate('/login', { state: { from: location } });
+      } else {
+        setAlertError(stockAlertErrorMessage(e));
+      }
     } finally {
       setAlertSaving(false);
     }
