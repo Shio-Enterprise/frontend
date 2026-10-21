@@ -76,7 +76,7 @@ export default function MyStockAlertsPage() {
                 ) : (
                   <span className="block truncate font-semibold text-black/60">{item.product.name}</span>
                 )}
-                <p className="mt-1 text-sm text-black/60">Tamanho {item.size} · {item.color}</p>
+                <p className="mt-1 text-sm text-black/60">{['Tamanho ' + item.size, item.color].filter(Boolean).join(' · ')}</p>
                 <p className="mt-1 text-sm font-semibold text-black">
                   {item.notified_at ? `Avisado em ${formatDate(item.notified_at)}` : 'Aguardando'}
                 </p>

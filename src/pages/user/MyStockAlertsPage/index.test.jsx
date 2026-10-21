@@ -33,6 +33,13 @@ describe('MyStockAlertsPage', () => {
     expect(screen.getByRole('link', { name: 'Produto 1' })).toHaveAttribute('href', '/product/p1');
   });
 
+  it('variação sem cor não mostra separador', async () => {
+    listStockAlerts.mockResolvedValue([alert(1, { color: '' }), alert(2, { size: 'G', color: 'Azul' })]);
+    renderPage();
+    expect(await screen.findByText('Tamanho M')).toBeInTheDocument();
+    expect(screen.getByText('Tamanho G · Azul')).toBeInTheDocument();
+  });
+
   it('cancelar remove a linha', async () => {
     listStockAlerts.mockResolvedValue([alert(1), alert(3)]);
     cancelStockAlert.mockResolvedValue();
