@@ -22,6 +22,7 @@ const OrderDetailsPage = lazy(() => import("../pages/user/OrderDetailsPage"));
 const AddressesPage = lazy(() => import("../pages/user/AddressesPage"));
 const NewAddressPage = lazy(() => import("../pages/user/NewAddressPage"));
 const MyFavoritesPage = lazy(() => import("../pages/user/MyFavoritesPage"));
+const MyStockAlertsPage = lazy(() => import("../pages/user/MyStockAlertsPage"));
 
 // Admin pages
 const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
@@ -113,6 +114,7 @@ const routes = [
     isPrivate: true,
   },
   { path: "/my-favorites", component: <MyFavoritesPage />, isPrivate: true },
+  { path: "/my-stock-alerts", component: <MyStockAlertsPage />, isPrivate: true },
   {
     path: "/new-address",
     component: <NewAddressPage />,
