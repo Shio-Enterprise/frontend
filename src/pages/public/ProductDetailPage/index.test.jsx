@@ -1,7 +1,16 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import ProductDetailPage from './index';
+import { useAuth } from '../../../context/AuthContext';
+import { createStockAlert, getPendingStockAlertVariationIds } from '../../../lib/stockAlertsApi';
+
+vi.mock('../../../context/AuthContext', () => ({ useAuth: vi.fn() }));
+vi.mock('../../../lib/stockAlertsApi', () => ({
+  createStockAlert: vi.fn(),
+  getPendingStockAlertVariationIds: vi.fn(),
+  stockAlertErrorMessage: (e) => e?.response?.data?.variation_id?.[0] ?? 'Não foi possível registrar o aviso.',
+}));
 
 vi.mock('../../../components/layout/public/PublicLayout', () => ({
   default: ({ children }) => <main>{children}</main>,
@@ -22,11 +31,15 @@ const section = () => within(screen.getByRole('heading', { name: 'Recomendaçõe
 const mount = () => {
   const router = createMemoryRouter([
     { path: '/product/:id', element: <ProductDetailPage /> },
+    { path: '/login', element: <div>Tela de login</div> },
   ], { initialEntries: ['/product/1'] });
   return { router, ...render(<RouterProvider router={router} />) };
 };
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  useAuth.mockReturnValue({ user: { id: 'u1' } });
+  getPendingStockAlertVariationIds.mockResolvedValue([]);
   vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(
     url.includes('/recommendations/') ? recommendations([25, 9, 3, 12]) : response(product('1')),
   )));
@@ -167,5 +180,88 @@ describe('ProductDetailPage', () => {
     await screen.findByRole('heading', { name: 'Produto 1' });
     await screen.findByText('Produto 25');
     expect(screen.queryByRole('img', { name: /^Nota/ })).not.toBeInTheDocument();
+  });
+
+  describe('Avise-me quando chegar', () => {
+    const withVariations = (extra = {}) => ({
+      ...product('1'),
+      is_sellable: true,
+      variations: [
+        { id: 'vM', size: 'M', color: '', stock_quantity: 0 },
+        { id: 'vG', size: 'G', color: '', stock_quantity: 2 },
+      ],
+      ...extra,
+    });
+    const mountWith = (data) => {
+      fetch.mockImplementation((url) => Promise.resolve(
+        url.includes('/recommendations/') ? recommendations([]) : response(data),
+      ));
+      return mount();
+    };
+    const pickM = async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /^M/ }));
+    };
+
+    it('variação esgotada pode ser escolhida e mostra Avise-me quando chegar', async () => {
+      mountWith(withVariations());
+      const button = await screen.findByRole('button', { name: /^M/ });
+      expect(button).not.toBeDisabled();
+      fireEvent.click(button);
+      expect(screen.getByRole('button', { name: 'Avise-me quando chegar' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Adicionar ao Carrinho' })).not.toBeInTheDocument();
+      expect(screen.queryByText('−')).not.toBeInTheDocument();
+    });
+
+    it('cliente logado pede aviso e vê Você já será avisado', async () => {
+      createStockAlert.mockResolvedValue({ alreadyPending: false, alert: { id: 'a1' } });
+      mountWith(withVariations());
+      await pickM();
+      fireEvent.click(screen.getByRole('button', { name: 'Avise-me quando chegar' }));
+      expect(await screen.findByText('Você já será avisado')).toBeInTheDocument();
+      expect(createStockAlert).toHaveBeenCalledWith('vM');
+      expect(screen.getByRole('link', { name: /Avisos|meus avisos/i })).toHaveAttribute('href', '/my-stock-alerts');
+    });
+
+    it('mostra a mensagem de erro da API ao pedir o aviso', async () => {
+      createStockAlert.mockRejectedValue({ response: { data: { variation_id: ['Este tamanho está disponível.'] } } });
+      mountWith(withVariations());
+      await pickM();
+      fireEvent.click(screen.getByRole('button', { name: 'Avise-me quando chegar' }));
+      expect(await screen.findByText('Este tamanho está disponível.')).toBeInTheDocument();
+    });
+
+    it('variação com aviso pendente já abre como Você já será avisado', async () => {
+      getPendingStockAlertVariationIds.mockResolvedValue(['vM']);
+      mountWith(withVariations());
+      await pickM();
+      expect(await screen.findByText('Você já será avisado')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /avisos/i })).toHaveAttribute('href', '/my-stock-alerts');
+      expect(screen.queryByRole('button', { name: 'Avise-me quando chegar' })).not.toBeInTheDocument();
+    });
+
+    it('visitante vai para o login com retorno ao produto', async () => {
+      useAuth.mockReturnValue({ user: null });
+      const { router } = mountWith(withVariations());
+      await pickM();
+      fireEvent.click(screen.getByRole('button', { name: 'Avise-me quando chegar' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+      expect(router.state.location.state.from.pathname).toBe('/product/1');
+      expect(createStockAlert).not.toHaveBeenCalled();
+      expect(getPendingStockAlertVariationIds).not.toHaveBeenCalled();
+    });
+
+    it('produto não vendável continua Indisponível sem aviso', async () => {
+      mountWith(withVariations({ is_sellable: false }));
+      await pickM();
+      expect(screen.getByRole('button', { name: 'Indisponível' })).toBeDisabled();
+      expect(screen.queryByRole('button', { name: 'Avise-me quando chegar' })).not.toBeInTheDocument();
+    });
+
+    it('variação com estoque continua com Adicionar ao Carrinho', async () => {
+      mountWith(withVariations());
+      fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
+      expect(screen.getByRole('button', { name: 'Adicionar ao Carrinho' })).toBeEnabled();
+      expect(screen.queryByRole('button', { name: 'Avise-me quando chegar' })).not.toBeInTheDocument();
+    });
   });
 });
