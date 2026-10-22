@@ -349,6 +349,21 @@ describe('PaymentPage', () => {
     expect(JSON.parse(call[1].body)).toEqual(saved);
   });
 
+  it('não indica cálculo em andamento ao restaurar tentativa com carrinho preenchido', async () => {
+    const saved = { address_id: 'address-1', shipping_quote_id: 'old-quote', idempotency_key: 'same-key' };
+    sessionStorage.setItem('checkout-attempt:1', JSON.stringify(saved));
+    renderPage();
+
+    await screen.findByRole('button', { name: 'Consultar tentativa' });
+    expect(screen.queryByText('Calculando frete...')).not.toBeInTheDocument();
+    expect(screen.getByText('O frete está vinculado à tentativa anterior. Consulte o resultado abaixo.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar tentativa' }));
+    await screen.findByText('Gateway indisponível.');
+    const call = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
+    expect(JSON.parse(call[1].body)).toEqual(saved);
+  });
+
   it('não recupera tentativa de outra conta', async () => {
     sessionStorage.setItem('checkout-attempt:2', JSON.stringify({ idempotency_key: 'other-key' }));
     renderPage();

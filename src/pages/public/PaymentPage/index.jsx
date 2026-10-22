@@ -631,6 +631,7 @@ const PaymentPage = () => {
       ? calculationError.message
       : null;
   const freightLoading = Boolean(
+    !checkoutAttempt &&
     selectedAddressId &&
     cart?.items?.length &&
     !hasCalculation &&
@@ -775,7 +776,11 @@ const PaymentPage = () => {
               {/* Freight info */}
               {selectedAddressId && (
                 <div className="rounded-[10px] bg-[#f7f7f7] px-4 py-3 text-[13px]">
-                  {freightLoading ? (
+                  {checkoutAttempt && !hasCalculation ? (
+                    <span className="text-black/60">
+                      O frete está vinculado à tentativa anterior. Consulte o resultado abaixo.
+                    </span>
+                  ) : freightLoading ? (
                     <span className="text-black/45">Calculando frete...</span>
                   ) : freightError ? (
                     <span className="text-[#cc0000]">{freightError}</span>
