@@ -244,6 +244,7 @@ const PaymentPage = () => {
     })
       .then(async (r) => {
         const data = await r.json();
+        if (cancelled) return;
         if (!r.ok && Array.isArray(data.coupon_code)) {
           // Cupom recusado: mostra o motivo e refaz a cotação sem ele.
           if (!cancelled) {
@@ -265,15 +266,19 @@ const PaymentPage = () => {
               },
               retrySeconds * 1000,
             );
-            throw new Error(
-              apiErrorMessage(
+            setCalculationError({
+              message: apiErrorMessage(
                 data,
                 r,
                 r.status === 429
                   ? `Muitas tentativas. Aguarde ${retrySeconds}s para calcular novamente.`
                   : `Cálculo temporariamente indisponível. Tente novamente em ${retrySeconds}s.`,
               ),
-            );
+              addressId: selectedAddressId,
+              cartSnapshot: cart,
+              retryable: true,
+            });
+            return;
           }
           throw new Error(apiErrorMessage(data, r, "Cálculo indisponível."));
         }
@@ -350,7 +355,7 @@ const PaymentPage = () => {
 
   const changeCoupon = (code) => {
     setFreightData(null);
-    setCalculationError(null);
+    setCalculationError((error) => (error?.retryable ? error : null));
     setConfirmedQuoteId(null);
     setQuoteInvalidated(false);
     setAppliedCoupon(code);
@@ -382,7 +387,7 @@ const PaymentPage = () => {
     if (checkoutAttempt || checkoutInFlight.current) return;
     setFreightData(null);
     setQuoteInvalidated(false);
-    setCalculationError(null);
+    setCalculationError((error) => (error?.retryable ? error : null));
     setConfirmedQuoteId(null);
     setSelectedAddressId(id);
   };
@@ -402,7 +407,7 @@ const PaymentPage = () => {
     const token = getAccessToken();
     setCartUpdating(true);
     setFreightData(null);
-    setCalculationError(null);
+    setCalculationError((error) => (error?.retryable ? error : null));
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/orders/cart/items/${itemId}/`,
@@ -437,7 +442,7 @@ const PaymentPage = () => {
     const token = getAccessToken();
     setCartUpdating(true);
     setFreightData(null);
-    setCalculationError(null);
+    setCalculationError((error) => (error?.retryable ? error : null));
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/orders/cart/items/${itemId}/`,
@@ -620,8 +625,9 @@ const PaymentPage = () => {
     hasCalculation && confirmedQuoteId === freightData.shipping_quote_id;
   const freightError = quoteExpired
     ? "Cotação expirada. Recalcule e confirme os valores novamente."
-    : calculationError?.addressId === selectedAddressId &&
-        calculationError?.cartSnapshot === cart
+    : calculationError?.retryable ||
+        (calculationError?.addressId === selectedAddressId &&
+          calculationError?.cartSnapshot === cart)
       ? calculationError.message
       : null;
   const freightLoading = Boolean(

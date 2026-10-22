@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
@@ -120,6 +121,72 @@ describe('PaymentPage', () => {
     expect(recalculate).toBeDisabled();
     await act(async () => new Promise((resolve) => setTimeout(resolve, 1050)));
     expect(recalculate).toBeEnabled();
+  });
+
+  it.each([429, 503])('preserva o erro durante atualização inicial do carrinho (%s)', async (status) => {
+    let resolveSecondCart;
+    let cartRequests = 0;
+    const originalFetch = fetch;
+    vi.stubGlobal('fetch', vi.fn((url, options) => {
+      if (url.endsWith('/cart/') && ++cartRequests === 2) {
+        return new Promise((resolve) => { resolveSecondCart = resolve; });
+      }
+      return originalFetch(url, options);
+    }));
+    calculationResponse = async () => ({
+      ...jsonResponse({ message: 'Aguarde para recalcular.' }, false, status),
+      headers: { get: (name) => name === 'Retry-After' ? '1' : null },
+    });
+    render(<StrictMode><BrowserRouter><PaymentPage /></BrowserRouter></StrictMode>);
+    await screen.findByText('Aguarde para recalcular.');
+    await act(async () => { resolveSecondCart(jsonResponse({ ...cart })); });
+
+    expect(screen.getByText('Aguarde para recalcular.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Recalcular cotação' })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recalcular cotação' })).toBeEnabled(), { timeout: 2000 });
+    calculationResponse = async () => jsonResponse(calculation);
+    fireEvent.click(screen.getByRole('button', { name: 'Recalcular cotação' }));
+    await showReview();
+    expect(screen.getByText('R$ 59.90')).toBeInTheDocument();
+  });
+
+  it.each([429, 503])('ignora cooldown de resposta antiga ao trocar endereço (%s)', async (status) => {
+    let resolveFirst;
+    let requests = 0;
+    calculationResponse = () => ++requests === 1
+      ? new Promise((resolve) => { resolveFirst = resolve; })
+      : Promise.resolve(jsonResponse(calculation));
+    renderPage();
+    await waitFor(() => expect(resolveFirst).toBeDefined());
+    fireEvent.click(screen.getAllByRole('radio')[1]);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+    await act(async () => { resolveFirst({
+      ...jsonResponse({}, false, status),
+      headers: { get: (name) => name === 'Retry-After' ? '30' : null },
+    }); });
+    fireEvent.click(screen.getAllByRole('radio')[0]);
+
+    await waitFor(() => expect(requests).toBe(3));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+  });
+
+  it.each([[429, 'endereço'], [503, 'endereço'], [429, 'quantidade'], [503, 'quantidade']])('mantém recuperação após mudar %s/%s durante a espera', async (status, change) => {
+    calculationResponse = async () => ({
+      ...jsonResponse({ message: 'Aguarde para recalcular.' }, false, status),
+      headers: { get: (name) => name === 'Retry-After' ? '30' : null },
+    });
+    renderPage();
+    await screen.findByText('Aguarde para recalcular.');
+    if (change === 'endereço') {
+      fireEvent.click(screen.getAllByRole('radio')[1]);
+    } else {
+      currentCart = { ...cart, items: [{ ...cart.items[0], quantity: 3 }] };
+      fireEvent.click(screen.getByRole('button', { name: /3.*Revisão/ }));
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Aumentar quantidade/ })); });
+    }
+
+    expect(screen.getByText('Aguarde para recalcular.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Recalcular cotação' })).toBeDisabled();
   });
 
   it('descarta resposta atrasada do endereço anterior', async () => {
