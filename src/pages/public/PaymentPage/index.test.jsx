@@ -106,6 +106,22 @@ describe('PaymentPage', () => {
     expect(screen.queryByText('R$ 0.00')).not.toBeInTheDocument();
   });
 
+  it.each([429, 503])('respeita Retry-After no cálculo do frete (%s)', async (status) => {
+    calculationResponse = async () => ({
+      ok: false,
+      status,
+      json: async () => ({}),
+      headers: { get: (name) => (name === 'Retry-After' ? '1' : null) },
+    });
+    renderPage();
+
+    expect(await screen.findByText(/1s/)).toBeInTheDocument();
+    const recalculate = screen.getByRole('button', { name: 'Recalcular cotação' });
+    expect(recalculate).toBeDisabled();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 1050)));
+    expect(recalculate).toBeEnabled();
+  });
+
   it('descarta resposta atrasada do endereço anterior', async () => {
     let resolveFirst;
     calculationResponse = (options) => JSON.parse(options.body).address_id === 'address-1'
@@ -298,6 +314,31 @@ describe('PaymentPage', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
     expect(screen.getByRole('button', { name: 'Consultar tentativa' })).toBeEnabled();
     expect(fetch.mock.calls.filter(([url]) => url.endsWith('/checkout/'))).toHaveLength(1);
+  });
+
+  it.each([429, 503])('respeita Retry-After e reutiliza a tentativa no checkout (%s)', async (status) => {
+    checkoutResponse = async () => ({
+      ...jsonResponse({ message: 'Tente após a espera.' }, false, status),
+      headers: { get: (name) => (name === 'Retry-After' ? '3' : null) },
+    });
+    renderPage();
+    await showReview();
+    confirmQuote();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' })); });
+    const retry = screen.getByRole('button', { name: 'Consultar tentativa' });
+    expect(retry).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2999); });
+    expect(retry).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(retry).toBeEnabled();
+    const calls = () => fetch.mock.calls.filter(([url]) => url.endsWith('/checkout/'));
+    expect(calls()).toHaveLength(1);
+
+    await act(async () => { fireEvent.click(retry); });
+    expect(calls()).toHaveLength(2);
+    expect(JSON.parse(calls()[1][1].body)).toEqual(JSON.parse(calls()[0][1].body));
   });
 
   it('não envia checkout se o navegador não consegue persistir a tentativa', async () => {
