@@ -48,4 +48,21 @@ describe('AuthProvider session lifecycle', () => {
     expect(result.current.user).toBeNull();
     expect(localStorage.getItem('accessToken')).toBeNull();
   });
+  it('ignores a stored admin user when there is no valid access token', () => {
+    localStorage.setItem('user', JSON.stringify({ id: 'a1', is_staff: true }));
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    expect(result.current.user).toBeNull();
+    expect(result.current.isAdmin).toBe(false);
+    expect(localStorage.getItem('user')).toBeNull();
+  });
+
+  it('ignores a stored admin user when the access token is expired', () => {
+    localStorage.setItem('accessToken', makeToken(Math.floor(Date.now() / 1000) - 60));
+    localStorage.setItem('user', JSON.stringify({ id: 'a1', is_superuser: true }));
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    expect(result.current.isAdmin).toBe(false);
+    expect(result.current.adminPermissions).toEqual([]);
+  });
 });
