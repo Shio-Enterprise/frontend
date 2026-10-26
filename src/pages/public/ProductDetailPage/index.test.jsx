@@ -182,6 +182,53 @@ describe('ProductDetailPage', () => {
     expect(screen.queryByRole('img', { name: /^Nota/ })).not.toBeInTheDocument();
   });
 
+  describe('Guia de medidas', () => {
+    const sizeGuide = {
+      id: 'g1',
+      name: 'Parte de baixo',
+      columns: [{ key: 'waist', label: 'Cintura' }],
+      rows: [
+        { size: 'P', measures: { waist: [74, 80] } },
+        { size: 'M', measures: { waist: [80, 86] } },
+      ],
+    };
+    const withGuide = (extra = {}) => ({
+      ...product('1'),
+      is_sellable: true,
+      variations: [{ id: 'vM', size: 'M', color: '', stock_quantity: 2 }],
+      size_guide: sizeGuide,
+      ...extra,
+    });
+    const mountWith = (data) => {
+      fetch.mockImplementation((url) => Promise.resolve(
+        url.includes('/recommendations/') ? recommendations([]) : response(data),
+      ));
+      return mount();
+    };
+
+    it('abre a tabela, sugere o tamanho e fecha', async () => {
+      mountWith(withGuide());
+      fireEvent.click(await screen.findByRole('button', { name: 'Guia de medidas' }));
+      const dialog = screen.getByRole('dialog', { name: 'Guia de medidas' });
+      expect(within(dialog).getByRole('cell', { name: '80–86' })).toBeInTheDocument();
+
+      fireEvent.change(within(dialog).getByLabelText('Sua medida (cm)'), { target: { value: '82' } });
+      expect(within(dialog).getByRole('status')).toHaveTextContent('Seu tamanho é M.');
+
+      fireEvent.change(within(dialog).getByLabelText('Sua medida (cm)'), { target: { value: '50' } });
+      expect(within(dialog).getByRole('status')).toHaveTextContent('menor que a do tamanho P');
+
+      fireEvent.keyDown(dialog, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('sem guia na categoria não mostra o botão', async () => {
+      mountWith(withGuide({ size_guide: null }));
+      await screen.findByRole('button', { name: /^M/ });
+      expect(screen.queryByRole('button', { name: 'Guia de medidas' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('Avise-me quando chegar', () => {
     const withVariations = (extra = {}) => ({
       ...product('1'),

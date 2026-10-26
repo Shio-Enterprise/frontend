@@ -3,6 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { PageMarker, ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
 import ProductReviews from '../../../components/reviews/ProductReviews';
+import SizeGuideModal from '../../../components/product/SizeGuideModal';
 import { getAccessToken } from '../../../lib/authToken';
 import { useCart } from '../../../context/CartContext';
 import {
@@ -38,6 +39,7 @@ const ProductDetailContent = ({ id }) => {
   const [pendingAlertIds, setPendingAlertIds] = useState([]);
   const [alertSaving, setAlertSaving] = useState(false);
   const [alertError, setAlertError] = useState(null);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const { cartItems, setCartData } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -259,7 +261,14 @@ const ProductDetailContent = ({ id }) => {
             {/* Size selector */}
             {product.variations?.length > 0 && (
               <div className="border-b border-black/10 py-6">
-                <p className="mb-4 text-[15px] text-black/55">Tamanho e cor</p>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <p className="text-[15px] text-black/55">Tamanho e cor</p>
+                  {product.size_guide && (
+                    <button type="button" onClick={() => setSizeGuideOpen(true)} className="text-[13px] font-semibold text-black underline">
+                      Guia de medidas
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-3">
                   {product.variations.map((v) => (
                     <button key={v.id} onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
@@ -341,6 +350,10 @@ const ProductDetailContent = ({ id }) => {
           </div>
         )}
       </section>
+
+      {sizeGuideOpen && product.size_guide && (
+        <SizeGuideModal guide={product.size_guide} productName={product.name} onClose={() => setSizeGuideOpen(false)} />
+      )}
     </PublicLayout>
   );
 };
