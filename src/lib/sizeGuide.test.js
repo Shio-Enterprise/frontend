@@ -24,6 +24,16 @@ describe('recommendSize', () => {
     expect(recommendSize(guide, 'waist', 92)).toEqual({ status: 'match', size: 'G' });
   });
 
+  it('num buraco entre faixas sugere o tamanho maior', () => {
+    const comBuraco = {
+      rows: [
+        { size: 'P', measures: { waist: [74, 80] } },
+        { size: 'M', measures: { waist: [82, 88] } },
+      ],
+    };
+    expect(recommendSize(comBuraco, 'waist', 81)).toEqual({ status: 'match', size: 'M' });
+  });
+
   it('indica o mais próximo quando fora da tabela', () => {
     expect(recommendSize(guide, 'waist', 50)).toEqual({ status: 'below', size: 'P' });
     expect(recommendSize(guide, 'waist', 120)).toEqual({ status: 'above', size: 'G' });
@@ -39,4 +49,5 @@ describe('recommendSize', () => {
 
 it('formatRange', () => {
   expect(formatRange([74, 80])).toBe('74–80');
+  expect(formatRange(undefined)).toBe('—');
 });

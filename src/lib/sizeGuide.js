@@ -12,11 +12,10 @@ export function recommendSize(guide, measureKey, value) {
   if (cm < rangeOf(first)[0]) return { status: 'below', size: first.size };
   if (cm > rangeOf(last)[1]) return { status: 'above', size: last.size };
 
-  const match = rows.find((row, i) => {
-    const [min, max] = rangeOf(row);
-    return cm >= min && (cm < max || (i === rows.length - 1 && cm <= max));
-  });
-  return match ? { status: 'match', size: match.size } : null;
+  // Primeiro tamanho cujo máx ainda não foi alcançado. Se a medida cair num
+  // buraco entre duas faixas, fica com o tamanho maior, como na fronteira.
+  const match = rows.find((row) => cm < rangeOf(row)[1]) ?? last;
+  return { status: 'match', size: match.size };
 }
 
-export const formatRange = ([min, max]) => `${min}–${max}`;
+export const formatRange = (range) => (Array.isArray(range) ? `${range[0]}–${range[1]}` : '—');
