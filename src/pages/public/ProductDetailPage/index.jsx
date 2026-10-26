@@ -319,7 +319,9 @@ const ProductDetailContent = ({ id }) => {
             )}
 
             {product.drop?.name && (
-              <p className="mt-4 text-[14px] text-black/40">Drop: {product.drop.name}</p>
+              <Link to={`/drop/${product.drop.slug}`} className="mt-4 inline-block text-[14px] text-black/40 underline hover:text-black/70">
+                Drop: {product.drop.name}
+              </Link>
             )}
           </div>
         </div>

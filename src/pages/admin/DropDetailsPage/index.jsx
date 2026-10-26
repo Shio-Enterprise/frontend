@@ -341,6 +341,12 @@ const DropDetailsPage = () => {
         >
           EDITAR DROP
         </Link>
+        <Link
+          to={`/drop/${currentDrop.slug}`}
+          className="flex h-12 w-full items-center justify-center rounded-full border border-black/20 text-[13px] font-bold uppercase tracking-widest text-black hover:bg-black/5 transition"
+        >
+          VER PÁGINA PÚBLICA
+        </Link>
         <button
           onClick={handleDuplicate}
           className="flex h-12 w-full items-center justify-center rounded-full border border-black/20 text-[13px] font-bold uppercase tracking-widest text-black hover:bg-black/5 transition"
@@ -405,6 +411,12 @@ const DropDetailsPage = () => {
                 className="flex h-12 items-center justify-center rounded-[10px] border border-black/20 text-[15px] font-semibold text-black hover:bg-[#f0f0f0] transition"
               >
                 Editar drop
+              </Link>
+              <Link
+                to={`/drop/${currentDrop.slug}`}
+                className="flex h-12 items-center justify-center rounded-[10px] border border-black/20 text-[15px] font-semibold text-black hover:bg-[#f0f0f0] transition"
+              >
+                Ver página pública
               </Link>
               <button
                 onClick={handleDuplicate}
