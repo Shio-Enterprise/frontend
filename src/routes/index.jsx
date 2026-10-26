@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { lazy } from "react";
 import AdminLayout from "../components/layout/admin/AdminLayout";
 import { ADMIN_PERMISSIONS } from "../lib/adminPermissions";
@@ -10,6 +9,7 @@ const PixPage = lazy(() => import("../pages/public/PixPage"));
 const PaymentPage = lazy(() => import("../pages/public/PaymentPage"));
 const CategoryPage = lazy(() => import("../pages/public/CategoryPage"));
 const CartPage = lazy(() => import("../pages/public/CartPage"));
+const DropPage = lazy(() => import("../pages/public/DropPage"));
 
 // User pages
 const LoginPage = lazy(() => import("../pages/user/LoginPage"));
@@ -68,6 +68,11 @@ const routes = [
   {
     path: "/cart",
     component: <CartPage />,
+    isPrivate: false,
+  },
+  {
+    path: "/drop/:slug",
+    component: <DropPage />,
     isPrivate: false,
   },
 
