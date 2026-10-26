@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { PageMarker, ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
 import ProductReviews from '../../../components/reviews/ProductReviews';
-import SizeGuideModal from '../../../components/product/SizeGuideModal';
+import SizeGuideTable from '../../../components/product/SizeGuideTable';
 import { getAccessToken } from '../../../lib/authToken';
 import { useCart } from '../../../context/CartContext';
 import {
@@ -39,7 +39,6 @@ const ProductDetailContent = ({ id }) => {
   const [pendingAlertIds, setPendingAlertIds] = useState([]);
   const [alertSaving, setAlertSaving] = useState(false);
   const [alertError, setAlertError] = useState(null);
-  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const { cartItems, setCartData } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -264,9 +263,9 @@ const ProductDetailContent = ({ id }) => {
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <p className="text-[15px] text-black/55">Tamanho e cor</p>
                   {product.size_guide && (
-                    <button type="button" onClick={() => setSizeGuideOpen(true)} className="text-[13px] font-semibold text-black underline">
-                      Guia de medidas
-                    </button>
+                    <a href="#tabela-de-medidas" className="text-[13px] font-semibold text-black underline">
+                      Tabela de medidas
+                    </a>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -334,6 +333,8 @@ const ProductDetailContent = ({ id }) => {
         </div>
       </section>
 
+      {product.size_guide && <SizeGuideTable id="tabela-de-medidas" guide={product.size_guide} />}
+
       <ProductReviews productId={product.id} />
 
       <section className="mx-auto max-w-[1240px] border-t border-black/10 px-6 py-16">
@@ -350,10 +351,6 @@ const ProductDetailContent = ({ id }) => {
           </div>
         )}
       </section>
-
-      {sizeGuideOpen && product.size_guide && (
-        <SizeGuideModal guide={product.size_guide} productName={product.name} onClose={() => setSizeGuideOpen(false)} />
-      )}
     </PublicLayout>
   );
 };

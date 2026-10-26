@@ -182,7 +182,7 @@ describe('ProductDetailPage', () => {
     expect(screen.queryByRole('img', { name: /^Nota/ })).not.toBeInTheDocument();
   });
 
-  describe('Guia de medidas', () => {
+  describe('Tabela de medidas', () => {
     const sizeGuide = {
       id: 'g1',
       name: 'Parte de baixo',
@@ -206,26 +206,25 @@ describe('ProductDetailPage', () => {
       return mount();
     };
 
-    it('abre a tabela, sugere o tamanho e fecha', async () => {
+    it('mostra a tabela na página e sugere o tamanho', async () => {
       mountWith(withGuide());
-      fireEvent.click(await screen.findByRole('button', { name: 'Guia de medidas' }));
-      const dialog = screen.getByRole('dialog', { name: 'Guia de medidas' });
-      expect(within(dialog).getByRole('cell', { name: '80–86' })).toBeInTheDocument();
+      const table = within(await screen.findByRole('region', { name: 'Tabela de medidas' }));
+      expect(table.getByRole('rowheader', { name: 'M' })).toBeInTheDocument();
+      expect(table.getByRole('cell', { name: '80–86' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Tabela de medidas' })).toHaveAttribute('href', '#tabela-de-medidas');
 
-      fireEvent.change(within(dialog).getByLabelText('Sua medida (cm)'), { target: { value: '82' } });
-      expect(within(dialog).getByRole('status')).toHaveTextContent('Seu tamanho é M.');
+      fireEvent.change(table.getByLabelText('Sua medida (cm)'), { target: { value: '82' } });
+      expect(table.getByRole('status')).toHaveTextContent('Seu tamanho é M.');
 
-      fireEvent.change(within(dialog).getByLabelText('Sua medida (cm)'), { target: { value: '50' } });
-      expect(within(dialog).getByRole('status')).toHaveTextContent('menor que a do tamanho P');
-
-      fireEvent.keyDown(dialog, { key: 'Escape' });
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      fireEvent.change(table.getByLabelText('Sua medida (cm)'), { target: { value: '50' } });
+      expect(table.getByRole('status')).toHaveTextContent('menor que a do tamanho P');
     });
 
-    it('sem guia na categoria não mostra o botão', async () => {
+    it('sem guia na categoria não mostra a tabela', async () => {
       mountWith(withGuide({ size_guide: null }));
       await screen.findByRole('button', { name: /^M/ });
-      expect(screen.queryByRole('button', { name: 'Guia de medidas' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Tabela de medidas' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Tabela de medidas' })).not.toBeInTheDocument();
     });
   });
 
