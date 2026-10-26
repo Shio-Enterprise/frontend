@@ -72,6 +72,33 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('PixPage — pedido cancelado', () => {
+  const canceled = (payment, extra = {}) => ({
+    ...order,
+    status: 'CANCELED',
+    payment: { method: 'PIX', ...payment },
+    ...extra,
+  });
+
+  it('pagamento após cancelamento leva à solicitação de reembolso', async () => {
+    fetch.mockResolvedValueOnce(response(canceled({ status: 'PAID' }, { refund: null })));
+    renderReturn();
+    const link = await screen.findByRole('link', { name: 'Solicite o reembolso no detalhe do pedido.' });
+    expect(link).toHaveAttribute('href', `/my-orders/${orderId}`);
+  });
+
+  it('informa reembolso em andamento e concluído', async () => {
+    fetch.mockResolvedValueOnce(response(canceled({ status: 'PAID' }, { refund: { status: 'REQUESTED' } })));
+    const { unmount } = renderReturn();
+    expect(await screen.findByText('Pedido cancelado. O reembolso do pagamento está em andamento.')).toBeInTheDocument();
+    unmount();
+
+    fetch.mockResolvedValueOnce(response(canceled({ status: 'REFUNDED' })));
+    renderReturn();
+    expect(await screen.findByText('Pedido cancelado e pagamento reembolsado.')).toBeInTheDocument();
+  });
+});
+
 describe('PixPage', () => {
   it('renders headline', () => {
     render(

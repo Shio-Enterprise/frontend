@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
+import { REFUND_STATUS } from '../../../lib/refunds';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -65,6 +66,7 @@ const MyOrdersPage = () => {
         <div className="space-y-3">
           {orders.map((order) => {
             const s = STATUS_LABEL[order.status] ?? { label: order.status, color: 'bg-black/5 text-black/50' };
+            const refund = REFUND_STATUS[order.refund_status];
             const date = new Date(order.created_at).toLocaleDateString('pt-BR', {
               day: '2-digit', month: 'short', year: 'numeric',
             });
@@ -83,7 +85,12 @@ const MyOrdersPage = () => {
                     R$ {Number(order.total_amount).toFixed(2)}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  {refund && (
+                    <span className={`rounded-full px-3 py-1 text-[12px] font-semibold ${refund.color}`}>
+                      {refund.label}
+                    </span>
+                  )}
                   <span className={`rounded-full px-3 py-1 text-[12px] font-semibold ${s.color}`}>
                     {s.label}
                   </span>
