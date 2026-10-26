@@ -5,6 +5,14 @@ import { AdminPanel, AdminTitle, PageMarker } from '../../../components/ui/ShioD
 import MetricCard from '../../../components/ui/MetricCard';
 import DashboardViewToggle from '../../../components/ui/DashboardViewToggle';
 import { DonutChart, HorizontalBars } from '../DetailedDashboardPage/Visualizations';
+import {
+  previewAccounts,
+  previewInterest,
+  previewOverview,
+  previewProductAccess,
+  previewProducts,
+  previewUserProducts,
+} from './previewData';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -28,6 +36,49 @@ const INTEREST_LABEL = {
   REMOVE_FROM_CART: 'Tirou do carrinho',
   PRODUCT_VIEW: 'Viu o produto',
 };
+
+const MONTHS = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
+function saoPauloCalendar(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(date);
+  const read = (type) => Number(parts.find((part) => part.type === type)?.value);
+  return { year: read('year'), month: read('month') };
+}
+
+function calendarSelection(searchParams) {
+  const today = saoPauloCalendar();
+  const period = searchParams.get('period') === 'anual' ? 'anual' : 'mensal';
+  const parsedYear = Number(searchParams.get('year'));
+  const earliestYear = today.year - 4;
+  const year = parsedYear >= earliestYear && parsedYear <= today.year ? parsedYear : today.year;
+  const maxMonth = year === today.year ? today.month : 12;
+  const parsedMonth = Number(searchParams.get('month'));
+  const month = parsedMonth >= 1 && parsedMonth <= maxMonth ? parsedMonth : Math.min(today.month, maxMonth);
+  return { period, year, month, today, earliestYear };
+}
+
+function periodQuery({ period, year, month }) {
+  const params = new URLSearchParams({ period, year: String(year) });
+  if (period === 'mensal') params.set('month', String(month));
+  return params.toString();
+}
 
 function formatCount(value, singular, plural) {
   const total = Number(value) || 0;
@@ -132,39 +183,41 @@ function EventSeries({ points, groupBy, view }) {
     );
   }
 
-  const highlighted = points.find((point) => point.date === hovered) ?? points.at(-1);
   const max = Math.max(...points.map((point) => point.total), 1);
 
   return (
     <div>
-      <div role="group" aria-label="Período em destaque" className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg bg-black/[0.04] px-4 py-3 text-sm">
-        <span className="font-semibold tabular-nums">{formatSeriesPeriod(highlighted.date, groupBy)}</span>
-        <span className="font-bold tabular-nums">{formatCount(highlighted.total, 'evento', 'eventos')}</span>
-      </div>
       <div className="overflow-x-auto">
         <div style={{ minWidth: `${Math.max(640, points.length * 56)}px` }}>
           <div
-            className="mt-4 flex h-[180px] items-end gap-2 border-l-[4px] border-black pl-4 md:h-[260px] md:gap-6 md:border-l-[8px] md:pl-9"
+            className="flex h-[180px] items-end gap-2 border-l-[4px] border-black pl-4 md:h-[260px] md:gap-6 md:border-l-[8px] md:pl-9"
             onMouseLeave={() => setHovered(null)}
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget)) setHovered(null);
-            }}
           >
-            {points.map((point) => (
-              <button
-                type="button"
-                key={point.date}
-                onMouseEnter={() => setHovered(point.date)}
-                onFocus={() => setHovered(point.date)}
-                aria-label={`${formatSeriesPeriod(point.date, groupBy)}: ${formatCount(point.total, 'evento', 'eventos')}`}
-                className="flex h-full w-full flex-col items-center justify-end gap-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-              >
-                <div
-                  className="w-full rounded-t-[4px] bg-[#1f1f1f]"
-                  style={{ height: `${(point.total / max) * 100}%`, minHeight: point.total > 0 ? '4px' : '0' }}
-                />
-              </button>
-            ))}
+            {points.map((point) => {
+              const label = formatCount(point.total, 'evento', 'eventos');
+              const active = hovered === point.date;
+              return (
+                <button
+                  type="button"
+                  key={point.date}
+                  onMouseEnter={() => setHovered(point.date)}
+                  onFocus={() => setHovered(point.date)}
+                  onBlur={() => setHovered(null)}
+                  aria-label={`${formatSeriesPeriod(point.date, groupBy)}: ${label}`}
+                  className="flex h-full w-full flex-col items-center justify-end focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+                >
+                  <div
+                    className={`flex w-full items-center justify-center rounded-t-[4px] px-1 text-center ${active ? 'bg-black/25' : 'bg-[#1f1f1f]'}`}
+                    style={{
+                      height: `${(point.total / max) * 100}%`,
+                      minHeight: active ? '36px' : point.total > 0 ? '4px' : '0',
+                    }}
+                  >
+                    {active && <span className="text-[11px] font-semibold leading-tight text-black">{label}</span>}
+                  </div>
+                </button>
+              );
+            })}
           </div>
           <div className="mt-2 flex gap-2 pl-8 md:gap-6 md:pl-[52px]">
             {points.map((point) => (
@@ -254,10 +307,12 @@ const NavigationDashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const period = searchParams.get('period') === 'anual' ? 'anual' : 'mensal';
+  const { period, year, month, today, earliestYear } = calendarSelection(searchParams);
+  const calendarQuery = periodQuery({ period, year, month });
   const selectedUserId = searchParams.get('user') || '';
 
   const selectedProductId = searchParams.get('product') || '';
+  const usePreview = import.meta.env.DEV && searchParams.get('mock') === '1';
 
   const [overview, setOverview] = useState(null);
   const [products, setProducts] = useState([]);
@@ -303,14 +358,20 @@ const NavigationDashboardPage = () => {
     const loadOverview = async () => {
       setOverviewLoading(true);
       setOverviewError('');
+      if (usePreview) {
+        setOverview(previewOverview(period, year, month));
+        setProducts(previewInterest(period, year, month));
+        setOverviewLoading(false);
+        return;
+      }
       try {
         const [overviewResult, interestResult] = await Promise.all([
           authorizedGet(
-            `${API_BASE_URL}/api/analytics/overview/?period=${period}`,
+            `${API_BASE_URL}/api/analytics/overview/?${calendarQuery}`,
             { navigate, location, signal: controller.signal },
           ),
           authorizedGet(
-            `${API_BASE_URL}/api/analytics/products/interest/?period=${period}`,
+            `${API_BASE_URL}/api/analytics/products/interest/?${calendarQuery}`,
             { navigate, location, signal: controller.signal },
           ),
         ]);
@@ -325,7 +386,7 @@ const NavigationDashboardPage = () => {
 
     loadOverview();
     return () => controller.abort();
-  }, [period, attempt, navigate, location]);
+  }, [period, year, month, calendarQuery, attempt, navigate, location, usePreview]);
 
   useEffect(() => {
     const query = debouncedEmail;
@@ -335,6 +396,12 @@ const NavigationDashboardPage = () => {
     const searchAccounts = async () => {
       setSearchLoading(true);
       setSearchError('');
+      if (usePreview) {
+        const needle = query.toLowerCase();
+        setAccounts(previewAccounts.filter((account) => account.email.toLowerCase().includes(needle)));
+        setSearchLoading(false);
+        return;
+      }
       try {
         const result = await authorizedGet(
           `${API_BASE_URL}/api/analytics/users/search/?q=${encodeURIComponent(query)}`,
@@ -352,7 +419,7 @@ const NavigationDashboardPage = () => {
 
     searchAccounts();
     return () => controller.abort();
-  }, [debouncedEmail, attempt, navigate, location]);
+  }, [debouncedEmail, attempt, navigate, location, usePreview]);
 
   useEffect(() => {
     const query = debouncedProduct;
@@ -362,6 +429,12 @@ const NavigationDashboardPage = () => {
     const searchProducts = async () => {
       setProductSearchLoading(true);
       setProductSearchError('');
+      if (usePreview) {
+        const needle = query.toLowerCase();
+        setProductOptions(previewProducts.filter((product) => product.name.toLowerCase().includes(needle)));
+        setProductSearchLoading(false);
+        return;
+      }
       try {
         const result = await authorizedGet(
           `${API_BASE_URL}/api/analytics/products/search/?q=${encodeURIComponent(query)}`,
@@ -378,7 +451,7 @@ const NavigationDashboardPage = () => {
 
     searchProducts();
     return () => controller.abort();
-  }, [debouncedProduct, attempt, navigate, location]);
+  }, [debouncedProduct, attempt, navigate, location, usePreview]);
 
   useEffect(() => {
     if (!selectedProductId) return undefined;
@@ -387,9 +460,15 @@ const NavigationDashboardPage = () => {
     const loadAccess = async () => {
       setAccessLoading(true);
       setAccessError('');
+      if (usePreview) {
+        const data = previewProductAccess(selectedProductId, period, year, month);
+        setAccess((current) => (accessPage === 1 || !current ? data : current));
+        setAccessLoading(false);
+        return;
+      }
       try {
         const result = await authorizedGet(
-          `${API_BASE_URL}/api/analytics/products/${selectedProductId}/accesses/?period=${period}&page=${accessPage}`,
+          `${API_BASE_URL}/api/analytics/products/${selectedProductId}/accesses/?${calendarQuery}&page=${accessPage}`,
           { navigate, location, signal: controller.signal },
         );
         if (result.redirected || !result.data) return;
@@ -413,7 +492,7 @@ const NavigationDashboardPage = () => {
 
     loadAccess();
     return () => controller.abort();
-  }, [selectedProductId, period, accessPage, attempt, navigate, location]);
+  }, [selectedProductId, period, year, month, calendarQuery, accessPage, attempt, navigate, location, usePreview]);
 
   useEffect(() => {
     if (!selectedUserId) return undefined;
@@ -422,9 +501,14 @@ const NavigationDashboardPage = () => {
     const loadUserProducts = async () => {
       setUserProductsLoading(true);
       setUserProductsError('');
+      if (usePreview) {
+        setUserProducts(previewUserProducts(selectedUserId, period, year, month));
+        setUserProductsLoading(false);
+        return;
+      }
       try {
         const result = await authorizedGet(
-          `${API_BASE_URL}/api/analytics/users/${selectedUserId}/products/?period=${period}`,
+          `${API_BASE_URL}/api/analytics/users/${selectedUserId}/products/?${calendarQuery}`,
           { navigate, location, signal: controller.signal },
         );
         if (result.redirected || !result.data) return;
@@ -438,15 +522,24 @@ const NavigationDashboardPage = () => {
 
     loadUserProducts();
     return () => controller.abort();
-  }, [selectedUserId, period, attempt, navigate, location]);
+  }, [selectedUserId, period, year, month, calendarQuery, attempt, navigate, location, usePreview]);
 
-  const updatePeriod = (value) => {
+  const updateCalendar = (patch) => {
     setAccessPage(1);
     setAccess(null);
     setUserProducts([]);
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      next.set('period', value);
+      const currentSelection = calendarSelection(current);
+      const merged = calendarSelection(new URLSearchParams({
+        period: patch.period ?? currentSelection.period,
+        year: String(patch.year ?? currentSelection.year),
+        month: String(patch.month ?? currentSelection.month),
+      }));
+      next.set('period', merged.period);
+      next.set('year', String(merged.year));
+      if (merged.period === 'mensal') next.set('month', String(merged.month));
+      else next.delete('month');
       return next;
     });
   };
@@ -499,15 +592,39 @@ const NavigationDashboardPage = () => {
         <label htmlFor="navigation-period" className="block text-sm text-black/60">
           Intervalo de tempo
         </label>
-        <select
-          id="navigation-period"
-          value={period}
-          onChange={(event) => updatePeriod(event.target.value)}
-          className="mt-3 h-11 w-full rounded-lg border border-black/20 px-4 md:max-w-xs"
-        >
-          <option value="mensal">Mensal</option>
-          <option value="anual">Anual</option>
-        </select>
+        <div className="mt-3 flex flex-col gap-3 md:flex-row">
+          <select
+            id="navigation-period"
+            value={period}
+            onChange={(event) => updateCalendar({ period: event.target.value })}
+            className="h-11 w-full rounded-lg border border-black/20 px-4 md:max-w-xs"
+          >
+            <option value="mensal">Mensal</option>
+            <option value="anual">Anual</option>
+          </select>
+          {period === 'mensal' && (
+            <select
+              aria-label="Mês"
+              value={month}
+              onChange={(event) => updateCalendar({ month: Number(event.target.value) })}
+              className="h-11 w-full rounded-lg border border-black/20 px-4 md:max-w-xs"
+            >
+              {MONTHS.slice(0, year === today.year ? today.month : 12).map((name, index) => (
+                <option key={name} value={index + 1}>{name}</option>
+              ))}
+            </select>
+          )}
+          <select
+            aria-label="Ano"
+            value={year}
+            onChange={(event) => updateCalendar({ year: Number(event.target.value) })}
+            className="h-11 w-full rounded-lg border border-black/20 px-4 md:max-w-[10rem]"
+          >
+            {Array.from({ length: today.year - earliestYear + 1 }, (_, index) => today.year - index).map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
       </AdminPanel>
     </>
   );
@@ -620,7 +737,7 @@ const NavigationDashboardPage = () => {
 
   const accountPanel = (
     <AdminPanel className="mb-6 p-5 md:p-6">
-      <h2 className="text-lg font-black uppercase tracking-wide md:text-xl">Acessos por usuário</h2>
+      <h2 className="text-lg font-black uppercase tracking-wide md:text-xl">Acessos do usuário</h2>
       <input
         aria-label="Buscar por e-mail..."
         placeholder="Buscar por e-mail..."
@@ -672,6 +789,7 @@ const NavigationDashboardPage = () => {
                     <th className="py-2">Produto</th>
                     <th className="py-2 text-right">Viu</th>
                     <th className="py-2 text-right">Carrinho</th>
+                    <th className="py-2 text-right">Tirou</th>
                     <th className="py-2 text-right">Checkout</th>
                     <th className="py-2 text-right">Comprou</th>
                     <th className="py-2 text-right">Último acesso</th>
@@ -687,6 +805,7 @@ const NavigationDashboardPage = () => {
                       </td>
                       <td className="py-3 text-right">{product.views}</td>
                       <td className="py-3 text-right">{product.added_to_cart}</td>
+                      <td className="py-3 text-right">{product.removed_from_cart}</td>
                       <td className="py-3 text-right">{product.checkouts}</td>
                       <td className="py-3 text-right">{product.purchases}</td>
                       <td className="py-3 text-right">{formatOccurredAt(product.last_access)}</td>
@@ -763,6 +882,7 @@ const NavigationDashboardPage = () => {
                 getValue={(row) => row.total}
                 formatValue={(row) => formatCount(row.total, 'evento', 'eventos')}
                 totalLabel="eventos por tipo"
+                centerText={totalEvents.toLocaleString('pt-BR')}
               />
             ) : (
               <HorizontalBars
@@ -776,7 +896,7 @@ const NavigationDashboardPage = () => {
           </Section>
 
           <Section
-            title="Série do período"
+            title="Eventos por data"
             views={[['bars', 'Barras'], ['list', 'Lista']]}
             view={seriesView}
             onViewChange={setSeriesView}

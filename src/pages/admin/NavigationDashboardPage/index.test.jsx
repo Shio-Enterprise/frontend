@@ -3,6 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, createMemoryRouter, RouterProvider } from 'react-router-dom';
 import NavigationDashboardPage from './index';
 
+function saoPauloCalendar() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(new Date());
+  const read = (type) => Number(parts.find((part) => part.type === type)?.value);
+  return { year: read('year'), month: read('month') };
+}
+
 vi.mock('../../../lib/authToken', () => ({
   getAccessToken: vi.fn(() => 'admin-token'),
   clearAuthTokens: vi.fn(),
@@ -96,8 +106,11 @@ describe('NavigationDashboardPage', () => {
     expect(screen.getByText('9')).toBeInTheDocument();
     expect(screen.getByText('Visualização de página')).toBeInTheDocument();
     expect(screen.getByText('20 eventos')).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Período em destaque' })).toHaveTextContent('06/10/2026');
-    expect(screen.getByRole('group', { name: 'Período em destaque' })).toHaveTextContent('6 eventos');
+    expect(screen.queryByRole('group', { name: 'Período em destaque' })).not.toBeInTheDocument();
+    const column = screen.getByRole('button', { name: '05/10/2026: 2 eventos' });
+    expect(within(column).queryByText('2 eventos')).not.toBeInTheDocument();
+    fireEvent.mouseEnter(column);
+    expect(within(column).getByText('2 eventos')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Interesse por produto' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Camiseta Preta' })).toHaveAttribute('href', '/admin/products/3');
     expect(screen.getByText('2 contas')).toBeInTheDocument();
@@ -115,7 +128,7 @@ describe('NavigationDashboardPage', () => {
     const fetchMock = mockApi();
     render(<MemoryRouter><NavigationDashboardPage /></MemoryRouter>);
 
-    const controls = await screen.findByRole('group', { name: 'Visualização de Série do período' });
+    const controls = await screen.findByRole('group', { name: 'Visualização de Eventos por data' });
     fireEvent.click(within(controls).getByRole('button', { name: 'Lista' }));
     expect(screen.getByRole('columnheader', { name: 'Eventos' })).toBeInTheDocument();
 
@@ -123,6 +136,28 @@ describe('NavigationDashboardPage', () => {
     await waitFor(() => {
       expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/analytics/overview/?period=anual'))).toBe(true);
       expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/analytics/products/interest/?period=anual'))).toBe(true);
+    });
+    expect(screen.queryByRole('combobox', { name: 'Mês' })).not.toBeInTheDocument();
+  });
+
+  it('pede o mês e o ano escolhidos', async () => {
+    const fetchMock = mockApi();
+    const { year, month } = saoPauloCalendar();
+    render(<MemoryRouter><NavigationDashboardPage /></MemoryRouter>);
+
+    expect(await screen.findByRole('combobox', { name: 'Mês' })).toHaveValue(String(month));
+    expect(screen.getByRole('combobox', { name: 'Ano' })).toHaveValue(String(year));
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes(`period=mensal&year=${year}&month=${month}`))).toBe(true);
+
+    const previousMonth = month === 1 ? 12 : month - 1;
+    const yearForPrevious = month === 1 ? year - 1 : year;
+    if (month === 1) {
+      fireEvent.change(screen.getByRole('combobox', { name: 'Ano' }), { target: { value: String(year - 1) } });
+    }
+    fireEvent.change(screen.getByRole('combobox', { name: 'Mês' }), { target: { value: String(previousMonth) } });
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes(`year=${yearForPrevious}&month=${previousMonth}`))).toBe(true);
     });
   });
 
@@ -227,6 +262,63 @@ describe('NavigationDashboardPage', () => {
     expect(within(table).getByText('/produto/camiseta')).toBeInTheDocument();
     expect(within(table).getByText(/12:04/)).toBeInTheDocument();
     expect(screen.getByText('1 acesso')).toBeInTheDocument();
+  });
+
+  it('mostra a página preenchida com dados de exemplo', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/navigation?mock=1&period=mensal&year=2026&month=10']}>
+        <NavigationDashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('link', { name: 'Camiseta Preta' })).toBeInTheDocument();
+    expect(screen.queryByText('Dados de exemplo, só nesta tela.')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Mês' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Ano' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Camiseta Preta' })).toBeInTheDocument();
+    expect(screen.getAllByText('ana@shio.com').length).toBeGreaterThan(0);
+    expect(screen.getByText('Comprou')).toBeInTheDocument();
+    expect(screen.getByText('3 contas')).toBeInTheDocument();
+    expect(screen.getByText('20 eventos')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rosca' }));
+    expect(screen.getByText('Total')).toBeInTheDocument();
+    expect(screen.getByText('35')).toBeInTheDocument();
+    expect(screen.queryByText('100%')).not.toBeInTheDocument();
+
+    fireEvent.mouseEnter(screen.getByLabelText('Visualização de página: 20 eventos'));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Visualização de página');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('20 eventos');
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar produto...' }), { target: { value: 'ca' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Camiseta Preta' }));
+    const accessTable = await screen.findByRole('table');
+    expect(within(accessTable).getByText('Sem conta')).toBeInTheDocument();
+    expect(within(accessTable).getByText('Compra')).toBeInTheDocument();
+    expect(within(accessTable).getByText('Removido do carrinho')).toBeInTheDocument();
+    expect(within(accessTable).getAllByText('maria@shio.com').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /joao@shio.comColocou no carrinho/ }));
+    expect(await screen.findByRole('columnheader', { name: 'Comprou' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Boné' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /maria@shio.comTirou do carrinho/ }));
+    const userTable = screen.getAllByRole('table').find((table) => within(table).queryByRole('columnheader', { name: 'Tirou' }));
+    const camisetaRow = within(userTable).getByRole('row', { name: /Camiseta Preta/ });
+    expect(within(camisetaRow).getAllByRole('cell')[3]).toHaveTextContent('1');
+  });
+
+  it('mostra a remoção de setembro no mock', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/navigation?mock=1&period=mensal&year=2026&month=9']}>
+        <NavigationDashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('link', { name: 'Boné' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /joao@shio.comTirou do carrinho/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '14/09/2026: 7 eventos' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Camiseta Preta' })).not.toBeInTheDocument();
   });
 
   it('bloqueia quem não é admin', async () => {
