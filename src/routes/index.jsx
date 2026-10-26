@@ -10,6 +10,7 @@ const PixPage = lazy(() => import("../pages/public/PixPage"));
 const PaymentPage = lazy(() => import("../pages/public/PaymentPage"));
 const CategoryPage = lazy(() => import("../pages/public/CategoryPage"));
 const CartPage = lazy(() => import("../pages/public/CartPage"));
+const UnsubscribePage = lazy(() => import("../pages/public/UnsubscribePage"));
 
 // User pages
 const LoginPage = lazy(() => import("../pages/user/LoginPage"));
@@ -68,6 +69,12 @@ const routes = [
   {
     path: "/cart",
     component: <CartPage />,
+    isPrivate: false,
+  },
+
+  {
+    path: "/descadastrar/:token",
+    component: <UnsubscribePage />,
     isPrivate: false,
   },
 
