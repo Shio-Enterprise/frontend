@@ -101,8 +101,13 @@ function CustomerProfileDrawer({ id }) {
                     <div key={order.id} className="flex items-center justify-between rounded-[8px] border border-black/10 px-4 py-3 text-[13px]">
                       <span className="font-semibold text-black">#{String(order.id).substring(0, 8).toUpperCase()}</span>
                       <span className="text-black/55">{formatDate(order.created_at)}</span>
-                      <span className="text-black/55">{order.status}</span>
-                      <span className="font-semibold">{order.commercial_status === 'REFUNDED' ? '- ' : ''}{formatCurrency(order.total_amount)}</span>
+                      <span className="flex flex-col items-start gap-1 text-black/55">
+                        {order.status}
+                        {order.commercial_status === 'REFUNDED' && (
+                          <span className="rounded-full bg-[#d4f7e2] px-2 py-0.5 text-[11px] text-[#1da64a]">Reembolsado</span>
+                        )}
+                      </span>
+                      <span className="font-semibold">{formatCurrency(order.total_amount)}</span>
                     </div>
                   ))}
                 </div>

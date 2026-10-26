@@ -428,10 +428,10 @@ export default function DetailedDashboardPage() {
       <MetricCard label="Vendas válidas" value={financial.valid_sales} icon="bag" onClick={() => openOrders('valid_sales', 'Vendas válidas')} />
       <MetricCard label="Ticket médio" value={formatMoney(financial.average_ticket)} icon="$" onClick={() => openOrders('average_ticket', 'Pedidos do ticket médio')} />
     </div>
-    <p className="mt-3 text-xs leading-relaxed text-black/55">Financeiro usa a data do pagamento. Vendas válidas: pedidos entregues e pagos. Receita líquida = receita bruta − reembolsos; ticket médio = receita líquida ÷ vendas válidas.</p>
+    <p className="mt-3 text-xs leading-relaxed text-black/55">Financeiro usa a data do pagamento. Vendas válidas: pedidos entregues e pagos. Pedido entregue e reembolsado entra na receita bruta e nos reembolsos. Receita líquida = receita bruta − reembolsos; ticket médio = receita líquida ÷ vendas válidas.</p>
 
     <div className="mt-8 grid gap-6">
-      <Section title="Receita e vendas ao longo do tempo" note="Cada ponto usa a data do pagamento. Vendas válidas são pedidos entregues e pagos; reembolsos podem deixar a receita líquida negativa. O período mensal cobre 30 dias móveis; o anual, 365 dias móveis."
+      <Section title="Receita e vendas ao longo do tempo" note="Cada ponto usa a data do pagamento. Vendas válidas são pedidos entregues e pagos; pedidos entregues e reembolsados entram na receita bruta e saem pelos reembolsos. O período mensal cobre 30 dias móveis; o anual, 365 dias móveis."
         views={listAndBars} defaultView="bars">
         {(view) => <>
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
