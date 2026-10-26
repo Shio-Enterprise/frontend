@@ -10,6 +10,7 @@ const PaymentPage = lazy(() => import("../pages/public/PaymentPage"));
 const CategoryPage = lazy(() => import("../pages/public/CategoryPage"));
 const CartPage = lazy(() => import("../pages/public/CartPage"));
 const DropPage = lazy(() => import("../pages/public/DropPage"));
+const UnsubscribePage = lazy(() => import("../pages/public/UnsubscribePage"));
 
 // User pages
 const LoginPage = lazy(() => import("../pages/user/LoginPage"));
@@ -22,6 +23,7 @@ const OrderDetailsPage = lazy(() => import("../pages/user/OrderDetailsPage"));
 const AddressesPage = lazy(() => import("../pages/user/AddressesPage"));
 const NewAddressPage = lazy(() => import("../pages/user/NewAddressPage"));
 const MyFavoritesPage = lazy(() => import("../pages/user/MyFavoritesPage"));
+const MyStockAlertsPage = lazy(() => import("../pages/user/MyStockAlertsPage"));
 
 // Admin pages
 const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
@@ -76,6 +78,12 @@ const routes = [
     isPrivate: false,
   },
 
+  {
+    path: "/descadastrar/:token",
+    component: <UnsubscribePage />,
+    isPrivate: false,
+  },
+
   // User routes
   {
     path: "/login",
@@ -118,6 +126,7 @@ const routes = [
     isPrivate: true,
   },
   { path: "/my-favorites", component: <MyFavoritesPage />, isPrivate: true },
+  { path: "/my-stock-alerts", component: <MyStockAlertsPage />, isPrivate: true },
   {
     path: "/new-address",
     component: <NewAddressPage />,
