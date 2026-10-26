@@ -55,6 +55,13 @@ const navItems = [
     permission: ADMIN_PERMISSIONS.CUSTOMERS,
   },
   {
+    label: 'Navegação',
+    to: '/admin/navigation',
+    icon: 'chartBar',
+    matches: ['/admin/navigation'],
+    permission: ADMIN_PERMISSIONS.DASHBOARD,
+  },
+  {
     label: 'Avaliações',
     to: '/admin/reviews',
     icon: 'star',

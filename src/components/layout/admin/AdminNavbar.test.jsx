@@ -55,6 +55,7 @@ describe('AdminNavbar', () => {
     ['/admin/edit-drop/9', 'Drops'],
     ['/admin/orders/42', 'Pedidos'],
     ['/admin/customers/7', 'Clientes'],
+    ['/admin/navigation', 'Navegação'],
   ])('mantém a seção correta ativa em %s', (path, section) => {
     renderNavbar(path);
 
@@ -111,6 +112,7 @@ describe('AdminNavbar', () => {
     expect(screen.queryByRole('link', { name: 'Produtos' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Drops' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Clientes' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Navegação' })).not.toBeInTheDocument();
   });
 
 });
