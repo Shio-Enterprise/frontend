@@ -34,9 +34,11 @@ export const hasCustomerRefundPanel = (order) =>
     || VISIBLE_REFUND_BLOCKS.has(order.refund_eligibility?.code),
   );
 
+// O prazo é calculado no fuso da loja; exibir em outro fuso mudaria o dia.
 export const formatRefundDate = (iso, withTime = false) =>
   iso
     ? new Date(iso).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
