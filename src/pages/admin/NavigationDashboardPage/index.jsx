@@ -232,7 +232,7 @@ function EventSeries({ points, groupBy, view }) {
   );
 }
 
-function SharedInterest({ products, selectedUserId, onSelectAccount, onSelectProduct }) {
+function SharedInterest({ products, selectedUserId, onSelectAccount }) {
   const maxAccounts = Math.max(1, ...products.map((product) => product.accounts || 0));
 
   return (
@@ -253,15 +253,8 @@ function SharedInterest({ products, selectedUserId, onSelectAccount, onSelectPro
                   >
                     {product.name}
                   </Link>
-                  <span className="flex items-center gap-3 text-sm font-semibold tabular-nums">
+                  <span className="text-sm font-semibold tabular-nums">
                     {formatCount(product.accounts, 'conta', 'contas')}
-                    <button
-                      type="button"
-                      onClick={() => onSelectProduct(product)}
-                      className="rounded-full border border-black/20 px-3 py-1 text-xs font-semibold"
-                    >
-                      Ver acessos
-                    </button>
                   </span>
                 </div>
                 <div className="mt-2 h-3 overflow-hidden rounded-full bg-black/[0.07]">
@@ -860,7 +853,6 @@ const NavigationDashboardPage = () => {
         products={products}
         selectedUserId={selectedUserId}
         onSelectAccount={selectAccount}
-        onSelectProduct={selectProduct}
       />
       <div className="grid gap-4 md:grid-cols-2 md:gap-10">
         <MetricCard label="Visitantes cadastrados" value={overview.visitors?.registered ?? 0} icon="users" />
