@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { getAccessToken } from '../../lib/authToken';
-import { apiError, emptyVariation } from './productForm';
+import { apiError, emptyVariation, sizeOptionsFor } from './productForm';
 
 function VariationRow({ productId, variation, onSaved }) {
   const [row, setRow] = useState(variation || emptyVariation());
@@ -22,7 +22,9 @@ function VariationRow({ productId, variation, onSaved }) {
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
   return <div className="space-y-2 rounded-lg border p-3 text-sm">
-    <label className="block">Tamanho<input className="w-full rounded border p-2" value={row.size} onChange={(e) => setRow({ ...row, size: e.target.value })} /></label>
+    <label className="block">Tamanho<select className="w-full rounded border p-2" value={row.size} onChange={(e) => setRow({ ...row, size: e.target.value })}>
+      {sizeOptionsFor(row.size).map((size) => <option key={size} value={size}>{size}</option>)}
+    </select></label>
     <label className="block">Cor<input className="w-full rounded border p-2" value={row.color} onChange={(e) => setRow({ ...row, color: e.target.value })} /></label>
     <label className="block">SKU<input className="w-full rounded border p-2" readOnly={!!variation} placeholder="Automático se vazio" value={row.sku} onChange={(e) => setRow({ ...row, sku: e.target.value.toUpperCase() })} /></label>
     {!variation && <label className="block">Estoque inicial<input className="w-full rounded border p-2" type="number" min="0" step="1" value={row.stock_quantity} onChange={(e) => setRow({ ...row, stock_quantity: e.target.value })} /></label>}

@@ -260,6 +260,7 @@ const DropsPage = () => {
                     label={`Ações para ${drop.name}`}
                     items={[
                       { label: 'Ver detalhes', icon: 'search', to: `/admin/drops/${drop.id}` },
+                      { label: 'Ver página pública', icon: 'arrowRight', to: `/drop/${drop.slug}` },
                       { label: 'Editar drop', icon: 'save', to: `/admin/edit-drop/${drop.id}` },
                       { label: 'Duplicar drop', icon: 'box', onClick: () => openDuplicateModal(drop) },
                       { label: 'Gerenciar drop', icon: 'tag', to: `/admin/drops/${drop.id}` },

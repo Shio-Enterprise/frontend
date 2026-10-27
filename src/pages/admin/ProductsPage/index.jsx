@@ -279,7 +279,7 @@ function ProductEditDrawer({ id, refetchList }) {
 
 const REASON_LABELS = {
   COMPRA: 'Compra', DEVOLUCAO: 'Devolução', AJUSTE: 'Ajuste',
-  PERDA: 'Perda/Avaria', VENDA: 'Venda', OUTRO: 'Outro',
+  PERDA: 'Perda/Avaria', VENDA: 'Venda', OUTRO: 'Outro', TROCA: 'Troca',
 };
 
 function StockManagementDrawer({ id, refetchList }) {

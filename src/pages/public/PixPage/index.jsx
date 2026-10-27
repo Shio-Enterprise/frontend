@@ -8,6 +8,23 @@ import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from '../../../lib/payment
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Pagamento que chega depois do cancelamento (reserva vencida) vira reembolso.
+const CanceledNotice = ({ order }) => {
+  if (order.payment?.status === 'REFUNDED') return <p>Pedido cancelado e pagamento reembolsado.</p>;
+  if (order.payment?.status !== 'PAID') {
+    return <p>Pedido cancelado. Se houve pagamento, entre em contato para conferência.</p>;
+  }
+  if (order.refund) return <p>Pedido cancelado. O reembolso do pagamento está em andamento.</p>;
+  return (
+    <p>
+      Pedido cancelado após o pagamento.{' '}
+      <Link to={`/my-orders/${order.id}`} className="font-semibold underline underline-offset-2">
+        Solicite o reembolso no detalhe do pedido.
+      </Link>
+    </p>
+  );
+};
+
 const PixPage = () => {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('order_nsu');
@@ -94,7 +111,7 @@ const PixPage = () => {
               <p>Valor do pedido: <span className="font-semibold">{Number(order.total_amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
               <p>Forma de pagamento: <span className="font-semibold">{PAYMENT_METHOD_LABEL[payment.method] ?? PAYMENT_METHOD_LABEL.UNKNOWN}</span></p>
               {hasDiscount && <p>Desconto de boas-vindas: <span className="font-semibold">- {discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
-              {order.status === 'CANCELED' && <p>Pedido cancelado. Se houve pagamento, entre em contato para conferência.</p>}
+              {order.status === 'CANCELED' && <CanceledNotice order={order} />}
             </div>
           )}
           <div className="mt-6 space-y-3">

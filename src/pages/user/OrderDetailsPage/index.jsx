@@ -7,6 +7,12 @@ import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from '../../../lib/payment
 import ReviewModal from '../../../components/reviews/ReviewModal';
 import { removalText } from '../../../lib/reviewLabels';
 import { getAllMyReviews } from '../../../lib/reviewsApi';
+import { hasCustomerRefundPanel, refundTimelineEvents } from '../../../lib/refunds';
+import CustomerRefundPanel from '../../../components/refunds/CustomerRefundPanel';
+import RefundRequestModal from '../../../components/refunds/RefundRequestModal';
+import { exchangeTimelineEvents, hasCustomerExchangePanel } from '../../../lib/exchanges';
+import CustomerExchangePanel from '../../../components/exchanges/CustomerExchangePanel';
+import ExchangeRequestModal from '../../../components/exchanges/ExchangeRequestModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -60,6 +66,8 @@ const OrderDetailsPage = () => {
   const [error, setError] = useState(null);
   const [myReviews, setMyReviews] = useState({});
   const [reviewItem, setReviewItem] = useState(null);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -145,6 +153,14 @@ const OrderDetailsPage = () => {
 
   const s = STATUS_LABEL[order.status] ?? { label: order.status, color: 'bg-black/5 text-black/50' };
   const hasTracking = !!order.tracking_code;
+  const history = [
+    ...(order.status_logs ?? []).map((log) => ({
+      ...log,
+      label: STATUS_LABEL[log.new_status]?.label ?? log.new_status,
+    })),
+    ...refundTimelineEvents(order.refund),
+    ...exchangeTimelineEvents(order.exchanges),
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   return (
     <AccountLayout>
@@ -268,21 +284,11 @@ const OrderDetailsPage = () => {
 
           {/* Histórico do Pedido */}
           <Section title="Histórico do Pedido">
-            {order.status_logs?.length > 0 ? (
+            {history.length > 0 ? (
               <div className="max-h-[20vh] overflow-y-auto pr-2">
                 <div className="relative ml-1 space-y-0">
-                  {[...order.status_logs]
-                    .sort(
-                      (a, b) =>
-                        new Date(b.created_at) - new Date(a.created_at)
-                    )
+                  {history
                     .map((log, i, logs) => {
-                      const statusInfo =
-                        STATUS_LABEL[log.new_status] ?? {
-                          label: log.new_status,
-                          color: 'bg-black/5 text-black/50',
-                        };
-
                       return (
                         <div key={log.id} className="flex gap-4">
                           {/* Timeline dot */}
@@ -303,7 +309,7 @@ const OrderDetailsPage = () => {
                           <div className="pb-5">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-[14px] font-semibold text-black">
-                                {statusInfo.label}
+                                {log.label}
                               </p>
 
                               {i === 0 && (
@@ -388,6 +394,18 @@ const OrderDetailsPage = () => {
             </address>
           </Section>
 
+          {hasCustomerRefundPanel(order) && (
+            <Section title="Reembolso">
+              <CustomerRefundPanel order={order} onRequest={() => setRefundOpen(true)} />
+            </Section>
+          )}
+
+          {hasCustomerExchangePanel(order) && (
+            <Section title="Troca">
+              <CustomerExchangePanel order={order} onRequest={() => setExchangeOpen(true)} />
+            </Section>
+          )}
+
           {order.payment && (
             <Section title="Pagamento">
               <div className="space-y-1 text-[14px] text-black/70">
@@ -398,6 +416,28 @@ const OrderDetailsPage = () => {
           )}
         </div>
       </div>
+
+      {refundOpen && (
+        <RefundRequestModal
+          order={order}
+          onClose={() => setRefundOpen(false)}
+          onRequested={(updated) => {
+            setOrder(updated);
+            setRefundOpen(false);
+          }}
+        />
+      )}
+
+      {exchangeOpen && (
+        <ExchangeRequestModal
+          order={order}
+          onClose={() => setExchangeOpen(false)}
+          onRequested={(updated) => {
+            setOrder(updated);
+            setExchangeOpen(false);
+          }}
+        />
+      )}
 
       {reviewItem && (
         <ReviewModal

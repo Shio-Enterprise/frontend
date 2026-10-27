@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { lazy } from "react";
 import AdminLayout from "../components/layout/admin/AdminLayout";
 import { ADMIN_PERMISSIONS } from "../lib/adminPermissions";
@@ -10,6 +9,8 @@ const PixPage = lazy(() => import("../pages/public/PixPage"));
 const PaymentPage = lazy(() => import("../pages/public/PaymentPage"));
 const CategoryPage = lazy(() => import("../pages/public/CategoryPage"));
 const CartPage = lazy(() => import("../pages/public/CartPage"));
+const DropPage = lazy(() => import("../pages/public/DropPage"));
+const UnsubscribePage = lazy(() => import("../pages/public/UnsubscribePage"));
 
 // User pages
 const LoginPage = lazy(() => import("../pages/user/LoginPage"));
@@ -22,6 +23,7 @@ const OrderDetailsPage = lazy(() => import("../pages/user/OrderDetailsPage"));
 const AddressesPage = lazy(() => import("../pages/user/AddressesPage"));
 const NewAddressPage = lazy(() => import("../pages/user/NewAddressPage"));
 const MyFavoritesPage = lazy(() => import("../pages/user/MyFavoritesPage"));
+const MyStockAlertsPage = lazy(() => import("../pages/user/MyStockAlertsPage"));
 
 // Admin pages
 const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
@@ -38,6 +40,7 @@ const CustomersPage = lazy(() => import("../pages/admin/CustomersPage"));
 const AdminPermissionsPage = lazy(() => import("../pages/admin/AdminPermissionsPage"));
 const ReviewsPage = lazy(() => import("../pages/admin/ReviewsPage"));
 const CouponsPage = lazy(() => import("../pages/admin/CouponsPage"));
+const SizeGuidesPage = lazy(() => import("../pages/admin/SizeGuidesPage"));
 
 const routes = [
   // Public routes
@@ -69,6 +72,17 @@ const routes = [
   {
     path: "/cart",
     component: <CartPage />,
+    isPrivate: false,
+  },
+  {
+    path: "/drop/:slug",
+    component: <DropPage />,
+    isPrivate: false,
+  },
+
+  {
+    path: "/descadastrar/:token",
+    component: <UnsubscribePage />,
     isPrivate: false,
   },
 
@@ -114,6 +128,7 @@ const routes = [
     isPrivate: true,
   },
   { path: "/my-favorites", component: <MyFavoritesPage />, isPrivate: true },
+  { path: "/my-stock-alerts", component: <MyStockAlertsPage />, isPrivate: true },
   {
     path: "/new-address",
     component: <NewAddressPage />,
@@ -180,6 +195,12 @@ const routes = [
     component: <AdminLayout><OrdersPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.ORDERS,
+  },
+  {
+    path: "/admin/size-guides",
+    component: <AdminLayout><SizeGuidesPage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
     path: "/admin/coupons",

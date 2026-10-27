@@ -15,6 +15,7 @@ const SignUpPage = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const displayedError = error || googleError;
@@ -24,7 +25,7 @@ const SignUpPage = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await registerWithPassword(name, email, password);
+      await registerWithPassword(name, email, password, marketingOptIn);
       navigate('/my-account', { replace: true });
     } catch (err) {
       let errorMessage = 'Erro ao criar conta.';
@@ -83,6 +84,15 @@ const SignUpPage = () => {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
           />
+          <label className="flex items-start gap-2 text-sm text-black/60">
+            <input
+              type="checkbox"
+              checked={marketingOptIn}
+              onChange={(e) => setMarketingOptIn(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-black"
+            />
+            <span>Quero receber novidades e cupons por e-mail</span>
+          </label>
           <button
             type="submit"
             disabled={isLoading || isGoogleLoading}
