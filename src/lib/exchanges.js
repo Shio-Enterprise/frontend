@@ -83,3 +83,14 @@ export async function requestExchange(orderId, { reason, comment, items }) {
   const { data } = await apiClient.post(`/orders/my-orders/${orderId}/exchange-request/`, { reason, comment, items });
   return data;
 }
+
+const adminAction = (action) => async (orderId, payload = {}) => {
+  const { data } = await apiClient.post(`/orders/admin/${orderId}/exchange/${action}/`, payload);
+  return data;
+};
+
+export const approveExchange = adminAction('approve');
+export const rejectExchange = adminAction('reject');
+export const receiveExchange = adminAction('receive');
+export const completeExchange = adminAction('complete');
+export const cancelExchange = adminAction('cancel');
