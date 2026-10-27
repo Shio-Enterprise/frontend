@@ -16,11 +16,13 @@ const getResults = (apiResponse) => {
 const NewProductPage = () => {
   const navigate = useNavigate();
   const { data: dropsResponse } = useApi('/api/catalog/drops/');
+  const { data: categoriesResponse } = useApi('/api/catalog/categories/');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [pricing, setPricing] = useState({ cost_price: '', promotional_price: '', promo_start: '', promo_end: '' });
   const [variations, setVariations] = useState([emptyVariation()]);
   const [dropId, setDropId] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,6 +60,7 @@ const NewProductPage = () => {
       description,
       base_price: price || '0',
       drop: dropId || null,
+      category: categoryId || null,
       is_active: true,
       ...pricePayload(pricing),
       variations: variations.map((v) => ({ ...v, stock_quantity: Number(v.stock_quantity || 0) })),
@@ -151,6 +154,21 @@ const NewProductPage = () => {
           </div>
           <ProductPriceFields form={{ ...pricing, base_price: price }} onChange={setPricing} />
           <VariationFields rows={variations} onChange={setVariations} />
+
+          <label>
+            <span className="text-[15px] uppercase text-black/55">Categoria</span>
+            <select
+              value={categoryId}
+              onChange={(event) => setCategoryId(event.target.value)}
+              className="mt-3 h-12 w-full rounded-full border border-black/25 bg-white px-7 text-[16px] text-black/65 outline-none focus:border-black"
+            >
+              <option value="">Sem categoria</option>
+              {getResults(categoriesResponse).map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+            <span className="mt-2 block text-[13px] text-black/45">A categoria define a tabela de medidas mostrada na loja.</span>
+          </label>
 
           <label>
             <span className="text-[15px] uppercase text-black/55">Drop (Coleção)</span>
