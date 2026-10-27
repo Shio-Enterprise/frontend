@@ -873,7 +873,7 @@ const NavigationDashboardPage = () => {
         </AdminPanel>
       ) : (
         <>
-          <Section title="Eventos por tipo" views={[['bars', 'Barras'], ['donut', 'Rosca']]} view={eventsView} onViewChange={setEventsView}>
+          <Section title="Eventos por tipo" views={[['donut', 'Rosca'], ['bars', 'Barras']]} view={eventsView} onViewChange={setEventsView}>
             {eventsView === 'donut' ? (
               <DonutChart
                 rows={eventRows.filter((row) => row.total > 0)}
