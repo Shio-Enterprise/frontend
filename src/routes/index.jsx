@@ -39,6 +39,7 @@ const CustomersPage = lazy(() => import("../pages/admin/CustomersPage"));
 const AdminPermissionsPage = lazy(() => import("../pages/admin/AdminPermissionsPage"));
 const ReviewsPage = lazy(() => import("../pages/admin/ReviewsPage"));
 const CouponsPage = lazy(() => import("../pages/admin/CouponsPage"));
+const SizeGuidesPage = lazy(() => import("../pages/admin/SizeGuidesPage"));
 
 const routes = [
   // Public routes
@@ -187,6 +188,12 @@ const routes = [
     component: <AdminLayout><OrdersPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.ORDERS,
+  },
+  {
+    path: "/admin/size-guides",
+    component: <AdminLayout><SizeGuidesPage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
     path: "/admin/coupons",

@@ -34,6 +34,13 @@ const navItems = [
     permission: ADMIN_PERMISSIONS.CATALOG,
   },
   {
+    label: 'Guias de medidas',
+    to: '/admin/size-guides',
+    icon: 'list',
+    matches: ['/admin/size-guides'],
+    permission: ADMIN_PERMISSIONS.CATALOG,
+  },
+  {
     label: 'Pedidos',
     to: '/admin/orders',
     icon: 'bag',
