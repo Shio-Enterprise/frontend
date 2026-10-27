@@ -38,13 +38,16 @@ export function recordNavigationEvent({ eventType, path = '', product, variation
   apiClient.post('/analytics/events/', body).catch(() => {});
 }
 
-export function linkAnonymousNavigation() {
-  let anonymousId = null;
+function storedAnonymousId() {
   try {
-    anonymousId = localStorage.getItem(STORAGE_KEY);
+    return localStorage.getItem(STORAGE_KEY);
   } catch {
-    anonymousId = null;
+    return null;
   }
+}
+
+export function linkAnonymousNavigation() {
+  const anonymousId = storedAnonymousId();
   if (!anonymousId || !getAccessToken()) return;
   apiClient.post('/analytics/link/', { anonymous_id: anonymousId }).catch(() => {});
 }
