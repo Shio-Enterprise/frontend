@@ -10,6 +10,9 @@ import { getAllMyReviews } from '../../../lib/reviewsApi';
 import { hasCustomerRefundPanel, refundTimelineEvents } from '../../../lib/refunds';
 import CustomerRefundPanel from '../../../components/refunds/CustomerRefundPanel';
 import RefundRequestModal from '../../../components/refunds/RefundRequestModal';
+import { exchangeTimelineEvents, hasCustomerExchangePanel } from '../../../lib/exchanges';
+import CustomerExchangePanel from '../../../components/exchanges/CustomerExchangePanel';
+import ExchangeRequestModal from '../../../components/exchanges/ExchangeRequestModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -64,6 +67,7 @@ const OrderDetailsPage = () => {
   const [myReviews, setMyReviews] = useState({});
   const [reviewItem, setReviewItem] = useState(null);
   const [refundOpen, setRefundOpen] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -155,6 +159,7 @@ const OrderDetailsPage = () => {
       label: STATUS_LABEL[log.new_status]?.label ?? log.new_status,
     })),
     ...refundTimelineEvents(order.refund),
+    ...exchangeTimelineEvents(order.exchanges),
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   return (
@@ -395,6 +400,12 @@ const OrderDetailsPage = () => {
             </Section>
           )}
 
+          {hasCustomerExchangePanel(order) && (
+            <Section title="Troca">
+              <CustomerExchangePanel order={order} onRequest={() => setExchangeOpen(true)} />
+            </Section>
+          )}
+
           {order.payment && (
             <Section title="Pagamento">
               <div className="space-y-1 text-[14px] text-black/70">
@@ -413,6 +424,17 @@ const OrderDetailsPage = () => {
           onRequested={(updated) => {
             setOrder(updated);
             setRefundOpen(false);
+          }}
+        />
+      )}
+
+      {exchangeOpen && (
+        <ExchangeRequestModal
+          order={order}
+          onClose={() => setExchangeOpen(false)}
+          onRequested={(updated) => {
+            setOrder(updated);
+            setExchangeOpen(false);
           }}
         />
       )}
