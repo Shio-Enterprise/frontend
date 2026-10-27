@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import PublicLayout from "../../../components/layout/public/PublicLayout";
 import { Icon, PageMarker } from "../../../components/ui/ShioDesign";
 import { getAccessToken } from "../../../lib/authToken";
+import { EVENT_TYPES, trackEvent } from "../../../lib/analytics";
 import { useCart } from "../../../context/CartContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -452,6 +453,7 @@ const PaymentPage = () => {
         },
       );
       if (!response.ok) throw new Error("Não foi possível remover o produto.");
+      trackEvent(EVENT_TYPES.REMOVE_FROM_CART, { variationId: itemId });
       await fetchCart();
       refreshCart();
     } catch (error) {
@@ -484,6 +486,7 @@ const PaymentPage = () => {
       return;
     }
     checkoutInFlight.current = true;
+    trackEvent(EVENT_TYPES.CHECKOUT_STARTED);
     setSubmitting(true);
     try {
       const token = getAccessToken();
@@ -596,6 +599,7 @@ const PaymentPage = () => {
           apiErrorMessage(data, res, "Falha ao processar o pedido."),
         );
       }
+      trackEvent(EVENT_TYPES.PURCHASE);
       refreshCart();
       if (data.checkout_url) {
         sessionStorage.removeItem(`checkout-attempt:${userProfile.id}`);

@@ -4,9 +4,10 @@ import { MemoryRouter } from 'react-router-dom';
 import SignUpPage from './index';
 import { useAuth } from '../../../context/AuthContext';
 
-vi.mock('../../../context/AuthContext');
-vi.mock('@react-oauth/google', () => ({
+vi.mock("../../../context/AuthContext");
+vi.mock("@react-oauth/google", () => ({
   GoogleLogin: () => <div data-testid="google-login-mock" />,
+  useGoogleLogin: () => vi.fn(),
 }));
 
 let registerWithPassword;
@@ -19,11 +20,11 @@ describe('SignUpPage', () => {
     useAuth.mockReturnValue({ registerWithPassword });
   });
 
-  it('renders headline', () => {
+  it("renders headline", () => {
     render(
       <MemoryRouter>
         <SignUpPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
     const headline = screen.getByText(/Bem vindo/i);
     expect(headline).toBeInTheDocument();
