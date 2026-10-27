@@ -8,6 +8,22 @@ import { useCart } from "../../../context/CartContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
+const retryAfterSeconds = (headers) => {
+  const value = headers?.get?.("Retry-After");
+  if (!value) return 3;
+  if (/^\d+$/.test(value.trim())) return Math.max(1, Number(value.trim()));
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp)
+    ? Math.max(1, Math.ceil((timestamp - Date.now()) / 1000))
+    : 3;
+};
+
+const apiErrorMessage = (data, response, fallback) => {
+  const message = data?.message || data?.detail || fallback;
+  const requestId = response?.headers?.get?.("X-Request-ID");
+  return requestId ? `${message} (referência: ${requestId})` : message;
+};
+
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 const PixLogo = () => (
@@ -87,12 +103,13 @@ const PaymentPage = () => {
   const [calculationError, setCalculationError] = useState(null);
   const [cartUpdating, setCartUpdating] = useState(false);
   const [quoteRequest, setQuoteRequest] = useState(0);
+  const [quoteRetryReady, setQuoteRetryReady] = useState(true);
   const [expiredQuoteId, setExpiredQuoteId] = useState(null);
   const [confirmedQuoteId, setConfirmedQuoteId] = useState(null);
 
   // Coupon
-  const [couponInput, setCouponInput] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState('');
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState("");
   const [couponError, setCouponError] = useState(null);
 
   // Profile
@@ -106,8 +123,16 @@ const PaymentPage = () => {
   const [quoteInvalidated, setQuoteInvalidated] = useState(false);
   const checkoutInFlight = useRef(false);
   const retryTimer = useRef(null);
+  const quoteRetryTimer = useRef(null);
+  const quoteRetryReadyRef = useRef(true);
 
-  useEffect(() => () => window.clearTimeout(retryTimer.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(retryTimer.current);
+      window.clearTimeout(quoteRetryTimer.current);
+    },
+    [],
+  );
 
   const fetchCart = useCallback(() => {
     const token = getAccessToken();
@@ -200,44 +225,102 @@ const PaymentPage = () => {
       !cart?.items?.length ||
       cartUpdating ||
       checkoutAttempt ||
-      quoteInvalidated
+      quoteInvalidated ||
+      !quoteRetryReadyRef.current
     )
       return;
     let cancelled = false;
     const token = getAccessToken();
-    fetch(
-      `${API_BASE_URL}/api/orders/checkout/calculate/`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(appliedCoupon
+    fetch(`${API_BASE_URL}/api/orders/checkout/calculate/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(
+        appliedCoupon
           ? { address_id: selectedAddressId, coupon_code: appliedCoupon }
-          : { address_id: selectedAddressId }),
-      }
-    ).then(async (r) => {
-      const data = await r.json();
-      if (!r.ok && Array.isArray(data.coupon_code)) {
-        // Cupom recusado: mostra o motivo e refaz a cotação sem ele.
-        if (!cancelled) {
-          setCouponError(data.coupon_code[0]);
-          setAppliedCoupon('');
+          : { address_id: selectedAddressId },
+      ),
+    })
+      .then(async (r) => {
+        const data = await r.json();
+        if (cancelled) return;
+        if (!r.ok && Array.isArray(data.coupon_code)) {
+          // Cupom recusado: mostra o motivo e refaz a cotação sem ele.
+          if (!cancelled) {
+            setCouponError(data.coupon_code[0]);
+            setAppliedCoupon("");
+          }
+          return;
         }
-        return;
-      }
-      if (!r.ok) throw new Error(data.message || data.detail || 'Cálculo indisponível.');
-      if (!data.shipping_quote_id || !Number.isFinite(Date.parse(data.expires_at))) {
-        throw new Error('Não foi possível validar a cotação. Calcule novamente.');
-      }
-      if (!cancelled) {
-        setFreightData({ ...data, addressId: selectedAddressId, cartSnapshot: cart });
-        setCalculationError(null);
-        setConfirmedQuoteId(null);
-      }
-    }).catch((error) => {
-      if (!cancelled) setCalculationError({ message: error.message, addressId: selectedAddressId, cartSnapshot: cart });
-    });
-    return () => { cancelled = true; };
-  }, [selectedAddressId, cart, cartUpdating, quoteRequest, checkoutAttempt, quoteInvalidated, appliedCoupon]);
+        if (!r.ok) {
+          if (r.status === 429 || r.status === 503) {
+            const retrySeconds = retryAfterSeconds(r.headers);
+            quoteRetryReadyRef.current = false;
+            setQuoteRetryReady(false);
+            window.clearTimeout(quoteRetryTimer.current);
+            quoteRetryTimer.current = window.setTimeout(
+              () => {
+                quoteRetryReadyRef.current = true;
+                setQuoteRetryReady(true);
+              },
+              retrySeconds * 1000,
+            );
+            setCalculationError({
+              message: apiErrorMessage(
+                data,
+                r,
+                r.status === 429
+                  ? `Muitas tentativas. Aguarde ${retrySeconds}s para calcular novamente.`
+                  : `Cálculo temporariamente indisponível. Tente novamente em ${retrySeconds}s.`,
+              ),
+              addressId: selectedAddressId,
+              cartSnapshot: cart,
+              retryable: true,
+            });
+            return;
+          }
+          throw new Error(apiErrorMessage(data, r, "Cálculo indisponível."));
+        }
+        if (
+          !data.shipping_quote_id ||
+          !Number.isFinite(Date.parse(data.expires_at))
+        ) {
+          throw new Error(
+            "Não foi possível validar a cotação. Calcule novamente.",
+          );
+        }
+        if (!cancelled) {
+          setFreightData({
+            ...data,
+            addressId: selectedAddressId,
+            cartSnapshot: cart,
+          });
+          setCalculationError(null);
+          setConfirmedQuoteId(null);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled)
+          setCalculationError({
+            message: error.message,
+            addressId: selectedAddressId,
+            cartSnapshot: cart,
+          });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedAddressId,
+    cart,
+    cartUpdating,
+    quoteRequest,
+    checkoutAttempt,
+    quoteInvalidated,
+    appliedCoupon,
+  ]);
 
   useEffect(() => {
     if (!freightData?.shipping_quote_id) return;
@@ -259,7 +342,8 @@ const PaymentPage = () => {
   }, [freightData]);
 
   const recalculateQuote = async () => {
-    if (cartUpdating || submitting || checkoutAttempt) return;
+    if (cartUpdating || submitting || checkoutAttempt || !quoteRetryReady) return;
+    quoteRetryReadyRef.current = true;
     setFreightData(null);
     setCalculationError(null);
     setConfirmedQuoteId(null);
@@ -272,7 +356,7 @@ const PaymentPage = () => {
 
   const changeCoupon = (code) => {
     setFreightData(null);
-    setCalculationError(null);
+    setCalculationError((error) => (error?.retryable ? error : null));
     setConfirmedQuoteId(null);
     setQuoteInvalidated(false);
     setAppliedCoupon(code);
@@ -281,23 +365,30 @@ const PaymentPage = () => {
   const handleApplyCoupon = (event) => {
     event.preventDefault();
     const code = couponInput.trim().toUpperCase();
-    if (!code || code === appliedCoupon || cartUpdating || submitting || checkoutAttempt) return;
+    if (
+      !code ||
+      code === appliedCoupon ||
+      cartUpdating ||
+      submitting ||
+      checkoutAttempt
+    )
+      return;
     setCouponError(null);
     changeCoupon(code);
   };
 
   const handleRemoveCoupon = () => {
     if (cartUpdating || submitting || checkoutAttempt) return;
-    setCouponInput('');
+    setCouponInput("");
     setCouponError(null);
-    if (appliedCoupon) changeCoupon('');
+    if (appliedCoupon) changeCoupon("");
   };
 
   const handleSelectAddress = (id) => {
     if (checkoutAttempt || checkoutInFlight.current) return;
     setFreightData(null);
     setQuoteInvalidated(false);
-    setCalculationError(null);
+    setCalculationError((error) => (error?.retryable ? error : null));
     setConfirmedQuoteId(null);
     setSelectedAddressId(id);
   };
@@ -317,7 +408,7 @@ const PaymentPage = () => {
     const token = getAccessToken();
     setCartUpdating(true);
     setFreightData(null);
-    setCalculationError(null);
+    setCalculationError((error) => (error?.retryable ? error : null));
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/orders/cart/items/${itemId}/`,
@@ -352,7 +443,7 @@ const PaymentPage = () => {
     const token = getAccessToken();
     setCartUpdating(true);
     setFreightData(null);
-    setCalculationError(null);
+    setCalculationError((error) => (error?.retryable ? error : null));
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/orders/cart/items/${itemId}/`,
@@ -361,8 +452,7 @@ const PaymentPage = () => {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
-      if (!response.ok)
-        throw new Error("Não foi possível remover o produto.");
+      if (!response.ok) throw new Error("Não foi possível remover o produto.");
       trackEvent(EVENT_TYPES.REMOVE_FROM_CART, { variationId: itemId });
       await fetchCart();
       refreshCart();
@@ -429,35 +519,73 @@ const PaymentPage = () => {
         setFreightData(null);
         setConfirmedQuoteId(null);
         setCouponError(data.coupon_code[0]);
-        setAppliedCoupon('');
+        setAppliedCoupon("");
         return;
       }
-      if (!res.ok && ((res.status === 400 && data.shipping_quote_id) || (res.status === 409 && data.code === 'price_changed'))) {
+      if (
+        !res.ok &&
+        ((res.status === 400 && data.shipping_quote_id) ||
+          (res.status === 409 && data.code === "price_changed"))
+      ) {
         sessionStorage.removeItem(`checkout-attempt:${userProfile.id}`);
         setCheckoutAttempt(null);
         setQuoteInvalidated(true);
         setFreightData(null);
         setConfirmedQuoteId(null);
         setCalculationError({
-          message: data.code === 'price_changed'
-            ? 'Os preços mudaram. Recalcule e confirme os novos valores antes de finalizar.'
-            : 'A cotação não é mais válida. Recalcule e confirme os valores antes de finalizar.',
+          message:
+            data.code === "price_changed"
+              ? "Os preços mudaram. Recalcule e confirme os novos valores antes de finalizar."
+              : "A cotação não é mais válida. Recalcule e confirme os valores antes de finalizar.",
           addressId: selectedAddressId,
           cartSnapshot: cart,
         });
         return;
       }
-      if (res.status === 409 && data.code === 'checkout_already_started' && data.attempt) {
-        sessionStorage.setItem(`checkout-attempt:${userProfile.id}`, JSON.stringify(data.attempt));
+      if (
+        res.status === 409 &&
+        data.code === "checkout_already_started" &&
+        data.attempt
+      ) {
+        sessionStorage.setItem(
+          `checkout-attempt:${userProfile.id}`,
+          JSON.stringify(data.attempt),
+        );
         setCheckoutAttempt(data.attempt);
         setCheckoutError(data.message);
         return;
       }
       if (res.status === 202) {
-        const retrySeconds = Number(res.headers?.get('Retry-After')) || 3;
+        const retrySeconds = retryAfterSeconds(res.headers);
         setRetryReady(false);
-        retryTimer.current = window.setTimeout(() => setRetryReady(true), Math.min(60, Math.max(1, retrySeconds)) * 1000);
-        setCheckoutError(data.message || 'Seu checkout está sendo processado. Consulte a mesma tentativa novamente.');
+        window.clearTimeout(retryTimer.current);
+        retryTimer.current = window.setTimeout(
+          () => setRetryReady(true),
+          Math.min(60, Math.max(1, retrySeconds)) * 1000,
+        );
+        setCheckoutError(
+          data.message ||
+            "Seu checkout está sendo processado. Consulte a mesma tentativa novamente.",
+        );
+        return;
+      }
+      if (res.status === 429 || res.status === 503) {
+        const retrySeconds = retryAfterSeconds(res.headers);
+        setRetryReady(false);
+        window.clearTimeout(retryTimer.current);
+        retryTimer.current = window.setTimeout(
+          () => setRetryReady(true),
+          retrySeconds * 1000,
+        );
+        setCheckoutError(
+          apiErrorMessage(
+            data,
+            res,
+            res.status === 429
+              ? `Muitas tentativas. Aguarde ${retrySeconds}s antes de consultar novamente.`
+              : "Checkout temporariamente indisponível. Consulte a mesma tentativa após a espera.",
+          ),
+        );
         return;
       }
       if (!res.ok) {
@@ -467,7 +595,9 @@ const PaymentPage = () => {
         // o estado atual (ex.: is_sellable) e o usuário poder agir.
         fetchCart();
         refreshCart();
-        throw new Error(data.message || data.detail || 'Falha ao processar o pedido.');
+        throw new Error(
+          apiErrorMessage(data, res, "Falha ao processar o pedido."),
+        );
       }
       trackEvent(EVENT_TYPES.PURCHASE);
       refreshCart();
@@ -499,11 +629,13 @@ const PaymentPage = () => {
     hasCalculation && confirmedQuoteId === freightData.shipping_quote_id;
   const freightError = quoteExpired
     ? "Cotação expirada. Recalcule e confirme os valores novamente."
-    : calculationError?.addressId === selectedAddressId &&
-        calculationError?.cartSnapshot === cart
+    : calculationError?.retryable ||
+        (calculationError?.addressId === selectedAddressId &&
+          calculationError?.cartSnapshot === cart)
       ? calculationError.message
       : null;
   const freightLoading = Boolean(
+    !checkoutAttempt &&
     selectedAddressId &&
     cart?.items?.length &&
     !hasCalculation &&
@@ -515,13 +647,22 @@ const PaymentPage = () => {
   const subtotal = hasCalculation ? Number(freightData.subtotal) : null;
   const FRETE = hasCalculation ? Number(freightData.shipping_cost) : null;
   const total = hasCalculation ? Number(freightData.total_amount) : null;
-  const discount = hasCalculation ? Number(freightData.discount_amount ?? 0) : 0;
+  const discount = hasCalculation
+    ? Number(freightData.discount_amount ?? 0)
+    : 0;
   const discountCouponCode = hasCalculation ? freightData.coupon?.code : null;
-  const couponDisabled = submitting || cartUpdating || freightLoading || Boolean(checkoutAttempt);
-  const selectedAddress = selectedAddressId ? {
-    ...addresses.find((a) => a.id === selectedAddressId),
-    ...(hasCalculation ? freightData.address : {}),
-  } : null;
+  const couponDisabled =
+    submitting ||
+    cartUpdating ||
+    freightLoading ||
+    Boolean(checkoutAttempt) ||
+    !quoteRetryReady;
+  const selectedAddress = selectedAddressId
+    ? {
+        ...addresses.find((a) => a.id === selectedAddressId),
+        ...(hasCalculation ? freightData.address : {}),
+      }
+    : null;
 
   return (
     <PublicLayout>
@@ -639,7 +780,11 @@ const PaymentPage = () => {
               {/* Freight info */}
               {selectedAddressId && (
                 <div className="rounded-[10px] bg-[#f7f7f7] px-4 py-3 text-[13px]">
-                  {freightLoading ? (
+                  {checkoutAttempt && !hasCalculation ? (
+                    <span className="text-black/60">
+                      O frete está vinculado à tentativa anterior. Consulte o resultado abaixo.
+                    </span>
+                  ) : freightLoading ? (
                     <span className="text-black/45">Calculando frete...</span>
                   ) : freightError ? (
                     <span className="text-[#cc0000]">{freightError}</span>
@@ -868,31 +1013,55 @@ const PaymentPage = () => {
 
                 {/* Coupon */}
                 <form onSubmit={handleApplyCoupon} className="space-y-2">
-                  <label htmlFor="coupon-code" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40">
+                  <label
+                    htmlFor="coupon-code"
+                    className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40"
+                  >
                     Cupom de desconto
                   </label>
                   <div className="flex gap-2">
-                    <input id="coupon-code" type="text" value={couponInput} maxLength={50}
-                      placeholder="Digite o código" autoComplete="off"
+                    <input
+                      id="coupon-code"
+                      type="text"
+                      value={couponInput}
+                      maxLength={50}
+                      placeholder="Digite o código"
+                      autoComplete="off"
                       onChange={(event) => setCouponInput(event.target.value)}
                       disabled={couponDisabled || Boolean(appliedCoupon)}
                       aria-invalid={Boolean(couponError)}
-                      aria-describedby={couponError ? 'coupon-error' : undefined}
-                      className="h-11 min-w-0 flex-1 rounded-full border border-black/20 px-4 text-[14px] uppercase text-black outline-none focus:border-black disabled:bg-black/5" />
+                      aria-describedby={
+                        couponError ? "coupon-error" : undefined
+                      }
+                      className="h-11 min-w-0 flex-1 rounded-full border border-black/20 px-4 text-[14px] uppercase text-black outline-none focus:border-black disabled:bg-black/5"
+                    />
                     {appliedCoupon ? (
-                      <button type="button" onClick={handleRemoveCoupon} disabled={couponDisabled}
-                        className="h-11 shrink-0 rounded-full border border-black/20 px-5 text-[13px] font-bold text-black transition hover:bg-black/5 disabled:opacity-50">
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        disabled={couponDisabled}
+                        className="h-11 shrink-0 rounded-full border border-black/20 px-5 text-[13px] font-bold text-black transition hover:bg-black/5 disabled:opacity-50"
+                      >
                         Remover
                       </button>
                     ) : (
-                      <button type="submit" disabled={couponDisabled || !couponInput.trim()}
-                        className="h-11 shrink-0 rounded-full bg-black px-5 text-[13px] font-bold text-white transition hover:bg-black/85 disabled:bg-black/35">
+                      <button
+                        type="submit"
+                        disabled={couponDisabled || !couponInput.trim()}
+                        className="h-11 shrink-0 rounded-full bg-black px-5 text-[13px] font-bold text-white transition hover:bg-black/85 disabled:bg-black/35"
+                      >
                         Aplicar
                       </button>
                     )}
                   </div>
                   {couponError && (
-                    <p id="coupon-error" role="alert" className="text-[13px] text-[#cc0000]">{couponError}</p>
+                    <p
+                      id="coupon-error"
+                      role="alert"
+                      className="text-[13px] text-[#cc0000]"
+                    >
+                      {couponError}
+                    </p>
                   )}
                 </form>
 
@@ -908,8 +1077,14 @@ const PaymentPage = () => {
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between text-[#10a545]">
-                      <span>{discountCouponCode ? `Cupom ${discountCouponCode}` : 'Desconto'}</span>
-                      <span className="font-medium">- R$ {discount.toFixed(2)}</span>
+                      <span>
+                        {discountCouponCode
+                          ? `Cupom ${discountCouponCode}`
+                          : "Desconto"}
+                      </span>
+                      <span className="font-medium">
+                        - R$ {discount.toFixed(2)}
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between text-black/55">
@@ -1027,7 +1202,7 @@ const PaymentPage = () => {
           <button
             type="button"
             onClick={recalculateQuote}
-            disabled={cartUpdating || submitting}
+            disabled={cartUpdating || submitting || !quoteRetryReady}
             className="mt-4 h-12 w-full rounded-full border border-black/20 text-[14px] font-bold disabled:opacity-50"
           >
             Recalcular cotação

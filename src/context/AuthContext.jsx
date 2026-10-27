@@ -26,15 +26,16 @@ const getStoredUser = () => {
   }
 };
 
+// Só reaproveita o usuário salvo quando existe um access token válido.
+// Sem isso, um "user" admin órfão no localStorage (token expirado/removido)
+// faz o botão de painel aparecer para quem não está logado.
+const getSessionUser = () => (getAccessToken() ? getStoredUser() : null);
+const isAdminUser = (u) => Boolean(u?.is_admin || u?.is_staff || u?.is_superuser);
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(getStoredUser);
+  const [user, setUser] = useState(getSessionUser);
   const [accessToken, setAccessToken] = useState(() => getAccessToken());
-  const [isAdmin, setIsAdmin] = useState(() => {
-    const storedUser = getStoredUser();
-    return Boolean(
-      storedUser?.is_admin || storedUser?.is_staff || storedUser?.is_superuser,
-    );
-  });
+  const [isAdmin, setIsAdmin] = useState(() => isAdminUser(getSessionUser()));
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   const clearSession = useCallback(() => {
@@ -99,9 +100,12 @@ export const AuthProvider = ({ children }) => {
         console.error("Token inválido:", error);
         logout();
       }
+    } else if (localStorage.getItem("user")) {
+      // Usuário salvo sem token válido: limpa a sessão órfã.
+      clearSession();
     }
     setIsAuthLoading(false);
-  }, [logout]);
+  }, [logout, clearSession]);
 
   const login = (authData) => {
     const { user: userData, access, refresh } = authData;
@@ -132,11 +136,12 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
-  const registerWithPassword = async (name, email, password) => {
+  const registerWithPassword = async (name, email, password, marketingOptIn = false) => {
     const response = await apiClient.post("/auth/register/", {
       name,
       email,
       password,
+      marketing_opt_in: marketingOptIn,
     });
     login(response.data);
     return response.data;

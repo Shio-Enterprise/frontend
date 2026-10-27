@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
+import CouponEmailModal from '../../../components/admin/CouponEmailModal';
 import { AdminPanel, AdminTitle, BlackButton, Icon, ActionMenu } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -9,6 +10,52 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 function formatMoney(value) {
   if (!value) return "R$ 0,00";
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+// Mesma ordem de prioridade que o backend usa para recusar o envio por e-mail.
+function couponStatus(coupon) {
+  if (!coupon.is_active) return 'Inativo';
+  if (coupon.expiration_date && new Date(coupon.expiration_date) < new Date()) return 'Vencido';
+  if (coupon.max_uses_total != null && coupon.uses_count >= coupon.max_uses_total) return 'Esgotado';
+  return 'Ativo';
+}
+
+const STATUS_STYLES = {
+  Ativo: 'bg-green-50 text-green-700 ring-green-600/20',
+  Inativo: 'bg-red-50 text-red-700 ring-red-600/10',
+  Vencido: 'bg-amber-50 text-amber-800 ring-amber-600/20',
+  Esgotado: 'bg-amber-50 text-amber-800 ring-amber-600/20',
+};
+
+function optional(value, parse) {
+  return value === '' || value == null ? null : parse(value);
+}
+
+const FIELD_LABELS = {
+  code: 'Código',
+  description: 'Descrição',
+  discount_type: 'Tipo de Desconto',
+  discount_value: 'Valor',
+  max_discount_amount: 'Teto de Desconto',
+  min_order_value: 'Valor Mínimo do Pedido',
+  starts_at: 'Início',
+  expiration_date: 'Fim',
+  max_uses_total: 'Usos Totais',
+  max_uses_per_user: 'Usos por Usuário',
+  drops: 'Drops Válidos',
+  categories: 'Categorias Válidas',
+  partner: 'Parceiro',
+};
+
+// Erros do DRF chegam como { campo: ["mensagem"] }; vira "Rótulo: mensagem".
+function formatSaveError(data) {
+  if (!data || typeof data !== 'object') return 'Erro ao salvar cupom';
+  if (data.detail) return data.detail;
+  const lines = Object.entries(data).map(([field, messages]) => {
+    const text = Array.isArray(messages) ? messages.join(' ') : String(messages);
+    return field === 'non_field_errors' ? text : `${FIELD_LABELS[field] || field}: ${text}`;
+  });
+  return lines.join('\n') || 'Erro ao salvar cupom';
 }
 
 // ─── Drawer Component ────────────────────────────────────────────────────────
@@ -27,7 +74,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
   const [minOrderValue, setMinOrderValue] = useState(coupon?.min_order_value || '');
   const [startsAt, setStartsAt] = useState(coupon?.starts_at ? coupon.starts_at.slice(0, 16) : '');
   const [expirationDate, setExpirationDate] = useState(coupon?.expiration_date ? coupon.expiration_date.slice(0, 16) : '');
-  const [maxUsesTotal, setMaxUsesTotal] = useState(coupon?.max_uses_total || '');
+  const [maxUsesTotal, setMaxUsesTotal] = useState(coupon?.max_uses_total ?? '');
   const [maxUsesPerUser, setMaxUsesPerUser] = useState(coupon?.max_uses_per_user || '');
   const [firstPurchaseOnly, setFirstPurchaseOnly] = useState(coupon?.first_purchase_only || false);
   const [autoApply, setAutoApply] = useState(coupon?.auto_apply || false);
@@ -62,12 +109,13 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
       categories: selectedCategories
     };
 
-    if (maxDiscountAmount) payload.max_discount_amount = maxDiscountAmount;
-    if (minOrderValue) payload.min_order_value = minOrderValue;
-    if (startsAt) payload.starts_at = new Date(startsAt).toISOString();
-    if (expirationDate) payload.expiration_date = new Date(expirationDate).toISOString();
-    if (maxUsesTotal) payload.max_uses_total = parseInt(maxUsesTotal, 10);
-    if (maxUsesPerUser) payload.max_uses_per_user = parseInt(maxUsesPerUser, 10);
+    // Campo vazio vira null: ao editar, é assim que o limite volta a "sem limite".
+    payload.max_discount_amount = optional(maxDiscountAmount, (v) => v);
+    payload.min_order_value = optional(minOrderValue, (v) => v);
+    payload.starts_at = optional(startsAt, (v) => new Date(v).toISOString());
+    payload.expiration_date = optional(expirationDate, (v) => new Date(v).toISOString());
+    payload.max_uses_total = optional(maxUsesTotal, (v) => parseInt(v, 10));
+    payload.max_uses_per_user = optional(maxUsesPerUser, (v) => parseInt(v, 10));
 
     try {
       const token = getAccessToken();
@@ -86,10 +134,10 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || JSON.stringify(data) || 'Erro ao salvar cupom');
+        throw new Error(formatSaveError(data));
       }
 
-      onSaved();
+      onSaved(data, { created: !isEditing });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -109,7 +157,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
         
         <div className="flex-1 overflow-y-auto p-6">
           <form id="coupon-form" onSubmit={handleSave} className="space-y-5">
-            {error && <div className="p-3 bg-red-100 text-red-700 text-sm rounded-md">{error}</div>}
+            {error && <div className="p-3 bg-red-100 text-red-700 text-sm rounded-md whitespace-pre-line">{error}</div>}
             
             <div>
               <label className="block text-sm font-semibold mb-1">Código</label>
@@ -215,6 +263,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
                 <label className="block text-sm font-semibold mb-1">Usos Totais</label>
                 <input
                   type="number"
+                  min="1"
                   value={maxUsesTotal}
                   onChange={(e) => setMaxUsesTotal(e.target.value)}
                   className="w-full border rounded-md px-3 py-2"
@@ -225,6 +274,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
                 <label className="block text-sm font-semibold mb-1">Usos por Usuário</label>
                 <input
                   type="number"
+                  min="1"
                   value={maxUsesPerUser}
                   onChange={(e) => setMaxUsesPerUser(e.target.value)}
                   className="w-full border rounded-md px-3 py-2"
@@ -308,6 +358,8 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
 export default function CouponsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState(null);
+  const [emailCoupon, setEmailCoupon] = useState(null);
+  const [justCreated, setJustCreated] = useState(null);
   
   const { data: responseData, loading, refetch } = useApi('/api/orders/admin/coupons/');
   const coupons = responseData?.results || responseData || [];
@@ -358,6 +410,11 @@ export default function CouponsPage() {
     }
   };
 
+  const emailDisabledReason = (coupon) => {
+    const status = couponStatus(coupon);
+    return status === 'Ativo' ? null : `Cupom ${status.toLowerCase()}`;
+  };
+
   return (
     <AdminPanel className="p-6">
       <AdminTitle 
@@ -390,11 +447,9 @@ export default function CouponsPage() {
                       <span className="font-bold text-gray-900">{coupon.code}</span>
                       <span className="text-xs text-gray-500">{coupon.description || 'Sem descrição'}</span>
                       <div className="mt-2 flex gap-2">
-                        {coupon.is_active ? (
-                          <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Ativo</span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">Inativo</span>
-                        )}
+                        <span data-testid="coupon-status" className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_STYLES[couponStatus(coupon)]}`}>
+                          {couponStatus(coupon)}
+                        </span>
                         {coupon.auto_apply && (
                           <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-600/20">Automático</span>
                         )}
@@ -411,7 +466,7 @@ export default function CouponsPage() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="font-semibold text-gray-900">{coupon.uses_count} usos</span>
-                      {coupon.max_uses_total ? (
+                      {coupon.max_uses_total != null ? (
                         <span className="text-xs text-gray-500">{coupon.remaining_uses} restantes</span>
                       ) : (
                         <span className="text-xs text-gray-500">Ilimitado</span>
@@ -429,6 +484,12 @@ export default function CouponsPage() {
                       label="Ações"
                       items={[
                         { label: 'Editar Cupom', onClick: () => handleEdit(coupon) },
+                        {
+                          label: 'Enviar por e-mail',
+                          disabled: !!emailDisabledReason(coupon),
+                          title: emailDisabledReason(coupon) || undefined,
+                          onClick: () => setEmailCoupon(coupon),
+                        },
                         { label: coupon.is_active ? 'Desativar' : 'Reativar', onClick: () => handleToggleActive(coupon) },
                         { label: 'Deletar', onClick: () => handleDelete(coupon) },
                       ]}
@@ -445,8 +506,33 @@ export default function CouponsPage() {
         <CouponDrawer 
           coupon={editingCoupon} 
           onClose={() => setDrawerOpen(false)} 
-          onSaved={() => { setDrawerOpen(false); refetch(); }} 
+          onSaved={(saved, { created }) => {
+            setDrawerOpen(false);
+            refetch();
+            if (created && saved?.id) setJustCreated(saved);
+          }} 
         />
+      )}
+
+      {justCreated && !emailCoupon && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl space-y-4">
+            <p className="text-sm font-semibold">Cupom {justCreated.code} criado. Quer enviar este cupom por e-mail para os clientes agora?</p>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setJustCreated(null)} className="px-4 py-2 text-sm font-bold border rounded-md hover:bg-gray-100">
+                Agora não
+              </button>
+              <BlackButton onClick={() => { setEmailCoupon(justCreated); setJustCreated(null); }}>
+                Enviar por e-mail
+              </BlackButton>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {emailCoupon && (
+        <CouponEmailModal coupon={emailCoupon} onClose={() => setEmailCoupon(null)} />
       )}
     </AdminPanel>
   );
