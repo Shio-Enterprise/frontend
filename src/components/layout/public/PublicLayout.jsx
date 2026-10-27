@@ -1,5 +1,6 @@
 import Navbar from './Navbar';
 import Footer from '../shared/Footer';
+import DropOpenedModal from '../../ui/DropOpenedModal';
 
 const PublicLayout = ({ children, showNewsletter = true }) => {
   return (
@@ -9,6 +10,7 @@ const PublicLayout = ({ children, showNewsletter = true }) => {
         {children}
       </main>
       <Footer showNewsletter={showNewsletter} />
+      <DropOpenedModal />
     </div>
   );
 };

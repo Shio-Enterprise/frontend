@@ -1,9 +1,16 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { PageMarker, ProductCard } from '../../../components/ui/ShioDesign';
 import useNow from '../../../hooks/useNow';
 import { getCountdownParts, getDropPhase } from '../../../lib/dropCountdown';
+import { getAccessToken } from '../../../lib/authToken';
+import {
+  getMyWaitlistEntries,
+  joinDropWaitlist,
+  leaveDropWaitlist,
+  waitlistErrorMessage,
+} from '../../../lib/dropWaitlistApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -55,11 +62,14 @@ const PHASE_BADGE = {
 
 const DropPage = () => {
   const { slug } = useParams();
-  // `result.slug` só é atualizado quando a busca termina — comparar com o
-  // slug atual deriva o carregamento sem precisar resetar o estado de forma
-  // síncrona dentro do efeito.
+  const navigate = useNavigate();
   const [result, setResult] = useState({ slug: null, notFound: false, drop: null });
   const now = useNow();
+
+  // Estado da lista de espera
+  const [waitlistEntryId, setWaitlistEntryId] = useState(null); // UUID da entrada, ou null
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistError, setWaitlistError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -77,6 +87,50 @@ const DropPage = () => {
       active = false;
     };
   }, [slug]);
+
+  // Carrega estado da lista de espera para usuário logado
+  useEffect(() => {
+    if (!getAccessToken() || !result.drop) return;
+    let active = true;
+    getMyWaitlistEntries()
+      .then((entries) => {
+        if (!active) return;
+        const found = entries.find((e) => e.drop?.id === result.drop.id);
+        setWaitlistEntryId(found ? found.id : null);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [result.drop]);
+
+  const handleJoin = useCallback(async () => {
+    if (!getAccessToken()) {
+      navigate(`/login?next=/drop/${slug}`);
+      return;
+    }
+    setWaitlistLoading(true);
+    setWaitlistError('');
+    try {
+      const { entry } = await joinDropWaitlist(result.drop.id);
+      setWaitlistEntryId(entry.id);
+    } catch (err) {
+      setWaitlistError(waitlistErrorMessage(err));
+    } finally {
+      setWaitlistLoading(false);
+    }
+  }, [result.drop, slug, navigate]);
+
+  const handleLeave = useCallback(async () => {
+    setWaitlistLoading(true);
+    setWaitlistError('');
+    try {
+      await leaveDropWaitlist(result.drop.id);
+      setWaitlistEntryId(null);
+    } catch (err) {
+      setWaitlistError(waitlistErrorMessage(err));
+    } finally {
+      setWaitlistLoading(false);
+    }
+  }, [result.drop]);
 
   const loading = result.slug !== slug;
 
@@ -150,6 +204,35 @@ const DropPage = () => {
               Lançamento em
             </p>
             <Countdown target={drop.launch_date} />
+
+            {/* Botão de lista de espera */}
+            <div className="mt-6">
+              {waitlistEntryId ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[14px] font-semibold text-black">
+                    ✅ Você está na lista de espera
+                  </p>
+                  <button
+                    onClick={handleLeave}
+                    disabled={waitlistLoading}
+                    className="w-fit text-[13px] text-black/50 underline hover:text-black disabled:opacity-50"
+                  >
+                    {waitlistLoading ? 'Saindo...' : 'Sair da lista'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleJoin}
+                  disabled={waitlistLoading}
+                  className="rounded-md bg-black px-8 py-3 text-[15px] font-bold uppercase text-white transition-colors hover:bg-black/80 disabled:opacity-50"
+                >
+                  {waitlistLoading ? 'Aguarde...' : 'Entrar na lista de espera'}
+                </button>
+              )}
+              {waitlistError && (
+                <p className="mt-2 text-[13px] text-red-600">{waitlistError}</p>
+              )}
+            </div>
           </div>
         )}
         {phase === 'live' && drop.end_date && (
