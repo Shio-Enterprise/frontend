@@ -182,6 +182,52 @@ describe('ProductDetailPage', () => {
     expect(screen.queryByRole('img', { name: /^Nota/ })).not.toBeInTheDocument();
   });
 
+  describe('Tabela de medidas', () => {
+    const sizeGuide = {
+      id: 'g1',
+      name: 'Parte de baixo',
+      columns: [{ key: 'waist', label: 'Cintura' }],
+      rows: [
+        { size: 'P', measures: { waist: [74, 80] } },
+        { size: 'M', measures: { waist: [80, 86] } },
+      ],
+    };
+    const withGuide = (extra = {}) => ({
+      ...product('1'),
+      is_sellable: true,
+      variations: [{ id: 'vM', size: 'M', color: '', stock_quantity: 2 }],
+      size_guide: sizeGuide,
+      ...extra,
+    });
+    const mountWith = (data) => {
+      fetch.mockImplementation((url) => Promise.resolve(
+        url.includes('/recommendations/') ? recommendations([]) : response(data),
+      ));
+      return mount();
+    };
+
+    it('mostra a tabela na página e sugere o tamanho', async () => {
+      mountWith(withGuide());
+      const table = within(await screen.findByRole('region', { name: 'Tabela de medidas' }));
+      expect(table.getByRole('rowheader', { name: 'M' })).toBeInTheDocument();
+      expect(table.getByRole('cell', { name: '80–86' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Tabela de medidas' })).toHaveAttribute('href', '#tabela-de-medidas');
+
+      fireEvent.change(table.getByLabelText('Sua medida (cm)'), { target: { value: '82' } });
+      expect(table.getByRole('status')).toHaveTextContent('Seu tamanho é M.');
+
+      fireEvent.change(table.getByLabelText('Sua medida (cm)'), { target: { value: '50' } });
+      expect(table.getByRole('status')).toHaveTextContent('menor que a do tamanho P');
+    });
+
+    it('sem guia na categoria não mostra a tabela', async () => {
+      mountWith(withGuide({ size_guide: null }));
+      await screen.findByRole('button', { name: /^M/ });
+      expect(screen.queryByRole('region', { name: 'Tabela de medidas' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Tabela de medidas' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('Avise-me quando chegar', () => {
     const withVariations = (extra = {}) => ({
       ...product('1'),

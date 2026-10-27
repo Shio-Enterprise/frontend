@@ -3,6 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { PageMarker, ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
 import ProductReviews from '../../../components/reviews/ProductReviews';
+import SizeGuideTable from '../../../components/product/SizeGuideTable';
 import { getAccessToken } from '../../../lib/authToken';
 import { useCart } from '../../../context/CartContext';
 import {
@@ -259,7 +260,14 @@ const ProductDetailContent = ({ id }) => {
             {/* Size selector */}
             {product.variations?.length > 0 && (
               <div className="border-b border-black/10 py-6">
-                <p className="mb-4 text-[15px] text-black/55">Tamanho e cor</p>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <p className="text-[15px] text-black/55">Tamanho e cor</p>
+                  {product.size_guide && (
+                    <a href="#tabela-de-medidas" className="text-[13px] font-semibold text-black underline">
+                      Tabela de medidas
+                    </a>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-3">
                   {product.variations.map((v) => (
                     <button key={v.id} onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
@@ -326,6 +334,8 @@ const ProductDetailContent = ({ id }) => {
           </div>
         </div>
       </section>
+
+      {product.size_guide && <SizeGuideTable id="tabela-de-medidas" guide={product.size_guide} />}
 
       <ProductReviews productId={product.id} />
 
