@@ -4,7 +4,10 @@ import { MemoryRouter } from 'react-router-dom';
 import NewProductPage from './index';
 
 vi.mock('../../../hooks/useApi', () => ({
-  useApi: () => ({ data: null, loading: false, error: null, refetch: vi.fn() }),
+  useApi: (url) => ({
+    data: url.includes('/categories/') ? [{ id: 'cat-1', name: 'Camisetas' }] : null,
+    loading: false, error: null, refetch: vi.fn(),
+  }),
 }));
 
 describe('NewProductPage', () => {
@@ -31,8 +34,23 @@ it('submits cost, promotion and explicit variations without losing a manual SKU'
   const payload = JSON.parse(fetchMock.mock.calls[0][1].body);
   expect(payload.cost_price).toBe('60');
   expect(payload.variations).toEqual([{ size: 'M', color: '#FF0000', sku: 'MANUAL-SKU', stock_quantity: 0 }]);
+  expect(payload.category).toBeNull();
   await screen.findByText(/SKU já cadastrado/);
   expect(screen.getByLabelText('SKU 1')).toHaveValue('MANUAL-SKU');
   expect(screen.getByLabelText('Cor 1')).toHaveValue('#FF0000');
+  vi.unstubAllGlobals();
+});
+
+it('envia a categoria escolhida no cadastro', async () => {
+  const { fireEvent, waitFor } = await import('@testing-library/react');
+  const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+  vi.stubGlobal('fetch', fetchMock);
+  render(<MemoryRouter><NewProductPage /></MemoryRouter>);
+  fireEvent.change(screen.getByPlaceholderText('Ex: Moletom'), { target: { value: 'Camisa' } });
+  fireEvent.change(screen.getByLabelText('Custo unitário'), { target: { value: '60' } });
+  fireEvent.change(screen.getByRole('combobox', { name: /Categoria/ }), { target: { value: 'cat-1' } });
+  fireEvent.submit(screen.getByPlaceholderText('Ex: Moletom').closest('form'));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body).category).toBe('cat-1');
   vi.unstubAllGlobals();
 });
