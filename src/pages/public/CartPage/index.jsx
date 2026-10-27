@@ -4,6 +4,7 @@ import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 import { useCart } from '../../../context/CartContext';
+import { recordNavigationEvent } from '../../../lib/navigationAnalytics';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -54,6 +55,7 @@ const CartPage = () => {
   };
 
   const handleRemove = async (variationId) => {
+    const current = cartItems.find((item) => String(item.variation_id) === String(variationId));
     setUpdating(variationId);
     const res = await fetch(`${API_BASE_URL}/api/orders/cart/items/${variationId}/`, {
       method: 'DELETE',
@@ -63,6 +65,12 @@ const CartPage = () => {
     if (res?.ok) {
       const data = await res.json();
       setCartData(data);
+      recordNavigationEvent({
+        eventType: 'REMOVE_FROM_CART',
+        path: '/cart',
+        product: current?.product_id,
+        variation: variationId,
+      });
     } else {
       refreshCart();
     }
