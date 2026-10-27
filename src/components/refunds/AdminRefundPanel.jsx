@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import AdminModal from '../ui/AdminModal';
 import {
   ADMIN_REFUND_REASONS,
   REFUND_STATUS,
@@ -19,52 +20,6 @@ const localDateTime = (date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 16);
 };
-
-function Modal({ title, titleId, onClose, onSubmit, children, error, submitLabel, canSubmit, danger }) {
-  const dialogRef = useRef(null);
-  useEffect(() => {
-    dialogRef.current?.focus();
-  }, []);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
-      }}
-    >
-      <form
-        ref={dialogRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onSubmit={onSubmit}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[18px] bg-white p-6 outline-none"
-      >
-        <h2 id={titleId} className="text-[20px] font-bold text-black">{title}</h2>
-        {children}
-        {error && <p role="alert" className="mt-3 text-[13px] text-[#cc0000]">{error}</p>}
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-11 whitespace-nowrap rounded-full border border-black/15 px-6 text-sm font-medium text-black transition hover:border-black"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className={`h-11 whitespace-nowrap rounded-full px-6 text-sm font-medium text-white transition disabled:opacity-40 ${danger ? 'bg-[#ff3333] hover:bg-[#e02020]' : 'bg-black hover:bg-black/80'}`}
-          >
-            {submitLabel}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 function ReviewModal({ order, mode, onClose, onDone }) {
   const rejecting = mode === 'reject';
@@ -90,7 +45,7 @@ function ReviewModal({ order, mode, onClose, onDone }) {
   };
 
   return (
-    <Modal
+    <AdminModal
       title={rejecting ? 'Recusar reembolso' : 'Aprovar reembolso'}
       titleId="refund-review-title"
       onClose={onClose}
@@ -118,7 +73,7 @@ function ReviewModal({ order, mode, onClose, onDone }) {
         className={inputClass}
       />
       <p className="mt-1 text-[12px] text-black/45">O cliente verá esta mensagem.</p>
-    </Modal>
+    </AdminModal>
   );
 }
 
@@ -166,7 +121,7 @@ function CompleteModal({ order, onClose, onDone }) {
   };
 
   return (
-    <Modal
+    <AdminModal
       title={direct ? 'Registrar reembolso' : 'Registrar estorno'}
       titleId="refund-complete-title"
       onClose={onClose}
@@ -244,7 +199,7 @@ function CompleteModal({ order, onClose, onDone }) {
         <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
         <span>Confirmo que o estorno já foi feito no painel da InfinitePay.</span>
       </label>
-    </Modal>
+    </AdminModal>
   );
 }
 
@@ -261,7 +216,11 @@ export default function AdminRefundPanel({ order, onChanged }) {
   const [modal, setModal] = useState(null);
   const refund = order.refund;
   const active = ACTIVE.includes(refund?.status);
-  const canRegisterDirect = !active && order.payment?.status === 'PAID';
+  // Troca em andamento ou concluída impede o reembolso; o backend também recusa.
+  const exchangeBlocks = (order.exchanges ?? []).some(
+    (exchange) => !['REJECTED', 'CANCELED'].includes(exchange.status),
+  );
+  const canRegisterDirect = !active && !exchangeBlocks && order.payment?.status === 'PAID';
   if (!refund && !canRegisterDirect) return null;
 
   const status = refund ? REFUND_STATUS[refund.status] : null;
