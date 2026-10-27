@@ -54,4 +54,33 @@ describe('OrdersPage', () => {
     fireEvent.change(screen.getByLabelText('Filtrar por reembolso'), { target: { value: 'REQUESTED' } });
     expect(useApiMock).toHaveBeenLastCalledWith('/api/orders/admin/?refund_status=REQUESTED');
   });
+  it('mostra o selo da troca e combina os filtros de reembolso e troca', () => {
+    useApiMock.mockReturnValue({
+      data: [{
+        id: 'abcdef12-0000-0000-0000-000000000000',
+        customer_name: 'Ana',
+        created_at: '2026-10-20T10:00:00Z',
+        total_amount: '200.00',
+        status: 'DELIVERED',
+        refund_status: null,
+        exchange_status: 'APPROVED',
+      }],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(
+      <MemoryRouter>
+        <OrdersPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Troca aprovada')).toBeInTheDocument();
+    const filter = screen.getByLabelText('Filtrar por troca');
+    expect(screen.getByRole('option', { name: 'Troca: peça recebida' })).toBeInTheDocument();
+    fireEvent.change(filter, { target: { value: 'RECEIVED' } });
+    expect(useApiMock).toHaveBeenLastCalledWith('/api/orders/admin/?exchange_status=RECEIVED');
+    fireEvent.change(screen.getByLabelText('Filtrar por reembolso'), { target: { value: 'REJECTED' } });
+    expect(useApiMock).toHaveBeenLastCalledWith('/api/orders/admin/?refund_status=REJECTED&exchange_status=RECEIVED');
+  });
 });

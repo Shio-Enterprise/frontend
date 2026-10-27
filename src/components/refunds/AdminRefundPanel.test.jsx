@@ -179,4 +179,15 @@ describe('AdminRefundPanel', () => {
     expect(screen.getByText('Cliente devolveu')).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+  it('esconde o registro direto quando o pedido tem troca em andamento ou concluída', () => {
+    for (const status of ['REQUESTED', 'APPROVED', 'RECEIVED', 'COMPLETED']) {
+      const { container, unmount } = render(
+        <AdminRefundPanel order={order({ status: 'DELIVERED', exchanges: [{ id: 'e1', status }] })} onChanged={vi.fn()} />,
+      );
+      expect(container).toBeEmptyDOMElement();
+      unmount();
+    }
+    mount(order({ status: 'DELIVERED', exchanges: [{ id: 'e1', status: 'CANCELED' }, { id: 'e2', status: 'REJECTED' }] }));
+    expect(screen.getByRole('button', { name: 'Registrar reembolso' })).toBeInTheDocument();
+  });
 });
