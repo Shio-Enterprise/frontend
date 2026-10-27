@@ -4,6 +4,7 @@ import AccountLayout from '../../../components/layout/user/AccountLayout';
 import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 import { REFUND_STATUS } from '../../../lib/refunds';
+import { EXCHANGE_STATUS } from '../../../lib/exchanges';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -67,6 +68,7 @@ const MyOrdersPage = () => {
           {orders.map((order) => {
             const s = STATUS_LABEL[order.status] ?? { label: order.status, color: 'bg-black/5 text-black/50' };
             const refund = REFUND_STATUS[order.refund_status];
+            const exchange = EXCHANGE_STATUS[order.exchange_status];
             const date = new Date(order.created_at).toLocaleDateString('pt-BR', {
               day: '2-digit', month: 'short', year: 'numeric',
             });
@@ -86,6 +88,11 @@ const MyOrdersPage = () => {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-3">
+                  {exchange && (
+                    <span className={`rounded-full px-3 py-1 text-[12px] font-semibold ${exchange.color}`}>
+                      {exchange.label}
+                    </span>
+                  )}
                   {refund && (
                     <span className={`rounded-full px-3 py-1 text-[12px] font-semibold ${refund.color}`}>
                       {refund.label}

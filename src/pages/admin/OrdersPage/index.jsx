@@ -6,6 +6,8 @@ import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../c
 import ExportButton from '../../../components/admin/ExportButton';
 import AdminRefundPanel from '../../../components/refunds/AdminRefundPanel';
 import { REFUND_STATUS, refundTimelineEvents } from '../../../lib/refunds';
+import AdminExchangePanel from '../../../components/exchanges/AdminExchangePanel';
+import { EXCHANGE_STATUS, exchangeTimelineEvents } from '../../../lib/exchanges';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -222,6 +224,14 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
               }}
             />
 
+            <AdminExchangePanel
+              order={order}
+              onChanged={() => {
+                refetch();
+                onChanged();
+              }}
+            />
+
             {/* Resumo financeiro */}
             <div className="px-7 py-5">
               <h3 className="mb-4 text-[15px] font-bold uppercase text-black">Resumo financeiro</h3>
@@ -277,7 +287,7 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
             )}
           </div>
 
-          {(order.status_logs?.length > 0 || order.refund) && (
+          {(order.status_logs?.length > 0 || order.refund || order.exchanges?.length > 0) && (
             <div className="border-t border-black/10 px-7 py-5">
               <h3 className="mb-5 text-[15px] font-bold uppercase">
                 Histórico do pedido
@@ -287,6 +297,7 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
                 <OrderTimeline
                   logs={order.status_logs}
                   refund={order.refund}
+                  exchanges={order.exchanges}
                   trackingCode={order.tracking_code}
                 />
               </div>
@@ -302,13 +313,14 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
 
 // ─── Order Time Line ──────────────────────────────────────────────────────
 
-function OrderTimeline({ logs = [], refund, trackingCode }) {
+function OrderTimeline({ logs = [], refund, exchanges = [], trackingCode }) {
   const orderedLogs = [
     ...logs.map((log) => ({
       ...log,
       ...(STATUS_MAP[log.new_status] ?? { label: log.new_status, color: 'text-black' }),
     })),
     ...refundTimelineEvents(refund).map((event) => ({ ...event, color: 'text-black' })),
+    ...exchangeTimelineEvents(exchanges).map((event) => ({ ...event, color: 'text-black' })),
   ].sort(
     (a, b) =>
       new Date(a.created_at) - new Date(b.created_at)
@@ -375,8 +387,13 @@ function OrderTimeline({ logs = [], refund, trackingCode }) {
 
 const OrdersPage = () => {
   const [refundFilter, setRefundFilter] = useState('');
+  const [exchangeFilter, setExchangeFilter] = useState('');
+  const listQuery = new URLSearchParams({
+    ...(refundFilter ? { refund_status: refundFilter } : {}),
+    ...(exchangeFilter ? { exchange_status: exchangeFilter } : {}),
+  }).toString();
   const { data: ordersData, loading, error, refetch } = useApi(
-    `/api/orders/admin/${refundFilter ? `?refund_status=${refundFilter}` : ''}`,
+    `/api/orders/admin/${listQuery ? `?${listQuery}` : ''}`,
   );
   const [search, setSearch] = useState('');
   const [actionError, setActionError] = useState(null);
@@ -481,6 +498,11 @@ const OrdersPage = () => {
                       {REFUND_STATUS[order.refund_status].label}
                     </span>
                   )}
+                  {EXCHANGE_STATUS[order.exchange_status] && (
+                    <span className={`mt-2 block w-fit rounded-full px-3 py-1 text-[13px] font-semibold ${EXCHANGE_STATUS[order.exchange_status].color}`}>
+                      {EXCHANGE_STATUS[order.exchange_status].label}
+                    </span>
+                  )}
                 </td>
                 <td className="px-10 py-8 text-right">
                   <ActionMenu
@@ -533,6 +555,19 @@ const OrdersPage = () => {
               <option value="APPROVED">Reembolso: aprovados</option>
               <option value="COMPLETED">Reembolso: concluídos</option>
               <option value="REJECTED">Reembolso: recusados</option>
+            </select>
+
+            <label className="sr-only" htmlFor="exchange-filter">Filtrar por troca</label>
+            <select
+              id="exchange-filter"
+              value={exchangeFilter}
+              onChange={(event) => setExchangeFilter(event.target.value)}
+              className="h-10 rounded-lg border border-black/20 bg-white px-3 text-sm text-black"
+            >
+              <option value="">Troca: todas</option>
+              {Object.entries(EXCHANGE_STATUS).map(([value, { label }]) => (
+                <option key={value} value={value}>{`Troca: ${label.replace(/^Troca /, '').toLowerCase()}`}</option>
+              ))}
             </select>
 
             <ExportButton
