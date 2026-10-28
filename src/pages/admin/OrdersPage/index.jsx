@@ -3,6 +3,11 @@ import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import ExportButton from '../../../components/admin/ExportButton';
+import AdminRefundPanel from '../../../components/refunds/AdminRefundPanel';
+import { REFUND_STATUS, refundTimelineEvents } from '../../../lib/refunds';
+import AdminExchangePanel from '../../../components/exchanges/AdminExchangePanel';
+import { EXCHANGE_STATUS, exchangeTimelineEvents } from '../../../lib/exchanges';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -24,28 +29,11 @@ const PAYMENT_METHOD_MAP = {
 
 // ─── Order Detail Drawer ──────────────────────────────────────────────────────
 
-function OrderDetailDrawer({ id, onError }) {
+function OrderDetailDrawer({ id, onError, onChanged }) {
   const navigate = useNavigate();
   const { data: order, loading, refetch } = useApi(`/api/orders/admin/${id}/`);
 
   const [actionLoading, setActionLoading] = useState(false);
-
-  const [returnConfirmed, setReturnConfirmed] = useState(false);
-  const [returnMessage, setReturnMessage] = useState('');
-  const [returning, setReturning] = useState(false);
-  const confirmReturn = async () => {
-    setReturning(true); setReturnMessage('');
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/admin/${id}/`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken()}` },
-        body: JSON.stringify({ status: order.status, physical_return_confirmed: true }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || data.detail || 'Falha ao registrar retorno.');
-      setReturnMessage('Retorno registrado. Repetir a confirmação não duplica a entrada.');
-      setReturnConfirmed(false); refetch();
-    } catch (e) { setReturnMessage(e.message); } finally { setReturning(false); }
-  };
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const formatCurrency = (v) => `R$ ${parseFloat(v || 0).toFixed(2)}`;
@@ -128,6 +116,8 @@ function OrderDetailDrawer({ id, onError }) {
 
   const getPrimaryAction = () => {
     if (!order) return null;
+    // O backend recusa o envio enquanto o reembolso aguarda análise.
+    if (order.status === 'PREPARING' && order.refund?.status === 'REQUESTED') return null;
 
     switch (order.status) {
       case 'PAID':
@@ -226,11 +216,21 @@ function OrderDetailDrawer({ id, onError }) {
               </div>
             )}
 
-            {(order.status === 'SHIPPED' || order.status === 'DELIVERED' || order.status_logs?.some((log) => ['SHIPPED', 'DELIVERED'].includes(log.new_status))) && <div className="space-y-3 border-b px-7 py-5 text-sm">
-              <label className="flex gap-2"><input type="checkbox" checked={returnConfirmed} onChange={(e) => setReturnConfirmed(e.target.checked)} />Confirmo o recebimento físico de todas as unidades deste pedido.</label>
-              <button disabled={!returnConfirmed || returning} onClick={confirmReturn} className="rounded-lg border p-2 disabled:opacity-40">Repor estoque devolvido</button>
-              {returnMessage && <p role="status">{returnMessage}</p>}
-            </div>}
+            <AdminRefundPanel
+              order={order}
+              onChanged={() => {
+                refetch();
+                onChanged();
+              }}
+            />
+
+            <AdminExchangePanel
+              order={order}
+              onChanged={() => {
+                refetch();
+                onChanged();
+              }}
+            />
 
             {/* Resumo financeiro */}
             <div className="px-7 py-5">
@@ -287,7 +287,7 @@ function OrderDetailDrawer({ id, onError }) {
             )}
           </div>
 
-          {order.status_logs?.length > 0 && (
+          {(order.status_logs?.length > 0 || order.refund || order.exchanges?.length > 0) && (
             <div className="border-t border-black/10 px-7 py-5">
               <h3 className="mb-5 text-[15px] font-bold uppercase">
                 Histórico do pedido
@@ -296,6 +296,8 @@ function OrderDetailDrawer({ id, onError }) {
               <div className="max-h-[33vh] overflow-y-auto pr-2">
                 <OrderTimeline
                   logs={order.status_logs}
+                  refund={order.refund}
+                  exchanges={order.exchanges}
                   trackingCode={order.tracking_code}
                 />
               </div>
@@ -311,8 +313,15 @@ function OrderDetailDrawer({ id, onError }) {
 
 // ─── Order Time Line ──────────────────────────────────────────────────────
 
-function OrderTimeline({ logs = [], trackingCode }) {
-  const orderedLogs = [...logs].sort(
+function OrderTimeline({ logs = [], refund, exchanges = [], trackingCode }) {
+  const orderedLogs = [
+    ...logs.map((log) => ({
+      ...log,
+      ...(STATUS_MAP[log.new_status] ?? { label: log.new_status, color: 'text-black' }),
+    })),
+    ...refundTimelineEvents(refund).map((event) => ({ ...event, color: 'text-black' })),
+    ...exchangeTimelineEvents(exchanges).map((event) => ({ ...event, color: 'text-black' })),
+  ].sort(
     (a, b) =>
       new Date(a.created_at) - new Date(b.created_at)
   );
@@ -320,10 +329,7 @@ function OrderTimeline({ logs = [], trackingCode }) {
   return (
     <div className="space-y-4">
       {orderedLogs.map((log, index) => {
-        const info = STATUS_MAP[log.new_status] ?? {
-          label: log.new_status,
-          color: 'text-black',
-        };
+        const info = log;
 
         return (
           <div
@@ -380,7 +386,15 @@ function OrderTimeline({ logs = [], trackingCode }) {
 // ─── OrdersPage ───────────────────────────────────────────────────────────────
 
 const OrdersPage = () => {
-  const { data: ordersData, loading, error, refetch } = useApi('/api/orders/admin/');
+  const [refundFilter, setRefundFilter] = useState('');
+  const [exchangeFilter, setExchangeFilter] = useState('');
+  const listQuery = new URLSearchParams({
+    ...(refundFilter ? { refund_status: refundFilter } : {}),
+    ...(exchangeFilter ? { exchange_status: exchangeFilter } : {}),
+  }).toString();
+  const { data: ordersData, loading, error, refetch } = useApi(
+    `/api/orders/admin/${listQuery ? `?${listQuery}` : ''}`,
+  );
   const [search, setSearch] = useState('');
   const [actionError, setActionError] = useState(null);
 
@@ -477,7 +491,19 @@ const OrdersPage = () => {
                 <td className="px-10 py-8 text-[20px] text-black/55">
                   R$ {parseFloat(order.total_amount).toFixed(2)}
                 </td>
-                <td className="px-10 py-8">{renderStatus(order.status)}</td>
+                <td className="px-10 py-8">
+                  {renderStatus(order.status)}
+                  {REFUND_STATUS[order.refund_status] && (
+                    <span className={`mt-2 block w-fit rounded-full px-3 py-1 text-[13px] font-semibold ${REFUND_STATUS[order.refund_status].color}`}>
+                      {REFUND_STATUS[order.refund_status].label}
+                    </span>
+                  )}
+                  {EXCHANGE_STATUS[order.exchange_status] && (
+                    <span className={`mt-2 block w-fit rounded-full px-3 py-1 text-[13px] font-semibold ${EXCHANGE_STATUS[order.exchange_status].color}`}>
+                      {EXCHANGE_STATUS[order.exchange_status].label}
+                    </span>
+                  )}
+                </td>
                 <td className="px-10 py-8 text-right">
                   <ActionMenu
                     label={`Ações para o pedido #${order.id}`}
@@ -516,24 +542,61 @@ const OrdersPage = () => {
             />
           </label>
 
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={loading}
-            className="flex h-10 items-center gap-2 rounded-lg bg-black px-4 text-white transition hover:bg-black/85 disabled:opacity-50"
-          >
-            <Icon
-              name="refresh"
-              className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`}
+          <div className="flex items-center gap-3">
+            <label className="sr-only" htmlFor="refund-filter">Filtrar por reembolso</label>
+            <select
+              id="refund-filter"
+              value={refundFilter}
+              onChange={(event) => setRefundFilter(event.target.value)}
+              className="h-10 rounded-lg border border-black/20 bg-white px-3 text-sm text-black"
+            >
+              <option value="">Reembolso: todos</option>
+              <option value="REQUESTED">Reembolso: solicitados</option>
+              <option value="APPROVED">Reembolso: aprovados</option>
+              <option value="COMPLETED">Reembolso: concluídos</option>
+              <option value="REJECTED">Reembolso: recusados</option>
+            </select>
+
+            <label className="sr-only" htmlFor="exchange-filter">Filtrar por troca</label>
+            <select
+              id="exchange-filter"
+              value={exchangeFilter}
+              onChange={(event) => setExchangeFilter(event.target.value)}
+              className="h-10 rounded-lg border border-black/20 bg-white px-3 text-sm text-black"
+            >
+              <option value="">Troca: todas</option>
+              {Object.entries(EXCHANGE_STATUS).map(([value, { label }]) => (
+                <option key={value} value={value}>{`Troca: ${label.replace(/^Troca /, '').toLowerCase()}`}</option>
+              ))}
+            </select>
+
+            <ExportButton
+              endpoint="/api/orders/admin/export/"
+              params={search.trim() ? { search: search.trim() } : {}}
+              fallbackFilename="pedidos"
             />
 
-            {loading ? 'Atualizando...' : 'Atualizar'}
-          </button>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={loading}
+              className="flex h-10 items-center gap-2 rounded-lg bg-black px-4 text-white transition hover:bg-black/85 disabled:opacity-50"
+            >
+              <Icon
+                name="refresh"
+                className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`}
+              />
+
+              {loading ? 'Atualizando...' : 'Atualizar'}
+            </button>
+          </div>
         </div>
         {renderContent()}
       </AdminPanel>
 
-      {selectedId && <OrderDetailDrawer id={selectedId} onError={setActionError} />}
+      {selectedId && (
+        <OrderDetailDrawer id={selectedId} onError={setActionError} onChanged={refetch} />
+      )}
     </div>
   );
 };

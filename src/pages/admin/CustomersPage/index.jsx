@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import ExportButton from '../../../components/admin/ExportButton';
 
 // ─── Customer Profile Drawer ──────────────────────────────────────────────────
 
@@ -100,8 +101,13 @@ function CustomerProfileDrawer({ id }) {
                     <div key={order.id} className="flex items-center justify-between rounded-[8px] border border-black/10 px-4 py-3 text-[13px]">
                       <span className="font-semibold text-black">#{String(order.id).substring(0, 8).toUpperCase()}</span>
                       <span className="text-black/55">{formatDate(order.created_at)}</span>
-                      <span className="text-black/55">{order.status}</span>
-                      <span className="font-semibold">{order.commercial_status === 'REFUNDED' ? '- ' : ''}{formatCurrency(order.total_amount)}</span>
+                      <span className="flex flex-col items-start gap-1 text-black/55">
+                        {order.status}
+                        {order.commercial_status === 'REFUNDED' && (
+                          <span className="rounded-full bg-[#d4f7e2] px-2 py-0.5 text-[11px] text-[#1da64a]">Reembolsado</span>
+                        )}
+                      </span>
+                      <span className="font-semibold">{formatCurrency(order.total_amount)}</span>
                     </div>
                   ))}
                 </div>
@@ -214,8 +220,8 @@ const CustomersPage = () => {
       <AdminTitle title="Clientes" />
 
       <AdminPanel className="overflow-hidden">
-        <div className="p-5">
-          <label className="flex h-12 max-w-[675px] items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
+        <div className="flex items-center justify-between gap-4 p-5">
+          <label className="flex h-12 max-w-[675px] flex-1 items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
             <Icon name="search" className="h-5 w-5" />
             <input
               value={search}
@@ -224,6 +230,12 @@ const CustomersPage = () => {
               placeholder="Buscar por nome ou e-mail..."
             />
           </label>
+
+          <ExportButton
+            endpoint="/api/auth/crm/customers/export/"
+            params={search.trim() ? { search: search.trim() } : {}}
+            fallbackFilename="clientes"
+          />
         </div>
         {renderContent()}
       </AdminPanel>

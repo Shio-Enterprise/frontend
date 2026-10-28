@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { PageMarker, ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
 import ProductReviews from '../../../components/reviews/ProductReviews';
+import SizeGuideTable from '../../../components/product/SizeGuideTable';
 import { getAccessToken } from '../../../lib/authToken';
 import { useCart } from '../../../context/CartContext';
+import {
+  createStockAlert, getPendingStockAlertVariationIds, stockAlertErrorMessage,
+} from '../../../lib/stockAlertsApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -32,7 +36,24 @@ const ProductDetailContent = ({ id }) => {
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [recommendationsError, setRecommendationsError] = useState(false);
+  const [pendingAlertIds, setPendingAlertIds] = useState([]);
+  const [alertSaving, setAlertSaving] = useState(false);
+  const [alertError, setAlertError] = useState(null);
   const { cartItems, setCartData } = useCart();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Mesmo critério do ProtectedRoute: token de acesso válido (o user fica no
+  // localStorage mesmo depois que o token expira).
+  const isLoggedIn = Boolean(getAccessToken());
+
+  useEffect(() => {
+    if (!isLoggedIn) return undefined;
+    let cancelled = false;
+    getPendingStockAlertVariationIds()
+      .then((ids) => { if (!cancelled) setPendingAlertIds(ids.map(String)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!id) return;
@@ -114,6 +135,28 @@ const ProductDetailContent = ({ id }) => {
     }
   }, [selectedVarId, quantity, cartItems, setCartData]);
 
+  const handleStockAlert = async () => {
+    if (!selectedVarId) return;
+    if (!isLoggedIn) {
+      navigate('/login', { state: { from: location } });
+      return;
+    }
+    setAlertSaving(true);
+    setAlertError(null);
+    try {
+      await createStockAlert(selectedVarId);
+      setPendingAlertIds((ids) => [...ids, String(selectedVarId)]);
+    } catch (e) {
+      if (e?.response?.status === 401) {
+        navigate('/login', { state: { from: location } });
+      } else {
+        setAlertError(stockAlertErrorMessage(e));
+      }
+    } finally {
+      setAlertSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <PublicLayout>
@@ -145,6 +188,9 @@ const ProductDetailContent = ({ id }) => {
   // não vendável — drop Rascunho, Programado, Encerrado ou Esgotado (issue
   // #6). Distinto de "Esgotado" (estoque zerado na variação).
   const notSellable = product.is_sellable === false;
+  const variationOutOfStock = Boolean(selectedVariation) && selectedVariation.stock_quantity === 0;
+  const showStockAlert = variationOutOfStock && !notSellable;
+  const alertPending = showStockAlert && pendingAlertIds.includes(String(selectedVarId));
 
   return (
     <PublicLayout>
@@ -214,12 +260,18 @@ const ProductDetailContent = ({ id }) => {
             {/* Size selector */}
             {product.variations?.length > 0 && (
               <div className="border-b border-black/10 py-6">
-                <p className="mb-4 text-[15px] text-black/55">Tamanho e cor</p>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <p className="text-[15px] text-black/55">Tamanho e cor</p>
+                  {product.size_guide && (
+                    <a href="#tabela-de-medidas" className="text-[13px] font-semibold text-black underline">
+                      Tabela de medidas
+                    </a>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-3">
                   {product.variations.map((v) => (
-                    <button key={v.id} onClick={() => setSelectedVarId(v.id)}
-                      disabled={v.stock_quantity === 0}
-                      className={`min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition disabled:opacity-40 ${v.id === selectedVarId ? 'bg-black text-white' : 'bg-[#f0f0f0] text-black/55 hover:bg-black/10'}`}>
+                    <button key={v.id} onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
+                      className={`min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-black/55 hover:bg-black/10 ${v.stock_quantity === 0 ? 'opacity-40' : ''}`}`}>
                       {v.size}{v.color ? ` / ${v.color}` : ''}
                       {v.stock_quantity === 0 && ' (esgotado)'}
                     </button>
@@ -235,7 +287,24 @@ const ProductDetailContent = ({ id }) => {
               </div>
             )}
 
-            {/* Quantity + Add to cart */}
+            {/* Quantity + Add to cart / Avise-me */}
+            {showStockAlert ? (
+              <div className="mt-6">
+                {alertPending ? (
+                  <div className="flex flex-wrap items-center gap-4">
+                    <span className="inline-flex h-12 items-center justify-center rounded-full bg-[#f0f0f0] px-8 text-sm font-medium text-black">Você já será avisado</span>
+                    <Link to="/my-stock-alerts" className="text-sm text-black underline">Ver meus avisos</Link>
+                  </div>
+                ) : (
+                  <button onClick={handleStockAlert} disabled={alertSaving}
+                    className="inline-flex h-12 w-full items-center justify-center rounded-full bg-black text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40">
+                    Avise-me quando chegar
+                  </button>
+                )}
+                {alertError && <p role="alert" className="mt-3 text-sm font-semibold text-[#ff3333]">{alertError}</p>}
+              </div>
+            ) : (
+              <>
             <div className="mt-6 grid gap-4 sm:grid-cols-[160px_1fr]">
               <div className="flex h-12 items-center justify-between rounded-full bg-[#f0f0f0] px-4">
                 <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10">−</button>
@@ -248,6 +317,9 @@ const ProductDetailContent = ({ id }) => {
               </button>
             </div>
 
+              </>
+            )}
+
             {cartMsg && (
               <p className={`mt-3 text-sm font-semibold ${cartMsg.type === 'success' ? 'text-[#10a545]' : 'text-[#ff3333]'}`}>
                 {cartMsg.text}
@@ -255,11 +327,15 @@ const ProductDetailContent = ({ id }) => {
             )}
 
             {product.drop?.name && (
-              <p className="mt-4 text-[14px] text-black/40">Drop: {product.drop.name}</p>
+              <Link to={`/drop/${product.drop.slug}`} className="mt-4 inline-block text-[14px] text-black/40 underline hover:text-black/70">
+                Drop: {product.drop.name}
+              </Link>
             )}
           </div>
         </div>
       </section>
+
+      {product.size_guide && <SizeGuideTable id="tabela-de-medidas" guide={product.size_guide} />}
 
       <ProductReviews productId={product.id} />
 

@@ -1,4 +1,4 @@
-import { pricePayload, toSaoPauloInput } from './productForm';
+import { emptyVariation, pricePayload, toSaoPauloInput } from './productForm';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, it, expect } from 'vitest';
@@ -38,5 +38,39 @@ describe('product fields', () => {
     render(<MarginSummary product={{ cost_price: null, margin_amount: null, margin_percent: null }} />);
     expect(screen.getByText(/Custo não informado/)).toBeInTheDocument();
     expect(screen.getByText(/Margem estimada: Indisponível/)).toBeInTheDocument();
+  });
+});
+
+describe('seletor de tamanhos', () => {
+  function Form() {
+    const [rows, setRows] = useState([emptyVariation()]);
+    return <><VariationFields rows={rows} onChange={setRows} /><output data-testid="payload">{JSON.stringify(rows)}</output></>;
+  }
+  const sizes = () => JSON.parse(screen.getByTestId('payload').textContent).map((r) => r.size);
+
+  it('cria uma linha por tamanho marcado, em ordem, e tira o Único', () => {
+    render(<Form />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'G' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'P' }));
+    expect(sizes()).toEqual(['P', 'G']);
+    expect(screen.getByLabelText('Tamanho 1')).toHaveValue('P');
+    expect(screen.getByText('Tamanhos: P, G')).toBeInTheDocument();
+  });
+
+  it('desmarcar remove as linhas do tamanho e marcar Único limpa os outros', () => {
+    render(<Form />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'M' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'G' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'M' }));
+    expect(sizes()).toEqual(['G']);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Único' }));
+    expect(sizes()).toEqual(['Único']);
+  });
+
+  it('desmarcar o último tamanho volta para Único', () => {
+    render(<Form />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'M' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'M' }));
+    expect(sizes()).toEqual(['Único']);
   });
 });

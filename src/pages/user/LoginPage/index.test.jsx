@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import LoginPage from './index';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -31,6 +31,23 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: /Bem vindo\(a\)/i })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('E-mail')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Senha')).toBeInTheDocument();
+  });
+
+  it('returns to the complete source location, including query and hash', async () => {
+    loginWithPasswordMock.mockResolvedValueOnce({});
+    function LocationProbe() { return <span data-testid="location">{useLocation().pathname}{useLocation().search}{useLocation().hash}</span>; }
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/login', state: { from: { pathname: '/category/shoes', search: '?size=42', hash: '#results' } } }]}>
+        <LoginPage />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('E-mail'), { target: { value: 'a@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Senha'), { target: { value: 'password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/category/shoes?size=42#results'));
   });
 
   it('usa a mesma tela de login ao retornar para uma rota administrativa', async () => {

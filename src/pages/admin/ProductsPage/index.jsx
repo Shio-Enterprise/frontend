@@ -7,6 +7,7 @@ import { Link, useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import ExportButton from '../../../components/admin/ExportButton';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -278,7 +279,7 @@ function ProductEditDrawer({ id, refetchList }) {
 
 const REASON_LABELS = {
   COMPRA: 'Compra', DEVOLUCAO: 'Devolução', AJUSTE: 'Ajuste',
-  PERDA: 'Perda/Avaria', VENDA: 'Venda', OUTRO: 'Outro',
+  PERDA: 'Perda/Avaria', VENDA: 'Venda', OUTRO: 'Outro', TROCA: 'Troca',
 };
 
 function StockManagementDrawer({ id, refetchList }) {
@@ -760,8 +761,8 @@ const ProductsPage = () => {
       )}
 
       <AdminPanel className="overflow-hidden">
-        <div className="p-5">
-          <label className="flex h-12 max-w-[675px] items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
+        <div className="flex items-center justify-between gap-4 p-5">
+          <label className="flex h-12 max-w-[675px] flex-1 items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
             <Icon name="search" className="h-5 w-5" />
             <input
               value={search}
@@ -770,6 +771,12 @@ const ProductsPage = () => {
               placeholder="Buscar produtos..."
             />
           </label>
+
+          <ExportButton
+            endpoint="/api/catalog/inventory/export/"
+            params={search.trim() ? { search: search.trim() } : {}}
+            fallbackFilename="estoque"
+          />
         </div>
         {renderContent()}
       </AdminPanel>

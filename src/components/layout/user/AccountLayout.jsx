@@ -7,6 +7,8 @@ const navItems = [
   { label: 'Meus Dados', to: '/my-account', icon: 'users' },
   { label: 'Meus Pedidos', to: '/my-orders', icon: 'box' },
   { label: 'Endereços', to: '/addresses', icon: 'tag' },
+  { label: 'Favoritos', to: '/my-favorites', icon: 'heart' },
+  { label: 'Avisos', to: '/my-stock-alerts', icon: 'bell' },
 ];
 
 export default function AccountLayout({ children }) {
@@ -45,7 +47,7 @@ export default function AccountLayout({ children }) {
             const active = isActive(item.to);
             return (
               <Link key={item.to} to={item.to}
-                className={`flex flex-1 flex-col items-center gap-1 py-3 text-[11px] font-semibold transition ${active ? 'border-b-2 border-black text-black' : 'text-black/35'
+                className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-3 text-center text-[11px] font-semibold transition ${active ? 'border-b-2 border-black text-black' : 'text-black/35'
                   }`}>
                 <Icon name={item.icon} className="h-5 w-5" />
                 {item.label}
