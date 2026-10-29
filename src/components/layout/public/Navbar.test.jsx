@@ -106,4 +106,16 @@ describe('Navbar', () => {
     );
     expect(screen.getByText(/10% de desconto/i)).toBeInTheDocument();
   });
+
+  it('avisa se o menu do celular está aberto ou fechado', () => {
+    render(
+      <BrowserRouter>
+        <Navbar />
+      </BrowserRouter>
+    );
+    const button = screen.getByRole('button', { name: 'Abrir menu' });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(button);
+    expect(screen.getByRole('button', { name: 'Fechar menu' })).toHaveAttribute('aria-expanded', 'true');
+  });
 });
