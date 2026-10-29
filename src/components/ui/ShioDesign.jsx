@@ -154,7 +154,7 @@ export function ProductCard({ product }) {
 }
 
 export function SectionTitle({ children }) {
-  return <h2 className="text-center text-[32px] font-black uppercase leading-tight text-black md:text-[42px]">{children}</h2>;
+  return <h2 className="text-center text-[26px] font-black uppercase leading-tight text-black sm:text-[32px] md:text-[42px]">{children}</h2>;
 }
 
 export function ViewAllButton({ to = '/category/all' }) {
@@ -287,7 +287,7 @@ export function AdminTitle({ eyebrow, title, action }) {
     <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
       <div>
         {eyebrow && <p className="text-[15px] text-shio-muted">{eyebrow}</p>}
-        <h1 className="mt-2 text-[34px] font-black uppercase leading-tight text-black md:text-[42px]">{title}</h1>
+        <h1 className="mt-2 text-[26px] font-black uppercase leading-tight text-black sm:text-[34px] md:text-[42px]">{title}</h1>
       </div>
       {action}
     </div>
