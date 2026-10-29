@@ -42,10 +42,10 @@ const SignUpPage = () => {
       <PageMarker name="SignUpPage" />
       <section className="w-full max-w-[380px] text-center">
         <img src={logo} alt="Shio Logo" className="mx-auto h-auto w-[190px]" />
-        <p className="mt-1 text-[18px] text-black/50">Crie sua conta</p>
+        <p className="mt-1 text-[18px] text-shio-muted">Crie sua conta</p>
 
         <h1 className="mt-10 text-[34px] font-normal text-black">Bem vindo(a)</h1>
-        <p className="mt-4 text-[18px] text-black/45 mb-8">Cadastre-se para continuar</p>
+        <p className="mt-4 text-[18px] text-shio-muted mb-8">Cadastre-se para continuar</p>
 
         <GoogleLoginButton
           onSuccess={handleGoogleLogin}
@@ -55,7 +55,7 @@ const SignUpPage = () => {
 
         <div className="flex w-full items-center gap-3 my-6">
           <hr className="w-full border-gray-200" />
-          <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">ou</span>
+          <span className="text-[12px] text-shio-muted uppercase tracking-widest font-semibold">ou</span>
           <hr className="w-full border-gray-200" />
         </div>
 
@@ -108,12 +108,12 @@ const SignUpPage = () => {
           </p>
         )}
 
-        <p className="mt-8 text-sm text-black/45">
+        <p className="mt-8 text-sm text-shio-muted">
           Ja tem conta?{' '}
           <Link to="/login" className="font-semibold text-black">Entrar</Link>
         </p>
 
-        <p className="mt-14 text-sm text-black/40">
+        <p className="mt-14 text-sm text-shio-muted">
           Ao continuar voce concorda com nossos Termos de uso e Politica de Privacidade
         </p>
       </section>

@@ -74,14 +74,14 @@ export default function Navbar() {
         </div>
 
         {/* Desktop search bar */}
-        <form onSubmit={handleSearch} className="hidden h-12 max-w-[610px] flex-1 items-center gap-3 rounded-full bg-[#f0f0f0] px-5 text-black/45 lg:flex">
+        <form onSubmit={handleSearch} className="hidden h-12 max-w-[610px] flex-1 items-center gap-3 rounded-full bg-[#f0f0f0] px-5 text-shio-muted lg:flex">
           <Icon name="search" className="h-5 w-5 shrink-0" />
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="O que você está buscando?"
-            className="w-full bg-transparent text-[15px] outline-none placeholder:text-black/35"
+            className="w-full bg-transparent text-[15px] outline-none placeholder:text-shio-placeholder"
           />
         </form>
 
@@ -112,7 +112,7 @@ export default function Navbar() {
           <Link to="/cart" className="relative transition hover:text-black/60" aria-label="Carrinho" data-testid="cart-link">
             <Icon name="cart" className="h-6 w-6" />
             {cartCount > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-black text-[10px] font-bold text-white">
+              <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-[12px] font-bold text-white">
                 {cartCount > 99 ? '99+' : cartCount}
               </span>
             )}
@@ -129,17 +129,17 @@ export default function Navbar() {
       {showSearch && (
         <div className="border-b border-black/10 bg-white px-5 py-3 lg:hidden">
           <form onSubmit={handleSearch} className="flex h-11 items-center gap-3 rounded-full bg-[#f0f0f0] px-5">
-            <Icon name="search" className="h-4 w-4 shrink-0 text-black/45" />
+            <Icon name="search" className="h-4 w-4 shrink-0 text-shio-muted" />
             <input
               autoFocus
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="O que você está buscando?"
-              className="w-full bg-transparent text-[15px] outline-none placeholder:text-black/35"
+              className="w-full bg-transparent text-[15px] outline-none placeholder:text-shio-placeholder"
             />
             {searchQuery && (
-              <button type="button" onClick={() => setSearchQuery('')} className="text-black/40">
+              <button type="button" onClick={() => setSearchQuery('')} className="text-shio-muted">
                 <Icon name="close" className="h-4 w-4" />
               </button>
             )}

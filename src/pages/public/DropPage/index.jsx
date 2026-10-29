@@ -36,7 +36,7 @@ const CountdownUnit = ({ value, label }) => (
     <span className="text-[32px] font-black text-black md:text-[48px]">
       {String(value).padStart(2, '0')}
     </span>
-    <span className="text-[11px] uppercase tracking-widest text-black/50">{label}</span>
+    <span className="text-[12px] uppercase tracking-widest text-shio-muted">{label}</span>
   </div>
 );
 
@@ -138,7 +138,7 @@ const DropPage = () => {
     return (
       <PublicLayout>
         <PageMarker name="DropPage" />
-        <div className="flex min-h-[400px] items-center justify-center text-black/40">
+        <div className="flex min-h-[400px] items-center justify-center text-shio-muted">
           Carregando drop...
         </div>
       </PublicLayout>
@@ -180,7 +180,7 @@ const DropPage = () => {
             </span>
           )}
           {soldOut && (
-            <span className="rounded-full bg-[#ffebeb] px-4 py-1 text-[13px] font-semibold text-[#ff3333]">
+            <span className="rounded-full bg-[#ffebeb] px-4 py-1 text-[13px] font-semibold text-shio-danger">
               Esgotado
             </span>
           )}
@@ -200,7 +200,7 @@ const DropPage = () => {
 
         {phase === 'upcoming' && (
           <div className="mt-8">
-            <p className="mb-3 text-[13px] font-semibold uppercase tracking-widest text-black/50">
+            <p className="mb-3 text-[13px] font-semibold uppercase tracking-widest text-shio-muted">
               Lançamento em
             </p>
             <Countdown target={drop.launch_date} />
@@ -215,7 +215,7 @@ const DropPage = () => {
                   <button
                     onClick={handleLeave}
                     disabled={waitlistLoading}
-                    className="w-fit text-[13px] text-black/50 underline hover:text-black disabled:opacity-50"
+                    className="w-fit text-[13px] text-shio-muted underline hover:text-black disabled:opacity-50"
                   >
                     {waitlistLoading ? 'Saindo...' : 'Sair da lista'}
                   </button>
@@ -237,7 +237,7 @@ const DropPage = () => {
         )}
         {phase === 'live' && drop.end_date && (
           <div className="mt-8">
-            <p className="mb-3 text-[13px] font-semibold uppercase tracking-widest text-black/50">
+            <p className="mb-3 text-[13px] font-semibold uppercase tracking-widest text-shio-muted">
               Termina em
             </p>
             <Countdown target={drop.end_date} />
@@ -251,7 +251,7 @@ const DropPage = () => {
             ))}
           </div>
         ) : (
-          <p className="mt-14 text-[14px] text-black/40">Nenhum produto publicado neste drop ainda.</p>
+          <p className="mt-14 text-[14px] text-shio-muted">Nenhum produto publicado neste drop ainda.</p>
         )}
       </section>
     </PublicLayout>

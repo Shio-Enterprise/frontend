@@ -27,7 +27,7 @@ export default function ReviewSummary({ summary }) {
     <div className="grid gap-8 md:grid-cols-[220px_1fr_1fr]">
       <div>
         <Rating value={summary.rating_avg} />
-        <p className="mt-2 text-[13px] text-black/50">{plural(summary.rating_count)}</p>
+        <p className="mt-2 text-[13px] text-shio-muted">{plural(summary.rating_count)}</p>
       </div>
 
       <ul className="grid gap-2" aria-label="Distribuição das notas">

@@ -17,7 +17,7 @@ const MESSAGE_TITLE = {
 };
 
 function ExchangeCard({ exchange }) {
-  const status = EXCHANGE_STATUS[exchange.status] ?? { label: exchange.status, color: 'bg-black/5 text-black/50' };
+  const status = EXCHANGE_STATUS[exchange.status] ?? { label: exchange.status, color: 'bg-black/5 text-shio-muted' };
   return (
     <div className="space-y-3 text-[14px] text-black/70" data-testid={`exchange-${exchange.id}`}>
       <span className={`inline-block rounded-full px-3 py-1 text-[12px] font-semibold ${status.color}`}>
@@ -33,13 +33,13 @@ function ExchangeCard({ exchange }) {
       )}
       {exchange.review_message && (
         <div className="rounded-[12px] bg-[#f7f7f7] p-3">
-          <p className="text-[12px] font-semibold uppercase text-black/40">
+          <p className="text-[12px] font-semibold uppercase text-shio-muted">
             {MESSAGE_TITLE[exchange.status] ?? 'Mensagem da loja'}
           </p>
           <p className="mt-1 whitespace-pre-line text-black">{exchange.review_message}</p>
         </div>
       )}
-      <p className="text-[13px] text-black/55">
+      <p className="text-[13px] text-shio-muted">
         Motivo informado: {exchange.reason_label}
         {exchange.customer_comment && ` — ${exchange.customer_comment}`}
       </p>
@@ -71,7 +71,7 @@ export default function CustomerExchangePanel({ order, onRequest }) {
         </div>
       ) : (
         eligibility.code !== 'exchange_in_progress' && eligibility.message && (
-          <p className="text-[14px] text-black/55">{eligibility.message}</p>
+          <p className="text-[14px] text-shio-muted">{eligibility.message}</p>
         )
       )}
     </div>

@@ -107,7 +107,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
                 {form.columns.map((column) => (
                   <span key={column.key} className="inline-flex items-center gap-2 rounded-full bg-[#f0f0f0] px-3 py-1 text-sm">
                     {column.label}
-                    <button type="button" aria-label={`Remover ${column.label}`} onClick={() => setForm(removeColumn(form, column.key))} className="text-black/50 hover:text-black">×</button>
+                    <button type="button" aria-label={`Remover ${column.label}`} onClick={() => setForm(removeColumn(form, column.key))} className="text-shio-muted hover:text-black">×</button>
                   </span>
                 ))}
               </div>
@@ -145,7 +145,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
             {form.rows.length > 0 && form.columns.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="border-b text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                  <thead className="border-b text-[12px] font-semibold uppercase tracking-wider text-gray-500">
                     <tr>
                       <th className="py-2 pr-4">Tamanho</th>
                       {form.columns.map((column) => <th key={column.key} className="py-2 pr-4">{column.label} (mín–máx)</th>)}
@@ -236,13 +236,13 @@ export default function SizeGuidesPage() {
         title="Guias de medidas"
         action={<BlackButton onClick={() => setDrawer({ guide: null })}>+ Novo guia</BlackButton>}
       />
-      <p className="-mt-4 mb-6 text-sm text-black/55">A tabela de medidas aparece na página dos produtos das categorias ligadas a cada guia.</p>
+      <p className="-mt-4 mb-6 text-sm text-shio-muted">A tabela de medidas aparece na página dos produtos das categorias ligadas a cada guia.</p>
       {actionError && <p role="alert" className="mb-4 text-sm font-semibold text-red-600">{actionError}</p>}
 
       <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+            <thead className="border-b bg-gray-50 text-[12px] font-semibold uppercase tracking-wider text-gray-500">
               <tr>
                 <th className="px-6 py-4">Guia</th>
                 <th className="px-6 py-4">Tamanhos</th>
@@ -269,7 +269,7 @@ export default function SizeGuidesPage() {
                     ))}
                   </td>
                   <td className="px-6 py-4 text-gray-700">
-                    {guide.category_details.length ? guide.category_details.map((c) => c.name).join(', ') : <span className="text-gray-400">Nenhuma</span>}
+                    {guide.category_details.length ? guide.category_details.map((c) => c.name).join(', ') : <span className="text-shio-muted">Nenhuma</span>}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <ActionMenu

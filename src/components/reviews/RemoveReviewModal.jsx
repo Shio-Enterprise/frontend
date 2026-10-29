@@ -46,7 +46,7 @@ export default function RemoveReviewModal({ review, onClose, onRemoved }) {
         className="w-full max-w-md outline-none rounded-[18px] bg-white p-6"
       >
         <h2 id="remove-review-title" className="text-[20px] font-bold text-black">Remover avaliação</h2>
-        <p className="mt-1 text-[14px] text-black/55">{review.author_name} · {review.product_name}</p>
+        <p className="mt-1 text-[14px] text-shio-muted">{review.author_name} · {review.product_name}</p>
 
         <fieldset className="mt-5 grid gap-2">
           <legend className="mb-2 text-[14px] font-semibold text-black">Motivo</legend>
@@ -75,7 +75,7 @@ export default function RemoveReviewModal({ review, onClose, onRemoved }) {
           onChange={(event) => setNote(event.target.value)}
           className="mt-2 w-full rounded-[12px] border border-black/15 px-4 py-3 text-[14px] text-black outline-none focus:border-black"
         />
-        <p className="mt-1 text-[12px] text-black/45">O cliente verá o motivo e os detalhes.</p>
+        <p className="mt-1 text-[12px] text-shio-muted">O cliente verá o motivo e os detalhes.</p>
 
         {error && <p role="alert" className="mt-3 text-[13px] text-[#cc0000]">{error}</p>}
 
@@ -90,7 +90,7 @@ export default function RemoveReviewModal({ review, onClose, onRemoved }) {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="h-11 whitespace-nowrap rounded-full bg-[#ff3333] px-6 text-sm font-medium text-white transition hover:bg-[#e02020] disabled:opacity-40"
+            className="h-11 whitespace-nowrap rounded-full bg-shio-danger px-6 text-sm font-medium text-white transition hover:bg-shio-danger-hover disabled:opacity-40"
           >
             {submitting ? 'Removendo...' : 'Remover da loja'}
           </button>

@@ -30,7 +30,7 @@ function ProductDetailDrawer({ id }) {
       </div>
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center text-black/40">Carregando...</div>
+        <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
       ) : product ? (
         <>
           <div className="flex-1 overflow-y-auto">
@@ -39,7 +39,7 @@ function ProductDetailDrawer({ id }) {
             </div>
 
             <div className="px-7 py-6">
-              <span className={`inline-block rounded-full px-3 py-1 text-[13px] font-semibold ${product.is_active ? 'bg-[#d4f7e2] text-[#1da64a]' : 'bg-[#f0f0f0] text-black/55'}`}>
+              <span className={`inline-block rounded-full px-3 py-1 text-[13px] font-semibold ${product.is_active ? 'bg-[#d4f7e2] text-shio-success' : 'bg-[#f0f0f0] text-shio-muted'}`}>
                 {product.is_active ? 'Ativo' : 'Rascunho'}
               </span>
               <h3 className="mt-3 text-[22px] font-black leading-tight text-black">{product.name}</h3>
@@ -47,37 +47,37 @@ function ProductDetailDrawer({ id }) {
 
               <div className="mt-5 space-y-3 text-[15px]">
                 <div className="flex justify-between gap-4">
-                  <span className="text-black/55">Drop</span>
+                  <span className="text-shio-muted">Drop</span>
                   <span className="text-right font-medium">{product.drop?.name ?? '—'}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="text-black/55">SKU</span>
+                  <span className="text-shio-muted">SKU</span>
                   <span className="text-right font-medium">{product.variations?.[0]?.sku ?? '—'}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="text-black/55">Preço</span>
+                  <span className="text-shio-muted">Preço</span>
                   <span className="text-right font-medium">R$ {Number(product.effective_price ?? product.base_price).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="text-black/55">Estoque</span>
-                  <span className={`text-right font-semibold ${totalStock > 0 ? 'text-[#00a651]' : 'text-[#ff3333]'}`}>{totalStock} un.</span>
+                  <span className="text-shio-muted">Estoque</span>
+                  <span className={`text-right font-semibold ${totalStock > 0 ? 'text-shio-success' : 'text-shio-danger'}`}>{totalStock} un.</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="text-black/55">Categoria</span>
+                  <span className="text-shio-muted">Categoria</span>
                   <span className="text-right font-medium">{product.category?.name ?? '—'}</span>
                 </div>
               </div>
 
               {product.description && (
                 <div className="mt-6">
-                  <p className="text-[13px] font-semibold uppercase text-black/45">Descrição:</p>
+                  <p className="text-[13px] font-semibold uppercase text-shio-muted">Descrição:</p>
                   <p className="mt-2 text-[15px] leading-relaxed text-black/70">{product.description}</p>
                 </div>
               )}
 
               {product.variations?.length > 0 && (
                 <div className="mt-6">
-                  <p className="text-[13px] font-semibold uppercase text-black/45">Variações:</p>
+                  <p className="text-[13px] font-semibold uppercase text-shio-muted">Variações:</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {product.variations.map((v) => (
                       <span key={v.id} className="flex h-9 min-w-[36px] items-center justify-center rounded-full border border-black/20 px-3 text-[14px] font-medium text-black">
@@ -91,7 +91,7 @@ function ProductDetailDrawer({ id }) {
           </div>
 
           <div className="flex shrink-0 gap-3 border-t border-black/10 p-5">
-            <button onClick={() => navigate('/admin/products')} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black">
+            <button onClick={() => navigate('/admin/products')} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black">
               Fechar
             </button>
             <button onClick={() => navigate(`/admin/edit-product/${id}`)} className="flex h-11 flex-1 items-center justify-center rounded-[8px] bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85">
@@ -100,7 +100,7 @@ function ProductDetailDrawer({ id }) {
           </div>
         </>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-black/40">Produto não encontrado.</div>
+        <div className="flex flex-1 items-center justify-center text-shio-muted">Produto não encontrado.</div>
       )}
     </aside>
   );
@@ -179,7 +179,7 @@ function ProductEditDrawer({ id, refetchList }) {
       </div>
 
       {loading || !form ? (
-        <div className="flex flex-1 items-center justify-center text-black/40">Carregando...</div>
+        <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
       ) : (
         <>
           <div className="flex-1 overflow-y-auto">
@@ -193,13 +193,13 @@ function ProductEditDrawer({ id, refetchList }) {
               <div className="flex items-center justify-between">
                 <span className="text-[15px] font-semibold text-black">Status</span>
                 <div className="flex items-center gap-3">
-                  <span className={`text-[14px] font-semibold ${form.is_active ? 'text-[#1da64a]' : 'text-black/45'}`}>
+                  <span className={`text-[14px] font-semibold ${form.is_active ? 'text-shio-success' : 'text-shio-muted'}`}>
                     {form.is_active ? 'Ativo' : 'Rascunho'}
                   </span>
                   <button
                     type="button"
                     onClick={() => setForm((f) => ({ ...f, is_active: !f.is_active }))}
-                    className={`relative h-6 w-11 rounded-full transition-colors ${form.is_active ? 'bg-[#1da64a]' : 'bg-black/20'}`}
+                    className={`relative h-6 w-11 rounded-full transition-colors ${form.is_active ? 'bg-shio-success' : 'bg-black/20'}`}
                   >
                     <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.is_active ? 'translate-x-5' : 'translate-x-0.5'}`} />
                   </button>
@@ -207,13 +207,13 @@ function ProductEditDrawer({ id, refetchList }) {
               </div>
 
               <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">Nome do produto</span>
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Nome do produto</span>
                 <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   className="mt-2 h-11 w-full rounded-[8px] border border-black/20 px-4 text-[15px] outline-none focus:border-black" />
               </label>
 
               <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">Drop</span>
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Drop</span>
                 <select value={form.drop} onChange={(e) => setForm((f) => ({ ...f, drop: e.target.value }))}
                   className="mt-2 h-11 w-full rounded-[8px] border border-black/20 bg-white px-4 text-[15px] outline-none focus:border-black">
                   <option value="">Sem drop</option>
@@ -222,7 +222,7 @@ function ProductEditDrawer({ id, refetchList }) {
               </label>
 
               <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">Preço original</span>
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Preço original</span>
                 <input type="number" step="0.01" value={form.base_price} onChange={(e) => setForm((f) => ({ ...f, base_price: e.target.value }))}
                   className="mt-2 h-11 w-full rounded-[8px] border border-black/20 px-4 text-[15px] outline-none focus:border-black" />
               </label>
@@ -230,7 +230,7 @@ function ProductEditDrawer({ id, refetchList }) {
               <ProductPriceFields form={form} onChange={setForm} />
 
               <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">Categoria</span>
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Categoria</span>
                 <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                   className="mt-2 h-11 w-full rounded-[8px] border border-black/20 bg-white px-4 text-[15px] outline-none focus:border-black">
                   <option value="">Sem categoria</option>
@@ -239,14 +239,14 @@ function ProductEditDrawer({ id, refetchList }) {
               </label>
 
               <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">Descrição</span>
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Descrição</span>
                 <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={4}
                   className="mt-2 w-full rounded-[8px] border border-black/20 px-4 py-3 text-[15px] outline-none focus:border-black resize-none" />
               </label>
 
               {product?.variations?.length > 0 && (
                 <div>
-                  <span className="text-[13px] font-semibold uppercase text-black/45">Variações</span>
+                  <span className="text-[13px] font-semibold uppercase text-shio-muted">Variações</span>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {product.variations.map((v) => (
                       <span key={v.id} className="flex h-9 min-w-[36px] items-center justify-center rounded-full border border-black/20 px-3 text-[14px] font-medium">
@@ -257,12 +257,12 @@ function ProductEditDrawer({ id, refetchList }) {
                 </div>
               )}
 
-              {saveError && <p className="text-sm font-semibold text-red-500">{saveError}</p>}
+              {saveError && <p className="text-sm font-semibold text-shio-danger">{saveError}</p>}
             </div>
           </div>
 
           <div className="flex shrink-0 gap-3 border-t border-black/10 p-5">
-            <button onClick={() => navigate(`/admin/products/${id}`)} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black">
+            <button onClick={() => navigate(`/admin/products/${id}`)} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black">
               Cancelar
             </button>
             <button onClick={handleSave} disabled={saving} className="flex h-11 flex-1 items-center justify-center rounded-[8px] bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85 disabled:bg-black/40">
@@ -389,7 +389,7 @@ function StockManagementDrawer({ id, refetchList }) {
       </div>
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center text-black/40">Carregando...</div>
+        <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
       ) : product ? (
         <>
           <div className="flex-1 overflow-y-auto">
@@ -404,19 +404,19 @@ function StockManagementDrawer({ id, refetchList }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-bold text-black">{product.name}</p>
                 {product.variations?.[0]?.sku && (
-                  <p className="text-[13px] text-black/45">{product.variations[0].sku}</p>
+                  <p className="text-[13px] text-shio-muted">{product.variations[0].sku}</p>
                 )}
               </div>
-              <span className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ${product.is_active ? 'bg-[#d4f7e2] text-[#1da64a]' : 'bg-[#f0f0f0] text-black/45'}`}>
+              <span className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ${product.is_active ? 'bg-[#d4f7e2] text-shio-success' : 'bg-[#f0f0f0] text-shio-muted'}`}>
                 {product.is_active ? 'Ativo' : 'Rascunho'}
               </span>
             </div>
 
             {/* Total stock */}
             <div className="flex items-center justify-between border-b border-black/10 px-7 py-4">
-              <span className="text-[14px] text-black/55">Estoque total</span>
-              <span className={`text-[22px] font-black ${totalStock > 0 ? 'text-black' : 'text-[#ff3333]'}`}>
-                {totalStock} <span className="text-[14px] font-semibold text-black/45">un.</span>
+              <span className="text-[14px] text-shio-muted">Estoque total</span>
+              <span className={`text-[22px] font-black ${totalStock > 0 ? 'text-black' : 'text-shio-danger'}`}>
+                {totalStock} <span className="text-[14px] font-semibold text-shio-muted">un.</span>
               </span>
             </div>
 
@@ -424,11 +424,11 @@ function StockManagementDrawer({ id, refetchList }) {
 
             {product.variations?.length > 0 && (
             <div className="space-y-4 border-b border-black/10 px-7 py-5">
-              <p className="text-[13px] font-bold uppercase text-black/45">Nova movimentação</p>
+              <p className="text-[13px] font-bold uppercase text-shio-muted">Nova movimentação</p>
 
               {product.variations?.length > 1 && (
                 <label className="block">
-                  <span className="text-[13px] font-semibold uppercase text-black/45">Variação</span>
+                  <span className="text-[13px] font-semibold uppercase text-shio-muted">Variação</span>
                   <select value={selectedVarId ?? product.variations[0].id} onChange={(e) => setSelectedVarId(e.target.value)}
                     className="mt-2 h-11 w-full rounded-[8px] border border-black/20 bg-white px-4 text-[15px] outline-none focus:border-black">
                     {product.variations.map((v) => (
@@ -439,35 +439,35 @@ function StockManagementDrawer({ id, refetchList }) {
               )}
               {product.variations?.length === 1 && (
                 <div className="flex items-center justify-between rounded-[8px] bg-[#f9f9f9] px-4 py-3 text-[14px]">
-                  <span className="text-black/55">Variação</span>
+                  <span className="text-shio-muted">Variação</span>
                   <span className="font-semibold">{product.variations[0].size} — {product.variations[0].stock_quantity ?? 0} un. em estoque</span>
                 </div>
               )}
 
               {/* ENTRADA / SAÍDA toggle */}
               <div>
-                <span className="text-[13px] font-semibold uppercase text-black/45">Tipo</span>
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Tipo</span>
                 <div className="mt-2 flex overflow-hidden rounded-[8px] border border-black/20">
                   <button type="button" onClick={() => { setKind('ENTRADA'); setReason('COMPRA'); }}
-                    className={`flex h-10 flex-1 items-center justify-center text-[14px] font-bold uppercase transition ${kind === 'ENTRADA' ? 'bg-[#1da64a] text-white' : 'bg-white text-black/55 hover:bg-[#f0f0f0]'}`}>
+                    className={`flex h-10 flex-1 items-center justify-center text-[14px] font-bold uppercase transition ${kind === 'ENTRADA' ? 'bg-shio-success text-white' : 'bg-white text-shio-muted hover:bg-[#f0f0f0]'}`}>
                     + Entrada
                   </button>
                   <button type="button" onClick={() => { setKind('SAIDA'); setReason('AJUSTE'); }}
-                    className={`flex h-10 flex-1 items-center justify-center text-[14px] font-bold uppercase transition ${kind === 'SAIDA' ? 'bg-[#ff3333] text-white' : 'bg-white text-black/55 hover:bg-[#f0f0f0]'}`}>
+                    className={`flex h-10 flex-1 items-center justify-center text-[14px] font-bold uppercase transition ${kind === 'SAIDA' ? 'bg-shio-danger text-white' : 'bg-white text-shio-muted hover:bg-[#f0f0f0]'}`}>
                     − Saída
                   </button>
                 </div>
               </div>
 
               <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">Quantidade</span>
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Quantidade</span>
                 <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)}
                   placeholder="0"
                   className="mt-2 h-11 w-full rounded-[8px] border border-black/20 px-4 text-[15px] outline-none focus:border-black" />
               </label>
 
               <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">Motivo</span>
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Motivo</span>
                 <select value={reason} onChange={(e) => setReason(e.target.value)}
                   className="mt-2 h-11 w-full rounded-[8px] border border-black/20 bg-white px-4 text-[15px] outline-none focus:border-black">
                   {reasons.map((r) => <option key={r} value={r}>{REASON_LABELS[r]}</option>)}
@@ -476,27 +476,27 @@ function StockManagementDrawer({ id, refetchList }) {
 
               {reversesMovement && <p className="text-sm">Compensação selecionada. <button type="button" className="underline" onClick={() => setReversesMovement(null)}>Cancelar compensação</button></p>}
               <label className="block">Justificativa obrigatória<textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-2 w-full rounded-lg border p-3" /></label>
-              {error && <p className="text-sm font-semibold text-red-500">{error}</p>}
+              {error && <p className="text-sm font-semibold text-shio-danger">{error}</p>}
             </div>
             )}
 
             {/* Per-variation stock table */}
             {product.variations?.length > 1 && (
               <div className="border-b border-black/10 px-7 py-5">
-                <p className="mb-3 text-[13px] font-bold uppercase text-black/45">Estoque por variação</p>
+                <p className="mb-3 text-[13px] font-bold uppercase text-shio-muted">Estoque por variação</p>
                 <div className="overflow-hidden rounded-[8px] border border-black/10">
                   <table className="min-w-full text-[14px]">
                     <thead className="bg-[#f0f0f0]">
                       <tr>
-                        <th className="px-4 py-2 text-left font-semibold text-black/55">Variação</th>
-                        <th className="px-4 py-2 text-right font-semibold text-black/55">Estoque</th>
+                        <th className="px-4 py-2 text-left font-semibold text-shio-muted">Variação</th>
+                        <th className="px-4 py-2 text-right font-semibold text-shio-muted">Estoque</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-black/10">
                       {product.variations.map((v) => (
                         <tr key={v.id} className={v.id === selectedVarId ? 'bg-[#f9f9f9]' : ''}>
                           <td className="px-4 py-2.5 font-medium text-black">{v.size} / {v.color || 'Sem cor'}</td>
-                          <td className={`px-4 py-2.5 text-right font-semibold ${(v.stock_quantity || 0) > 0 ? 'text-[#00a651]' : 'text-[#ff3333]'}`}>
+                          <td className={`px-4 py-2.5 text-right font-semibold ${(v.stock_quantity || 0) > 0 ? 'text-shio-success' : 'text-shio-danger'}`}>
                             {v.stock_quantity ?? 0} un.
                           </td>
                         </tr>
@@ -509,30 +509,30 @@ function StockManagementDrawer({ id, refetchList }) {
 
             {/* Recent movements */}
             <div className="px-7 py-5">
-              <p className="mb-3 text-[13px] font-bold uppercase text-black/45">Histórico recente</p>
+              <p className="mb-3 text-[13px] font-bold uppercase text-shio-muted">Histórico recente</p>
               {openingBalance && <p className="mb-3 text-sm">Saldo de abertura da auditoria: {openingBalance.balance} un. — {formatDate(openingBalance.created_at)}</p>}
               {movementsLoading ? (
-                <p className="text-[13px] text-black/40">Carregando...</p>
+                <p className="text-[13px] text-shio-muted">Carregando...</p>
               ) : movements.length > 0 ? (
                 <div className="space-y-2">
                   {movements.map((m) => (
                     <div key={m.id} className="flex items-center justify-between rounded-[8px] border border-black/10 px-4 py-3 text-[13px]">
                       <div>
-                        <span className={`font-bold ${m.kind === 'ENTRADA' ? 'text-[#1da64a]' : 'text-[#ff3333]'}`}>
+                        <span className={`font-bold ${m.kind === 'ENTRADA' ? 'text-shio-success' : 'text-shio-danger'}`}>
                           {m.kind === 'ENTRADA' ? '+' : '−'}{m.quantity} un.
                         </span>
-                        <span className="ml-2 text-black/45">{REASON_LABELS[m.reason] ?? m.reason}</span>
+                        <span className="ml-2 text-shio-muted">{REASON_LABELS[m.reason] ?? m.reason}</span>
                         <p>Saldo: {m.balance_after == null ? 'Saldo histórico indisponível' : `${m.balance_after} un.`}</p>
                         <p className="break-all text-xs">Origem: {m.origin_type} — {m.origin_id}</p>
                         {m.note && <p>{m.note}</p>}
                         {!m.is_legacy && <button type="button" className="mt-1 underline" onClick={() => { setReversesMovement(m.id); setKind(m.kind === 'ENTRADA' ? 'SAIDA' : 'ENTRADA'); setReason('AJUSTE'); setQuantity(String(m.quantity)); setNote(`Compensação: ${m.note || m.reason}`); }}>Compensar movimento</button>}
                       </div>
-                      <span className="text-black/35">{formatDate(m.created_at)}</span>
+                      <span className="text-shio-muted">{formatDate(m.created_at)}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-[13px] text-black/40">Nenhuma movimentação registrada.</p>
+                <p className="text-[13px] text-shio-muted">Nenhuma movimentação registrada.</p>
               )}
               {nextMovements && <button type="button" className="mt-3 underline" onClick={async () => {
                 try {
@@ -546,7 +546,7 @@ function StockManagementDrawer({ id, refetchList }) {
 
           <div className="flex shrink-0 gap-3 border-t border-black/10 p-5">
             <button onClick={() => navigate('/admin/products')}
-              className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black">
+              className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black">
               Cancelar
             </button>
             <button onClick={handleSave} disabled={saving || !product?.variations?.length}
@@ -556,7 +556,7 @@ function StockManagementDrawer({ id, refetchList }) {
           </div>
         </>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-black/40">Produto não encontrado.</div>
+        <div className="flex flex-1 items-center justify-center text-shio-muted">Produto não encontrado.</div>
       )}
     </aside>
   );
@@ -665,9 +665,9 @@ const ProductsPage = () => {
   };
 
   const renderContent = () => {
-    if (loading) return <div className="p-10 text-center text-black/55">Carregando produtos...</div>;
+    if (loading) return <div className="p-10 text-center text-shio-muted">Carregando produtos...</div>;
     if (error) return (
-      <div className="p-10 text-center text-red-500">
+      <div className="p-10 text-center text-shio-danger">
         <p className="font-semibold">Erro ao carregar produtos.</p>
         <p className="mt-1 text-sm text-red-400">{error?.message}</p>
         <button onClick={refetch} className="mt-3 text-sm underline">Tentar novamente</button>
@@ -681,12 +681,12 @@ const ProductsPage = () => {
       ? allProducts.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
       : allProducts;
 
-    if (products.length === 0) return <div className="p-10 text-center text-black/55">Nenhum produto encontrado.</div>;
+    if (products.length === 0) return <div className="p-10 text-center text-shio-muted">Nenhum produto encontrado.</div>;
 
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full text-left">
-          <thead className="bg-[#f0f0f0] text-[14px] text-black/55 md:text-[20px]">
+          <thead className="bg-[#f0f0f0] text-[14px] text-shio-muted md:text-[20px]">
             <tr>
               <th className="px-4 py-4 font-normal md:px-10 md:py-6">Produto</th>
               <th className="px-4 py-4 font-normal md:px-10 md:py-6">Drop</th>
@@ -712,11 +712,11 @@ const ProductsPage = () => {
                     <span className="text-[13px] font-semibold text-black md:text-[20px]">{product.name}</span>
                   </div>
                 </td>
-                <td className="px-4 py-4 text-[13px] text-black/55 md:px-10 md:py-7 md:text-[20px]">
+                <td className="px-4 py-4 text-[13px] text-shio-muted md:px-10 md:py-7 md:text-[20px]">
                   {product.drop ? (dropsMap[product.drop] ?? product.drop?.name ?? 'Carregando...') : 'Sem drop'}
                 </td>
-                <td className="px-4 py-4 text-[13px] text-black/55 md:px-10 md:py-7 md:text-[20px]">{formatPrice(product)}<MarginSummary product={product} /></td>
-                <td className={`px-4 py-4 text-[13px] font-semibold md:px-10 md:py-7 md:text-[20px] ${getStock(product) > 0 ? 'text-[#00a651]' : 'text-[#ff3333]'}`}>
+                <td className="px-4 py-4 text-[13px] text-shio-muted md:px-10 md:py-7 md:text-[20px]">{formatPrice(product)}<MarginSummary product={product} /></td>
+                <td className={`px-4 py-4 text-[13px] font-semibold md:px-10 md:py-7 md:text-[20px] ${getStock(product) > 0 ? 'text-shio-success' : 'text-shio-danger'}`}>
                   {getStock(product)} UN.
                 </td>
                 <td className="px-4 py-4 text-right md:px-10 md:py-7">
@@ -762,12 +762,12 @@ const ProductsPage = () => {
 
       <AdminPanel className="overflow-hidden">
         <div className="flex items-center justify-between gap-4 p-5">
-          <label className="flex h-12 max-w-[675px] flex-1 items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
+          <label className="flex h-12 max-w-[675px] flex-1 items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
             <Icon name="search" className="h-5 w-5" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent text-[20px] outline-none placeholder:text-black/35"
+              className="w-full bg-transparent text-[20px] outline-none placeholder:text-shio-placeholder"
               placeholder="Buscar produtos..."
             />
           </label>
@@ -791,7 +791,7 @@ const ProductsPage = () => {
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setDeleteTarget(null)} />
           <div className="fixed inset-x-4 top-1/2 z-50 -translate-y-1/2 rounded-[18px] border border-black/10 bg-white p-6 shadow-xl md:inset-x-auto md:right-6 md:top-6 md:w-full md:max-w-[420px] md:translate-y-0">
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-[13px] font-bold uppercase tracking-widest text-black/40">Excluir produto</p>
+              <p className="text-[13px] font-bold uppercase tracking-widest text-shio-muted">Excluir produto</p>
               <button onClick={() => setDeleteTarget(null)} className="rounded-full p-1 transition hover:bg-black/5">
                 <Icon name="close" className="h-5 w-5" />
               </button>
@@ -807,7 +807,7 @@ const ProductsPage = () => {
               )}
               <div className="min-w-0">
                 <p className="truncate text-[16px] font-bold text-black">{deleteTarget.name}</p>
-                <p className="text-[14px] text-black/50">{formatPrice(deleteTarget)}</p>
+                <p className="text-[14px] text-shio-muted">{formatPrice(deleteTarget)}</p>
               </div>
             </div>
 
@@ -822,7 +822,7 @@ const ProductsPage = () => {
                 Cancelar
               </button>
               <button onClick={handleDelete} disabled={deleting}
-                className="h-12 rounded-full bg-[#ff3333] text-sm font-bold uppercase text-white transition hover:bg-[#cc0000] disabled:opacity-50">
+                className="h-12 rounded-full bg-shio-danger text-sm font-bold uppercase text-white transition hover:bg-shio-danger-hover disabled:opacity-50">
                 {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
@@ -847,7 +847,7 @@ const ProductsPage = () => {
             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
               {/* Original product card */}
               <div>
-                <p className="mb-3 text-[12px] font-bold uppercase tracking-widest text-black/40">Produto original</p>
+                <p className="mb-3 text-[12px] font-bold uppercase tracking-widest text-shio-muted">Produto original</p>
                 <div className="flex items-center gap-4 rounded-[12px] border border-black/10 p-4">
                   {getProductImage(duplicateTarget) ? (
                     <img src={getProductImage(duplicateTarget)} alt={duplicateTarget.name}
@@ -857,7 +857,7 @@ const ProductsPage = () => {
                   )}
                   <div className="min-w-0">
                     <p className="truncate text-[15px] font-bold text-black">{duplicateTarget.name}</p>
-                    <p className="text-[13px] text-black/50">
+                    <p className="text-[13px] text-shio-muted">
                       {duplicateTarget.drop ? (dropsMap[duplicateTarget.drop] ?? duplicateTarget.drop?.name ?? '') : ''}
                     </p>
                     <p className="text-[14px] font-semibold text-black">{formatPrice(duplicateTarget)}</p>
@@ -866,7 +866,7 @@ const ProductsPage = () => {
               </div>
 
               <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-black/45">Nome do produto</span>
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Nome do produto</span>
                 <input
                   type="text"
                   value={duplicateForm.name}
@@ -883,7 +883,7 @@ const ProductsPage = () => {
               {actionError && <p role="alert" className="text-red-600">{actionError}</p>}
 
 
-              <p className="text-[12px] text-black/45">
+              <p className="text-[12px] text-shio-muted">
                 Uma cópia do produto será então criada com os mesmos dados do original.
               </p>
             </div>

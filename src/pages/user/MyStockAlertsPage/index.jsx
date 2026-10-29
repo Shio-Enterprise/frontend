@@ -52,12 +52,12 @@ export default function MyStockAlertsPage() {
           <button type="button" onClick={() => setAttempt((value) => value + 1)} className="mt-4 rounded-full border border-black px-5 py-2">Tentar novamente</button>
         </div>
       ) : null}
-      {loading && <p role="status" className="py-6 text-center text-black/50">Carregando avisos...</p>}
-      {cancelError ? <p role="alert" className="mt-4 text-sm text-[#ff3333]">{cancelError}</p> : null}
+      {loading && <p role="status" className="py-6 text-center text-shio-muted">Carregando avisos...</p>}
+      {cancelError ? <p role="alert" className="mt-4 text-sm text-shio-danger">{cancelError}</p> : null}
       {!loading && !error && alerts.length === 0 ? (
         <div className="mt-8 rounded-[18px] border border-black/15 px-6 py-16 text-center">
           <h2 className="text-xl font-bold">Você não tem avisos</h2>
-          <p className="mt-2 text-sm text-black/50">Quando um tamanho esgotado voltar ao estoque, avisamos você por e-mail. Toque em &quot;Avise-me quando chegar&quot; na página do produto.</p>
+          <p className="mt-2 text-sm text-shio-muted">Quando um tamanho esgotado voltar ao estoque, avisamos você por e-mail. Toque em &quot;Avise-me quando chegar&quot; na página do produto.</p>
           <Link to="/category/all" className="mt-6 inline-flex rounded-full bg-black px-6 py-3 text-sm font-semibold text-white">Explorar produtos</Link>
         </div>
       ) : null}

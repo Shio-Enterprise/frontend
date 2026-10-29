@@ -21,14 +21,14 @@ export default function SizeGuideTable({ guide, id }) {
   return (
     <section id={id} aria-labelledby="size-guide-title" className="mx-auto max-w-[1240px] scroll-mt-24 border-t border-black/10 px-6 py-16">
       <h2 id="size-guide-title" className="text-[28px] font-black text-black">Tabela de medidas</h2>
-      <p className="mt-2 text-[14px] text-black/55">Medidas do corpo, em centímetros. Entre dois tamanhos, escolha o maior.</p>
+      <p className="mt-2 text-[14px] text-shio-muted">Medidas do corpo, em centímetros. Entre dois tamanhos, escolha o maior.</p>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_360px]">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[15px]">
             <caption className="sr-only">Medidas do corpo em centímetros por tamanho</caption>
             <thead>
-              <tr className="border-b border-black/10 text-black/55">
+              <tr className="border-b border-black/10 text-shio-muted">
                 <th scope="col" className="py-3 pr-6 font-medium">Tamanho</th>
                 {guide.columns.map((column) => (
                   <th key={column.key} scope="col" className="py-3 pr-6 font-medium">{column.label} (cm)</th>
@@ -50,7 +50,7 @@ export default function SizeGuideTable({ guide, id }) {
 
         <div className="rounded-[18px] bg-[#f0f0f0] p-6">
           <h3 className="text-[16px] font-semibold text-black">Descubra seu tamanho</h3>
-          <label className="mt-4 block text-[13px] text-black/55">
+          <label className="mt-4 block text-[13px] text-shio-muted">
             Medida
             <select
               value={measureKey}
@@ -62,7 +62,7 @@ export default function SizeGuideTable({ guide, id }) {
               ))}
             </select>
           </label>
-          <label className="mt-3 block text-[13px] text-black/55">
+          <label className="mt-3 block text-[13px] text-shio-muted">
             Sua medida (cm)
             <input
               type="number"
@@ -78,7 +78,7 @@ export default function SizeGuideTable({ guide, id }) {
             {result ? resultText(result) : ''}
           </p>
           {HOW_TO_MEASURE[measureKey] && (
-            <p className="mt-1 text-[13px] text-black/55">Como medir: {HOW_TO_MEASURE[measureKey]}</p>
+            <p className="mt-1 text-[13px] text-shio-muted">Como medir: {HOW_TO_MEASURE[measureKey]}</p>
           )}
         </div>
       </div>

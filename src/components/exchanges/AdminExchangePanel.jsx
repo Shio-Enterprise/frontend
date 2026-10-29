@@ -76,7 +76,7 @@ function MessageModal({ order, mode, onClose, onDone }) {
       danger={config.danger}
       submitLabel={submitting ? 'Salvando...' : config.submit}
     >
-      {config.hint && <p className="mt-2 text-[13px] text-black/55">{config.hint}</p>}
+      {config.hint && <p className="mt-2 text-[13px] text-shio-muted">{config.hint}</p>}
       <label htmlFor="exchange-message" className="mt-4 block text-[14px] font-semibold text-black">
         {config.label}
       </label>
@@ -89,7 +89,7 @@ function MessageModal({ order, mode, onClose, onDone }) {
         placeholder={config.placeholder ?? ''}
         className={inputClass}
       />
-      <p className="mt-1 text-[12px] text-black/45">O cliente verá esta mensagem.</p>
+      <p className="mt-1 text-[12px] text-shio-muted">O cliente verá esta mensagem.</p>
     </AdminModal>
   );
 }
@@ -128,7 +128,7 @@ function ReceiveModal({ order, exchange, onClose, onDone }) {
       canSubmit={canSubmit}
       submitLabel={submitting ? 'Salvando...' : 'Confirmar'}
     >
-      <p className="mt-2 text-[13px] text-black/55">
+      <p className="mt-2 text-[13px] text-shio-muted">
         A peça devolvida entra no estoque. Se tiver avaria, sai em seguida como perda.
       </p>
       {exchange.items.map((item) => (
@@ -157,7 +157,7 @@ function ReceiveModal({ order, exchange, onClose, onDone }) {
         onChange={(event) => setNote(event.target.value)}
         className={inputClass}
       />
-      <p className="mt-1 text-[12px] text-black/45">Visível só para administradores.</p>
+      <p className="mt-1 text-[12px] text-shio-muted">Visível só para administradores.</p>
     </AdminModal>
   );
 }
@@ -202,7 +202,7 @@ function CompleteModal({ order, onClose, onDone }) {
         onChange={(event) => setTracking(event.target.value)}
         className={inputClass}
       />
-      <p className="mt-1 text-[12px] text-black/45">O cliente recebe o código por e-mail.</p>
+      <p className="mt-1 text-[12px] text-shio-muted">O cliente recebe o código por e-mail.</p>
     </AdminModal>
   );
 }
@@ -210,7 +210,7 @@ function CompleteModal({ order, onClose, onDone }) {
 function Row({ label, children }) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="shrink-0 text-black/55">{label}</span>
+      <span className="shrink-0 text-shio-muted">{label}</span>
       <span className="text-right font-medium">{children}</span>
     </div>
   );
@@ -277,7 +277,7 @@ export default function AdminExchangePanel({ order, onChanged }) {
           {current.status === 'REQUESTED' && (
             <>
               <button type="button" className={buttonClass} onClick={() => setModal('approve')}>Aprovar</button>
-              <button type="button" className={`${buttonClass} text-[#ff3333]`} onClick={() => setModal('reject')}>Recusar</button>
+              <button type="button" className={`${buttonClass} text-shio-danger`} onClick={() => setModal('reject')}>Recusar</button>
             </>
           )}
           {current.status === 'APPROVED' && (
@@ -287,7 +287,7 @@ export default function AdminExchangePanel({ order, onChanged }) {
             <button type="button" className={buttonClass} onClick={() => setModal('complete')}>Registrar envio</button>
           )}
           {['REQUESTED', 'APPROVED'].includes(current.status) && (
-            <button type="button" className={`${buttonClass} text-[#ff3333]`} onClick={() => setModal('cancel')}>Cancelar troca</button>
+            <button type="button" className={`${buttonClass} text-shio-danger`} onClick={() => setModal('cancel')}>Cancelar troca</button>
           )}
         </div>
       )}
