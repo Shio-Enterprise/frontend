@@ -35,7 +35,7 @@ export default function Navbar() {
               Cadastre-se agora
             </Link>
           </p>
-          <button onClick={() => setShowBanner(false)} className="absolute right-5 top-1/2 -translate-y-1/2 cursor-pointer text-white" aria-label="Fechar promoção">
+          <button onClick={() => setShowBanner(false)} className="absolute right-2 top-1/2 flex h-9 w-11 -translate-y-1/2 cursor-pointer items-center justify-center text-white" aria-label="Fechar promoção">
             <Icon name="close" className="h-5 w-5" />
           </button>
         </div>
@@ -48,9 +48,10 @@ export default function Navbar() {
         <div className="flex items-center gap-2 lg:gap-10">
           {/* Hamburger / X — mobile only */}
           <button
-            className="lg:hidden"
+            className="-ml-2.5 flex h-11 w-11 items-center justify-center lg:hidden"
             onClick={() => setIsMenuOpen((v) => !v)}
             aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={isMenuOpen}
           >
             <Icon name={isMenuOpen ? 'close' : 'menu'} className="h-6 w-6" />
           </button>
@@ -86,11 +87,11 @@ export default function Navbar() {
         </form>
 
         {/* Right icons */}
-        <div className="flex items-center gap-4">
+        <div className="-mr-2.5 flex items-center lg:gap-1">
           {isAdmin && (
             <Link
               to={adminHomePath || "/admin/dashboard"}
-              className="hidden h-10 items-center gap-2 rounded-full border border-black/20 px-4 text-[13px] font-semibold transition hover:bg-black hover:text-white lg:flex"
+              className="hidden h-10 items-center gap-2 rounded-full border border-black/20 px-4 text-[13px] font-semibold transition hover:bg-black hover:text-white lg:mr-3 lg:flex"
               aria-label="Painel administrativo"
               data-testid="admin-panel-link"
             >
@@ -101,7 +102,7 @@ export default function Navbar() {
 
           {/* Search icon — mobile only */}
           <button
-            className="lg:hidden"
+            className="flex h-11 w-11 items-center justify-center lg:hidden"
             onClick={() => { setShowSearch((v) => !v); setIsMenuOpen(false); }}
             aria-label="Buscar"
           >
@@ -109,17 +110,17 @@ export default function Navbar() {
           </button>
 
           {/* Cart */}
-          <Link to="/cart" className="relative transition hover:text-black/60" aria-label="Carrinho" data-testid="cart-link">
+          <Link to="/cart" className="relative flex h-11 w-11 items-center justify-center transition hover:text-black/60" aria-label="Carrinho" data-testid="cart-link">
             <Icon name="cart" className="h-6 w-6" />
             {cartCount > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-[12px] font-bold text-white">
+              <span className="absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-[12px] font-bold text-white">
                 {cartCount > 99 ? '99+' : cartCount}
               </span>
             )}
           </Link>
 
           {/* User */}
-          <Link to="/my-account" className="transition hover:text-black/60" aria-label="Minha conta" data-testid="my-account-link">
+          <Link to="/my-account" className="flex h-11 w-11 items-center justify-center transition hover:text-black/60" aria-label="Minha conta" data-testid="my-account-link">
             <Icon name="user" className="h-6 w-6" />
           </Link>
         </div>

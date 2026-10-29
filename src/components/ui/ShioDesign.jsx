@@ -222,6 +222,7 @@ export function NewsletterBand() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Digite seu e-mail"
+                aria-label="E-mail para receber novidades"
                 className="w-full bg-transparent text-sm text-black outline-none placeholder:text-shio-placeholder"
               />
             </label>
