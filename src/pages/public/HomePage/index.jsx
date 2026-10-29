@@ -33,6 +33,8 @@ function HeroCarousel() {
   const next = useCallback(() => setCurrent((c) => (c + 1) % SLIDES.length), []);
 
   useEffect(() => {
+    // Quem pede menos movimento no sistema troca os slides só pelas setas.
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
     const id = setInterval(next, 5000);
     return () => clearInterval(id);
   }, [next]);
@@ -118,9 +120,9 @@ const HomePage = () => {
   const bestSellers = useHomeProducts('-sales_count');
 
   const renderGrid = ({ items, loading, error }) => {
-    if (loading) return <div className="mt-10 text-center text-[18px] text-black/40">Carregando...</div>;
-    if (error) return <div role="alert" className="mt-10 text-center text-[18px] text-black/40">Não foi possível carregar os produtos.</div>;
-    if (items.length === 0) return <div className="mt-10 text-center text-[18px] text-black/40">Nenhum produto disponível.</div>;
+    if (loading) return <div className="mt-10 text-center text-[18px] text-shio-muted">Carregando...</div>;
+    if (error) return <div role="alert" className="mt-10 text-center text-[18px] text-shio-muted">Não foi possível carregar os produtos.</div>;
+    if (items.length === 0) return <div className="mt-10 text-center text-[18px] text-shio-muted">Nenhum produto disponível.</div>;
     return (
       <div className="mt-10 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((product) => <ProductCard key={product.id} product={product} />)}

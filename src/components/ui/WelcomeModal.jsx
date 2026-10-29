@@ -113,7 +113,7 @@ const WelcomeModal = () => {
 
           <button
             onClick={handleClose}
-            className="mt-4 text-sm text-black/50 hover:text-black hover:underline"
+            className="mt-4 text-sm text-shio-muted hover:text-black hover:underline"
           >
             Continuar navegando
           </button>

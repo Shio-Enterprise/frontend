@@ -105,7 +105,7 @@ const DropsPage = () => {
             {' - '}
             {productCount} {productCount === 1 ? 'item' : 'itens'}
           </div>
-          <div className="mb-6 flex items-center gap-2 rounded-xl bg-amber-50 px-5 py-3 text-[13px] font-semibold text-[#c8970a]">
+          <div className="mb-6 flex items-center gap-2 rounded-xl bg-amber-50 px-5 py-3 text-[13px] font-semibold text-shio-warning">
             <span>⚠</span>
             <span>Essa ação é permanente</span>
           </div>
@@ -222,20 +222,20 @@ const DropsPage = () => {
   };
 
   const renderContent = () => {
-    if (loading) return <div className="p-10 text-center text-black/55">Carregando drops...</div>;
-    if (error) return <div className="p-10 text-center text-red-500">Erro ao carregar drops. Tente novamente.</div>;
+    if (loading) return <div className="p-10 text-center text-shio-muted">Carregando drops...</div>;
+    if (error) return <div className="p-10 text-center text-shio-danger">Erro ao carregar drops. Tente novamente.</div>;
 
     const allDrops = apiResponse ? (Array.isArray(apiResponse) ? apiResponse : apiResponse.results ?? []) : [];
     const drops = search.trim()
       ? allDrops.filter((d) => d.name.toLowerCase().includes(search.toLowerCase()))
       : allDrops;
 
-    if (drops.length === 0) return <div className="p-10 text-center text-black/55">Nenhum drop encontrado.</div>;
+    if (drops.length === 0) return <div className="p-10 text-center text-shio-muted">Nenhum drop encontrado.</div>;
 
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full text-left">
-          <thead className="bg-[#f0f0f0] text-[14px] md:text-[20px] text-black/55">
+          <thead className="bg-[#f0f0f0] text-[14px] md:text-[20px] text-shio-muted">
             <tr>
               <th className="px-4 py-4 md:px-10 md:py-6 font-normal">Drop</th>
               <th className="px-4 py-4 md:px-10 md:py-6 font-normal">Lançamento</th>
@@ -251,9 +251,9 @@ const DropsPage = () => {
                 <td className="px-4 py-4 md:px-10 md:py-6 text-[14px] md:text-[20px] font-semibold text-black">
                   <Link to={`/admin/drops/${drop.id}`} className="hover:underline">{drop.name}</Link>
                 </td>
-                <td className="px-4 py-4 md:px-10 md:py-6 text-[14px] md:text-[20px] text-black/55">{formatDate(drop.launch_date)}</td>
-                <td className="px-4 py-4 md:px-10 md:py-6 text-[14px] md:text-[20px] text-black/55">{drop.products?.length ?? 0}</td>
-                <td className="px-4 py-4 md:px-10 md:py-6 text-[14px] md:text-[20px] text-black/55">{formatReceita(drop)}</td>
+                <td className="px-4 py-4 md:px-10 md:py-6 text-[14px] md:text-[20px] text-shio-muted">{formatDate(drop.launch_date)}</td>
+                <td className="px-4 py-4 md:px-10 md:py-6 text-[14px] md:text-[20px] text-shio-muted">{drop.products?.length ?? 0}</td>
+                <td className="px-4 py-4 md:px-10 md:py-6 text-[14px] md:text-[20px] text-shio-muted">{formatReceita(drop)}</td>
                 <td className="px-4 py-4 md:px-10 md:py-6">{getStatusLabel(drop)}</td>
                 <td className="px-4 py-4 md:px-10 md:py-6 text-right">
                   <ActionMenu
@@ -299,12 +299,12 @@ const DropsPage = () => {
 
       <AdminPanel className="overflow-hidden">
         <div className="p-5">
-          <label className="flex h-12 max-w-[675px] items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
+          <label className="flex h-12 max-w-[675px] items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
             <Icon name="search" className="h-5 w-5" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent text-[14px] md:text-[20px] outline-none placeholder:text-black/35"
+              className="w-full bg-transparent text-[14px] md:text-[20px] outline-none placeholder:text-shio-placeholder"
               placeholder="Buscar drops..."
             />
           </label>

@@ -94,16 +94,16 @@ const PixPage = () => {
       <PageMarker name="PixPage" />
       <section className="mx-auto max-w-[480px] px-4 py-10">
         <div className="rounded-[20px] border border-black/10 px-6 py-8">
-          <h2 role="status" className={`text-center text-[20px] font-black ${paid ? 'text-[#10a545]' : 'text-black'}`}>
+          <h2 role="status" className={`text-center text-[20px] font-black ${paid ? 'text-shio-success' : 'text-black'}`}>
             {title}
           </h2>
           {state === 'error' && (
-            <p className="mt-3 text-center text-[14px] text-black/55">
+            <p className="mt-3 text-center text-[14px] text-shio-muted">
               A consulta falhou. Isso não significa que o pagamento falhou. Consulte novamente antes de iniciar outra compra.
             </p>
           )}
           {canRefresh && state === 'loaded' && (
-            <p className="mt-3 text-center text-[14px] text-black/55">Aguardamos a confirmação do pagamento. Você pode consultar o mesmo pedido novamente.</p>
+            <p className="mt-3 text-center text-[14px] text-shio-muted">Aguardamos a confirmação do pagamento. Você pode consultar o mesmo pedido novamente.</p>
           )}
           {order && (
             <div className="mt-6 space-y-3 rounded-[12px] bg-[#f7f7f7] p-4 text-[13px]">

@@ -56,7 +56,7 @@ function ReviewModal({ order, mode, onClose, onDone }) {
       submitLabel={submitting ? 'Salvando...' : rejecting ? 'Recusar' : 'Aprovar'}
     >
       {!rejecting && cancelsOrder && (
-        <p className="mt-2 text-[13px] text-black/55">
+        <p className="mt-2 text-[13px] text-shio-muted">
           O pedido ainda não foi enviado: ao aprovar, ele é cancelado e o estoque volta. O estorno é registrado depois.
         </p>
       )}
@@ -72,7 +72,7 @@ function ReviewModal({ order, mode, onClose, onDone }) {
         placeholder={rejecting ? '' : 'Ex.: instruções para devolver o produto'}
         className={inputClass}
       />
-      <p className="mt-1 text-[12px] text-black/45">O cliente verá esta mensagem.</p>
+      <p className="mt-1 text-[12px] text-shio-muted">O cliente verá esta mensagem.</p>
     </AdminModal>
   );
 }
@@ -182,7 +182,7 @@ function CompleteModal({ order, onClose, onDone }) {
         onChange={(event) => setNote(event.target.value)}
         className={inputClass}
       />
-      <p className="mt-1 text-[12px] text-black/45">Visível só para administradores.</p>
+      <p className="mt-1 text-[12px] text-shio-muted">Visível só para administradores.</p>
 
       {showReturn && (
         <label className="mt-4 flex gap-3 text-[14px] text-black">
@@ -206,7 +206,7 @@ function CompleteModal({ order, onClose, onDone }) {
 function Row({ label, children }) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="shrink-0 text-black/55">{label}</span>
+      <span className="shrink-0 text-shio-muted">{label}</span>
       <span className="text-right font-medium">{children}</span>
     </div>
   );
@@ -273,7 +273,7 @@ export default function AdminRefundPanel({ order, onChanged }) {
         {refund?.status === 'REQUESTED' && (
           <>
             <button type="button" className={buttonClass} onClick={() => setModal('approve')}>Aprovar</button>
-            <button type="button" className={`${buttonClass} text-[#ff3333]`} onClick={() => setModal('reject')}>Recusar</button>
+            <button type="button" className={`${buttonClass} text-shio-danger`} onClick={() => setModal('reject')}>Recusar</button>
           </>
         )}
         {active && (

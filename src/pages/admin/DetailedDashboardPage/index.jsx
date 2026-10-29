@@ -100,7 +100,7 @@ function Section({ title, note, views, defaultView = 'list', children }) {
 }
 
 function Empty({ children = 'Nenhum dado no período.' }) {
-  return <p className="rounded-lg bg-black/[0.03] px-4 py-6 text-sm text-black/55">{children}</p>;
+  return <p className="rounded-lg bg-black/[0.03] px-4 py-6 text-sm text-shio-muted">{children}</p>;
 }
 
 function Rows({ rows, getKey, renderRow }) {
@@ -139,7 +139,7 @@ function SeriesChart({ points, granularity, metric, onSelect }) {
               <button key={point.period} type="button" onClick={() => onSelect(point, metric)}
                 aria-label={`Ver pedidos de ${metric === 'net_revenue' ? 'receita líquida' : 'vendas válidas'} de ${label}: ${metric === 'net_revenue' ? formatMoney(point.net_revenue) : formatSales(point.valid_sales)}`}
                 className="flex w-[108px] shrink-0 flex-col items-center rounded-lg px-1 py-2 text-center transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
-                <span className={`flex min-h-8 items-end justify-center text-[11px] font-bold tabular-nums ${negative ? 'text-[#b42318]' : 'text-black'}`}>
+                <span className={`flex min-h-8 items-end justify-center text-[12px] font-bold tabular-nums ${negative ? 'text-[#b42318]' : 'text-black'}`}>
                   {metric === 'net_revenue' ? formatMoney(point.net_revenue) : formatSales(point.valid_sales)}
                 </span>
                 <div className="mt-2 w-full">
@@ -152,7 +152,7 @@ function SeriesChart({ points, granularity, metric, onSelect }) {
                   </span>}
                 </div>
                 <span className="mt-3 text-xs font-bold tabular-nums">{label}</span>
-                <span className="mt-1 text-[11px] leading-tight text-black/60">
+                <span className="mt-1 text-[12px] leading-tight text-black/60">
                   {metric === 'net_revenue' ? formatSales(point.valid_sales) : formatMoney(point.net_revenue)}
                 </span>
               </button>
@@ -160,7 +160,7 @@ function SeriesChart({ points, granularity, metric, onSelect }) {
           })}
         </div>
       </div>
-      <p className="mt-3 text-xs text-black/55">Altura das barras: {metric === 'net_revenue' ? 'receita líquida' : 'vendas válidas'}. {hasNegative ? 'Barras vermelhas abaixo da linha indicam receita negativa. ' : ''}Toque em um período para ver os pedidos.</p>
+      <p className="mt-3 text-xs text-shio-muted">Altura das barras: {metric === 'net_revenue' ? 'receita líquida' : 'vendas válidas'}. {hasNegative ? 'Barras vermelhas abaixo da linha indicam receita negativa. ' : ''}Toque em um período para ver os pedidos.</p>
     </div>
   );
 }
@@ -169,7 +169,7 @@ function SeriesTable({ points, granularity, onSelect }) {
   if (!points?.some((point) => Number(point.net_revenue) !== 0 || point.valid_sales > 0)) return <Empty>Nenhuma venda ou receita líquida no período.</Empty>;
   return <div className="max-h-[420px] overflow-auto">
     <table className="w-full min-w-[560px] text-left text-sm">
-      <thead className="sticky top-0 bg-white text-xs uppercase text-black/55">
+      <thead className="sticky top-0 bg-white text-xs uppercase text-shio-muted">
         <tr><th className="py-2 pr-4">Período</th><th className="py-2 pr-4 text-right">Vendas válidas</th><th className="py-2 pr-4 text-right">Bruto</th><th className="py-2 pr-4 text-right">Reembolsos</th><th className="py-2 pr-4 text-right">Líquido</th><th className="py-2 text-right">Pedidos</th></tr>
       </thead>
       <tbody className="divide-y divide-black/10">
@@ -189,7 +189,7 @@ function SeriesTable({ points, granularity, onSelect }) {
 function ProductRanking({ rows, unit, onSelect }) {
   return <Rows rows={rows} getKey={(row) => row.product_id} renderRow={(row, index) => <>
     <div className="min-w-0 text-sm [overflow-wrap:anywhere]">
-      <span className="mr-2 font-bold text-black/45">{index + 1}.</span>
+      <span className="mr-2 font-bold text-shio-muted">{index + 1}.</span>
       <Link to={`/admin/products/${row.product_id}`} className="font-semibold underline-offset-2 hover:underline">{row.product_name}</Link>
     </div>
     <span className="flex items-center gap-2 text-sm font-bold">{unit === 'units' ? `${row.units} un.` : formatMoney(row.revenue)}<DrillButton onClick={() => onSelect(row)} label={`Ver pedidos de ${row.product_name}`} /></span>
@@ -199,7 +199,7 @@ function ProductRanking({ rows, unit, onSelect }) {
 function RevenueDistribution({ rows, idKey, onSelect }) {
   return <Rows rows={rows} getKey={(row) => row[idKey] ?? 'unclassified'} renderRow={(row) => <>
     <span className="min-w-0 text-sm font-medium [overflow-wrap:anywhere]">{row.name}</span>
-    <span className="flex min-w-0 items-center gap-2 text-right text-sm [overflow-wrap:anywhere]"><span><strong>{formatMoney(row.revenue)}</strong><span className="ml-2 text-black/50">{row.units} un.</span></span><DrillButton onClick={() => onSelect(row)} label={`Ver pedidos de ${row.name}`} /></span>
+    <span className="flex min-w-0 items-center gap-2 text-right text-sm [overflow-wrap:anywhere]"><span><strong>{formatMoney(row.revenue)}</strong><span className="ml-2 text-shio-muted">{row.units} un.</span></span><DrillButton onClick={() => onSelect(row)} label={`Ver pedidos de ${row.name}`} /></span>
   </>} />;
 }
 
@@ -391,9 +391,9 @@ export default function DetailedDashboardPage() {
       {(filters.drop || filters.category || filters.start_date || filters.end_date || filters.period !== 'monthly') && <button type="button" onClick={() => updateFilters({ period: 'monthly', start_date: '', end_date: '', drop: '', category: '' })} className="h-11 rounded-lg border border-black/20 px-4 text-sm font-semibold hover:bg-black/5">Limpar filtros</button>}
     </form>
     {dateError && <p role="alert" className="mt-2 text-sm text-[#b42318]">{dateError}</p>}
-    <p className="mt-3 text-xs leading-relaxed text-black/55">Datas personalizadas substituem a janela móvel; o período selecionado define o agrupamento. Drop e categoria devem corresponder ao mesmo item do pedido. Cadastros totais e estoque seguem seus próprios critérios.</p>
-    {searchParams.has('search') && <p className="mt-2 text-xs text-black/55">A busca do resumo permanece na URL para a volta. Esta análise usa período, drop e categoria.</p>}
-    {catalog.loading && <p role="status" className="mt-2 text-xs text-black/55">Carregando opções de drop e categoria...</p>}
+    <p className="mt-3 text-xs leading-relaxed text-shio-muted">Datas personalizadas substituem a janela móvel; o período selecionado define o agrupamento. Drop e categoria devem corresponder ao mesmo item do pedido. Cadastros totais e estoque seguem seus próprios critérios.</p>
+    {searchParams.has('search') && <p className="mt-2 text-xs text-shio-muted">A busca do resumo permanece na URL para a volta. Esta análise usa período, drop e categoria.</p>}
+    {catalog.loading && <p role="status" className="mt-2 text-xs text-shio-muted">Carregando opções de drop e categoria...</p>}
     {catalog.error && <p role="alert" className="mt-2 text-xs text-[#b42318]">{catalog.error} <button type="button" onClick={() => setCatalogAttempt((current) => current + 1)} className="font-semibold underline">Tentar novamente</button></p>}
   </AdminPanel>;
 
@@ -428,7 +428,7 @@ export default function DetailedDashboardPage() {
       <MetricCard label="Vendas válidas" value={financial.valid_sales} icon="bag" onClick={() => openOrders('valid_sales', 'Vendas válidas')} />
       <MetricCard label="Ticket médio" value={formatMoney(financial.average_ticket)} icon="$" onClick={() => openOrders('average_ticket', 'Pedidos do ticket médio')} />
     </div>
-    <p className="mt-3 text-xs leading-relaxed text-black/55">Financeiro usa a data do pagamento. Vendas válidas: pedidos entregues e pagos. Pedido entregue e reembolsado entra na receita bruta e nos reembolsos. Receita líquida = receita bruta − reembolsos; ticket médio = receita líquida ÷ vendas válidas.</p>
+    <p className="mt-3 text-xs leading-relaxed text-shio-muted">Financeiro usa a data do pagamento. Vendas válidas: pedidos entregues e pagos. Pedido entregue e reembolsado entra na receita bruta e nos reembolsos. Receita líquida = receita bruta − reembolsos; ticket médio = receita líquida ÷ vendas válidas.</p>
 
     <div className="mt-8 grid gap-6">
       <Section title="Receita e vendas ao longo do tempo" note="Cada ponto usa a data do pagamento. Vendas válidas são pedidos entregues e pagos; pedidos entregues e reembolsados entram na receita bruta e saem pelos reembolsos. O período mensal cobre 30 dias móveis; o anual, 365 dias móveis."
@@ -493,7 +493,7 @@ export default function DetailedDashboardPage() {
               : <RevenueDistribution rows={item_revenue.by_category} idKey="category_id" onSelect={openCategoryOrders} />}
         </Section>
       </div>
-      <p className="-mt-3 text-xs leading-relaxed text-black/55">Receita de itens soma quantidade × preço unitário; frete e desconto não são rateados. Drop e categoria seguem os vínculos atuais do catálogo, que podem mudar após a venda. “Sem classificação” reúne itens sem vínculo atual.</p>
+      <p className="-mt-3 text-xs leading-relaxed text-shio-muted">Receita de itens soma quantidade × preço unitário; frete e desconto não são rateados. Drop e categoria seguem os vínculos atuais do catálogo, que podem mudar após a venda. “Sem classificação” reúne itens sem vínculo atual.</p>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Section title="Pedidos por status" note="Inclui todos os pedidos criados no período, inclusive pendentes e cancelados. Usa a data de criação do pedido."
@@ -514,7 +514,7 @@ export default function DetailedDashboardPage() {
             : view === 'donut' ? <DonutChart rows={sales_by_payment_method} getKey={(row) => row.method}
               getLabel={(row) => paymentLabels[row.method] ?? row.method} getValue={(row) => row.valid_sales} formatValue={(row) => `${row.valid_sales} vendas`} totalLabel="vendas por método de pagamento"
               onSelect={(row) => openOrders('payment_method', `Vendas · ${paymentLabels[row.method] ?? row.method}`, { payment_method: row.method })} />
-              : <Rows rows={sales_by_payment_method} getKey={(row) => row.method} renderRow={(row) => <><span className="text-sm font-medium">{paymentLabels[row.method] ?? row.method}</span><span className="flex items-center gap-2 text-right text-sm"><span><strong>{row.valid_sales} vendas</strong><span className="ml-2 text-black/55">{formatMoney(row.gross_revenue)}</span></span><DrillButton onClick={() => openOrders('payment_method', `Vendas · ${paymentLabels[row.method] ?? row.method}`, { payment_method: row.method })} label={`Ver vendas por ${paymentLabels[row.method] ?? row.method}`} /></span></>} />}
+              : <Rows rows={sales_by_payment_method} getKey={(row) => row.method} renderRow={(row) => <><span className="text-sm font-medium">{paymentLabels[row.method] ?? row.method}</span><span className="flex items-center gap-2 text-right text-sm"><span><strong>{row.valid_sales} vendas</strong><span className="ml-2 text-shio-muted">{formatMoney(row.gross_revenue)}</span></span><DrillButton onClick={() => openOrders('payment_method', `Vendas · ${paymentLabels[row.method] ?? row.method}`, { payment_method: row.method })} label={`Ver vendas por ${paymentLabels[row.method] ?? row.method}`} /></span></>} />}
         </Section>
       </div>
 
@@ -542,10 +542,10 @@ export default function DetailedDashboardPage() {
           </div>
           <h3 className="mt-6 mb-3 text-sm font-bold uppercase">Variações que exigem atenção</h3>
           <Rows rows={stock.attention} getKey={(row) => row.variation_id} renderRow={(row) => <>
-            <Link to={row.admin_path} className="min-w-0 text-sm font-medium underline-offset-2 hover:underline">{row.product_name} · {row.size}{row.color ? ` · ${row.color}` : ''}<span className="block text-xs text-black/50">{row.sku}</span></Link>
+            <Link to={row.admin_path} className="min-w-0 text-sm font-medium underline-offset-2 hover:underline">{row.product_name} · {row.size}{row.color ? ` · ${row.color}` : ''}<span className="block text-xs text-shio-muted">{row.sku}</span></Link>
             <strong className={`text-sm ${row.stock_quantity === 0 ? 'text-[#b42318]' : ''}`}>{row.stock_quantity} un.</strong>
           </>} />
-          {stock.low_count + stock.out_count > stock.attention.length && <p className="mt-4 text-xs text-black/55">Exibindo as primeiras {stock.attention.length} variações com atenção; os totais consideram todas.</p>}
+          {stock.low_count + stock.out_count > stock.attention.length && <p className="mt-4 text-xs text-shio-muted">Exibindo as primeiras {stock.attention.length} variações com atenção; os totais consideram todas.</p>}
         </Section>
         </div>
       </div>

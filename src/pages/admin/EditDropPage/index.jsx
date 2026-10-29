@@ -119,7 +119,7 @@ const EditDropForm = ({ dropId, initialData }) => {
       <AdminPanel className="max-w-[900px] p-5 md:p-8">
         <form onSubmit={handleSubmit} className="grid gap-8">
           <label>
-            <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Nome do drop</span>
+            <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Nome do drop</span>
             <input
               type="text"
               value={name}
@@ -128,7 +128,7 @@ const EditDropForm = ({ dropId, initialData }) => {
             />
           </label>
           <label>
-            <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Descrição</span>
+            <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Descrição</span>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -137,7 +137,7 @@ const EditDropForm = ({ dropId, initialData }) => {
           </label>
           <div className="grid gap-8 md:grid-cols-2">
             <label>
-              <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Data de lançamento</span>
+              <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Data de lançamento</span>
               <input
                 type="date"
                 value={launchDate}
@@ -146,7 +146,7 @@ const EditDropForm = ({ dropId, initialData }) => {
               />
             </label>
             <label>
-              <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Data de encerramento</span>
+              <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Data de encerramento</span>
               <input
                 type="date"
                 value={endDate}
@@ -157,7 +157,7 @@ const EditDropForm = ({ dropId, initialData }) => {
           </div>
           <div className="grid gap-8 md:grid-cols-2">
             <label>
-              <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Status</span>
+              <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Status</span>
               <select
                 value={isActive ? 'true' : 'false'}
                 onChange={(e) => setIsActive(e.target.value === 'true')}
@@ -168,7 +168,7 @@ const EditDropForm = ({ dropId, initialData }) => {
               </select>
             </label>
             <label>
-              <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Visibilidade</span>
+              <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Visibilidade</span>
               <select
                 value={isPublic ? 'true' : 'false'}
                 onChange={(e) => setIsPublic(e.target.value === 'true')}
@@ -181,7 +181,7 @@ const EditDropForm = ({ dropId, initialData }) => {
           </div>
 
           <label>
-            <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Limite de unidades (Opcional)</span>
+            <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Limite de unidades (Opcional)</span>
             <input
               type="number"
               min="1"
@@ -189,12 +189,12 @@ const EditDropForm = ({ dropId, initialData }) => {
               value={maxQuantity}
               onChange={(e) => setMaxQuantity(e.target.value)}
               placeholder="Sem limite"
-              className="mt-4 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none placeholder:text-black/40 focus:border-black md:h-12 md:text-[18px]"
+              className="mt-4 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none placeholder:text-shio-placeholder focus:border-black md:h-12 md:text-[18px]"
             />
           </label>
 
           <div>
-            <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Banner</span>
+            <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Banner</span>
             <input
               ref={bannerInputRef}
               type="file"
@@ -227,7 +227,7 @@ const EditDropForm = ({ dropId, initialData }) => {
               <button
                 type="button"
                 onClick={() => bannerInputRef.current?.click()}
-                className="mt-4 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-black/45 transition hover:border-black/50 hover:text-black/65"
+                className="mt-4 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-shio-muted transition hover:border-black/50 hover:text-black/65"
               >
                 <Icon name="plus" className="h-5 w-5" />
                 Adicionar banner
@@ -235,11 +235,11 @@ const EditDropForm = ({ dropId, initialData }) => {
             )}
           </div>
 
-          {submitError && <p className="text-center text-red-500">{submitError}</p>}
+          {submitError && <p className="text-center text-shio-danger">{submitError}</p>}
           <button
             type="button"
             onClick={() => navigate(`/admin/drops/${dropId}`)}
-            className="flex h-20 items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[18px] font-semibold text-black/55 transition hover:border-black hover:text-black"
+            className="flex h-20 items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[18px] font-semibold text-shio-muted transition hover:border-black hover:text-black"
           >
             <Icon name="plus" className="h-5 w-5" />
             Gerenciar produtos do drop
@@ -248,7 +248,7 @@ const EditDropForm = ({ dropId, initialData }) => {
             <button
               type="button"
               onClick={() => navigate(`/admin/drops/${dropId}`)}
-              className="flex h-12 w-full items-center justify-center rounded-full border border-black/25 text-[15px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black"
+              className="flex h-12 w-full items-center justify-center rounded-full border border-black/25 text-[15px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black"
             >
               Cancelar
             </button>
@@ -272,7 +272,7 @@ const EditDropPage = () => {
   const { data: initialData, loading: isLoadingData, error: fetchError } = useApi(`/api/catalog/drops/${dropId}/`);
 
   if (isLoadingData) return <div className="p-8 text-center">Carregando dados do drop...</div>;
-  if (fetchError) return <div className="p-8 text-center text-red-500">Erro ao carregar os dados. Verifique o ID e tente novamente.</div>;
+  if (fetchError) return <div className="p-8 text-center text-shio-danger">Erro ao carregar os dados. Verifique o ID e tente novamente.</div>;
   if (!initialData) return <div className="p-8 text-center">Drop não encontrado.</div>;
 
   return <EditDropForm dropId={dropId} initialData={initialData} />;

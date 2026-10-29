@@ -112,7 +112,7 @@ const DropOpenedModal = () => {
 
         <div className="bg-white p-8 text-center">
           {total > 1 && (
-            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-black/40">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-shio-muted">
               {position} de {total}
             </p>
           )}
@@ -133,7 +133,7 @@ const DropOpenedModal = () => {
 
           <button
             onClick={handleClose}
-            className="mt-4 text-sm text-black/50 hover:text-black hover:underline"
+            className="mt-4 text-sm text-shio-muted hover:text-black hover:underline"
           >
             Fechar
           </button>

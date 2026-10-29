@@ -4,7 +4,7 @@ export const REFUND_STATUS = {
   REQUESTED: { label: 'Reembolso solicitado', color: 'bg-[#fff3cd] text-[#856404]' },
   APPROVED: { label: 'Reembolso aprovado', color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
   REJECTED: { label: 'Reembolso recusado', color: 'bg-[#ffe0e0] text-[#cc0000]' },
-  COMPLETED: { label: 'Reembolsado', color: 'bg-[#d4f7e2] text-[#1da64a]' },
+  COMPLETED: { label: 'Reembolsado', color: 'bg-[#d4f7e2] text-shio-success' },
 };
 
 // O cliente escolhe só entre estes; o backend rejeita os demais.

@@ -58,7 +58,7 @@ export default function ReviewModal({ productId, productName, review = null, onC
         <h2 id="review-modal-title" className="text-[20px] font-bold text-black">
           {isEdit ? 'Editar avaliação' : 'Avaliar produto'}
         </h2>
-        <p className="mt-1 text-[14px] text-black/55">{productName}</p>
+        <p className="mt-1 text-[14px] text-shio-muted">{productName}</p>
 
         {isRemoved && (
           <p className="mt-4 rounded-[10px] bg-[#fff5f5] px-4 py-3 text-[13px] text-[#cc0000]">
@@ -88,7 +88,7 @@ export default function ReviewModal({ productId, productName, review = null, onC
             {confirmingDelete ? (
               <div className="flex flex-wrap items-center gap-3 text-[13px]">
                 <p className="text-black/60">Excluir de vez esta avaliação?</p>
-                <button type="button" onClick={handleDelete} disabled={submitting} className="font-semibold text-[#ff3333] disabled:opacity-40">
+                <button type="button" onClick={handleDelete} disabled={submitting} className="font-semibold text-shio-danger disabled:opacity-40">
                   Confirmar exclusão
                 </button>
                 <button type="button" onClick={() => setConfirmingDelete(false)} className="text-black/60">
@@ -96,7 +96,7 @@ export default function ReviewModal({ productId, productName, review = null, onC
                 </button>
               </div>
             ) : (
-              <button type="button" onClick={() => setConfirmingDelete(true)} className="text-[13px] font-semibold text-[#ff3333]">
+              <button type="button" onClick={() => setConfirmingDelete(true)} className="text-[13px] font-semibold text-shio-danger">
                 Excluir avaliação
               </button>
             )}

@@ -27,65 +27,65 @@ function CustomerProfileDrawer({ id }) {
       </div>
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center text-black/40">Carregando...</div>
+        <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
       ) : customer ? (
         <>
           <div className="flex-1 overflow-y-auto">
             {/* Avatar + name */}
             <div className="flex items-center justify-between border-b border-black/10 px-7 py-5">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f0f0f0] text-[16px] font-bold text-black/55">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f0f0f0] text-[16px] font-bold text-shio-muted">
                   {initials}
                 </div>
                 <span className="text-[16px] font-semibold text-black">{customer.name || '—'}</span>
               </div>
-              <span className="rounded-full bg-black/5 px-3 py-1 text-[12px] font-semibold text-black/55">Cadastrado</span>
+              <span className="rounded-full bg-black/5 px-3 py-1 text-[12px] font-semibold text-shio-muted">Cadastrado</span>
             </div>
 
             {/* Info grid */}
             <div className="border-b border-black/10 px-7 py-5">
               <div className="space-y-4 text-[14px]">
                 <div className="flex items-start gap-3">
-                  <Icon name="mail" className="mt-0.5 h-4 w-4 shrink-0 text-black/40" />
+                  <Icon name="mail" className="mt-0.5 h-4 w-4 shrink-0 text-shio-muted" />
                   <div className="flex flex-1 justify-between gap-4">
-                    <span className="text-black/55">E-mail</span>
+                    <span className="text-shio-muted">E-mail</span>
                     <span className="text-right font-medium break-all">{customer.email}</span>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Icon name="bag" className="mt-0.5 h-4 w-4 shrink-0 text-black/40" />
+                  <Icon name="bag" className="mt-0.5 h-4 w-4 shrink-0 text-shio-muted" />
                   <div className="flex flex-1 justify-between gap-4">
-                    <span className="text-black/55">Cadastrado em</span>
+                    <span className="text-shio-muted">Cadastrado em</span>
                     <span className="text-right font-medium">{formatDate(customer.created_at)}</span>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Icon name="bag" className="mt-0.5 h-4 w-4 shrink-0 text-black/40" />
+                  <Icon name="bag" className="mt-0.5 h-4 w-4 shrink-0 text-shio-muted" />
                   <div className="flex flex-1 justify-between gap-4">
-                    <span className="text-black/55">Total de pedidos</span>
+                    <span className="text-shio-muted">Total de pedidos</span>
                     <span className="text-right font-medium">{customer.total_orders ?? 0}</span>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Icon name="tag" className="mt-0.5 h-4 w-4 shrink-0 text-black/40" />
+                  <Icon name="tag" className="mt-0.5 h-4 w-4 shrink-0 text-shio-muted" />
                   <div className="flex flex-1 justify-between gap-4">
-                    <span className="text-black/55">Total gasto</span>
+                    <span className="text-shio-muted">Total gasto</span>
                     <span className="text-right font-semibold text-black">{formatCurrency(customer.total_spent)}</span>
                   </div>
                 </div>
                 {customer.last_purchase_date && (
                   <div className="flex items-start gap-3">
-                    <Icon name="bag" className="mt-0.5 h-4 w-4 shrink-0 text-black/40" />
+                    <Icon name="bag" className="mt-0.5 h-4 w-4 shrink-0 text-shio-muted" />
                     <div className="flex flex-1 justify-between gap-4">
-                      <span className="text-black/55">Última compra</span>
+                      <span className="text-shio-muted">Última compra</span>
                       <span className="text-right font-medium">{formatDate(customer.last_purchase_date)}</span>
                     </div>
                   </div>
                 )}
                 <div className="flex items-start gap-3">
-                  <Icon name="users" className="mt-0.5 h-4 w-4 shrink-0 text-black/40" />
+                  <Icon name="users" className="mt-0.5 h-4 w-4 shrink-0 text-shio-muted" />
                   <div className="flex flex-1 justify-between gap-4">
-                    <span className="text-black/55">Cliente recorrente</span>
+                    <span className="text-shio-muted">Cliente recorrente</span>
                     <span className="text-right font-medium">{customer.is_recurring ? 'Sim' : 'Não'}</span>
                   </div>
                 </div>
@@ -95,16 +95,16 @@ function CustomerProfileDrawer({ id }) {
             {/* Order history */}
             {customer.order_history?.length > 0 && (
               <div className="px-7 py-5">
-                <h3 className="mb-4 text-[13px] font-bold uppercase text-black/45">Histórico de Pedidos</h3>
+                <h3 className="mb-4 text-[13px] font-bold uppercase text-shio-muted">Histórico de Pedidos</h3>
                 <div className="space-y-2">
                   {customer.order_history.map((order) => (
                     <div key={order.id} className="flex items-center justify-between rounded-[8px] border border-black/10 px-4 py-3 text-[13px]">
                       <span className="font-semibold text-black">#{String(order.id).substring(0, 8).toUpperCase()}</span>
-                      <span className="text-black/55">{formatDate(order.created_at)}</span>
-                      <span className="flex flex-col items-start gap-1 text-black/55">
+                      <span className="text-shio-muted">{formatDate(order.created_at)}</span>
+                      <span className="flex flex-col items-start gap-1 text-shio-muted">
                         {order.status}
                         {order.commercial_status === 'REFUNDED' && (
-                          <span className="rounded-full bg-[#d4f7e2] px-2 py-0.5 text-[11px] text-[#1da64a]">Reembolsado</span>
+                          <span className="rounded-full bg-[#d4f7e2] px-2 py-0.5 text-[12px] text-shio-success">Reembolsado</span>
                         )}
                       </span>
                       <span className="font-semibold">{formatCurrency(order.total_amount)}</span>
@@ -116,7 +116,7 @@ function CustomerProfileDrawer({ id }) {
           </div>
 
           <div className="flex shrink-0 gap-3 border-t border-black/10 p-5">
-            <button onClick={() => navigate('/admin/customers')} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black">
+            <button onClick={() => navigate('/admin/customers')} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black">
               Fechar
             </button>
             <button onClick={() => navigate(`/admin/customers/${id}/edit`)} className="flex h-11 flex-1 items-center justify-center rounded-[8px] bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85">
@@ -125,7 +125,7 @@ function CustomerProfileDrawer({ id }) {
           </div>
         </>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-black/40">Cliente não encontrado.</div>
+        <div className="flex flex-1 items-center justify-center text-shio-muted">Cliente não encontrado.</div>
       )}
     </aside>
   );
@@ -158,19 +158,19 @@ const CustomersPage = () => {
   };
 
   const renderContent = () => {
-    if (loading) return <div className="p-10 text-center text-black/55">Carregando clientes...</div>;
-    if (error) return <div className="p-10 text-center text-red-500">Erro ao carregar clientes. Tente novamente.</div>;
+    if (loading) return <div className="p-10 text-center text-shio-muted">Carregando clientes...</div>;
+    if (error) return <div className="p-10 text-center text-shio-danger">Erro ao carregar clientes. Tente novamente.</div>;
 
     const allCustomers = apiResponse
       ? Array.isArray(apiResponse) ? apiResponse : apiResponse.results ?? []
       : [];
 
-    if (allCustomers.length === 0) return <div className="p-10 text-center text-black/55">Nenhum cliente encontrado.</div>;
+    if (allCustomers.length === 0) return <div className="p-10 text-center text-shio-muted">Nenhum cliente encontrado.</div>;
 
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full text-left">
-          <thead className="bg-[#f0f0f0] text-[20px] text-black/55">
+          <thead className="bg-[#f0f0f0] text-[20px] text-shio-muted">
             <tr>
               <th className="px-10 py-6 font-normal">Cliente</th>
               <th className="px-10 py-6 font-normal">Contato</th>
@@ -186,12 +186,12 @@ const CustomersPage = () => {
                 <td className="px-10 py-8 text-[20px] font-semibold text-black">
                   {customer.name || '—'}
                 </td>
-                <td className="px-10 py-8 text-[20px] text-black/55">{customer.email}</td>
-                <td className="px-10 py-8 text-[20px] text-black/55">{customer.total_orders ?? 0}</td>
-                <td className="px-10 py-8 text-[20px] text-black/55">
+                <td className="px-10 py-8 text-[20px] text-shio-muted">{customer.email}</td>
+                <td className="px-10 py-8 text-[20px] text-shio-muted">{customer.total_orders ?? 0}</td>
+                <td className="px-10 py-8 text-[20px] text-shio-muted">
                   R$ {parseFloat(customer.total_spent || 0).toFixed(2)}
                 </td>
-                <td className="px-10 py-8 text-[20px] text-black/55">
+                <td className="px-10 py-8 text-[20px] text-shio-muted">
                   {formatDate(customer.created_at)}
                 </td>
                 <td className="px-10 py-8 text-right">
@@ -221,12 +221,12 @@ const CustomersPage = () => {
 
       <AdminPanel className="overflow-hidden">
         <div className="flex items-center justify-between gap-4 p-5">
-          <label className="flex h-12 max-w-[675px] flex-1 items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
+          <label className="flex h-12 max-w-[675px] flex-1 items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
             <Icon name="search" className="h-5 w-5" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent text-[20px] outline-none placeholder:text-black/35"
+              className="w-full bg-transparent text-[20px] outline-none placeholder:text-shio-placeholder"
               placeholder="Buscar por nome ou e-mail..."
             />
           </label>

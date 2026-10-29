@@ -65,7 +65,7 @@ function FavoritesList() {
       <PageMarker name="MyFavoritesPage" />
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[28px] font-black uppercase text-black md:text-[34px]">Meus favoritos</h1>
-        <span className="shrink-0 text-sm text-black/45">{state.count} {state.count === 1 ? 'item' : 'itens'}</span>
+        <span className="shrink-0 text-sm text-shio-muted">{state.count} {state.count === 1 ? 'item' : 'itens'}</span>
       </div>
       {state.error ? (
         <div className="py-10 text-center">
@@ -73,11 +73,11 @@ function FavoritesList() {
           <button type="button" onClick={() => setAttempt((value) => value + 1)} className="mt-4 rounded-full border border-black px-5 py-2">Tentar novamente</button>
         </div>
       ) : null}
-      {state.loading && <p role="status" className="py-6 text-center text-black/50">Carregando favoritos...</p>}
+      {state.loading && <p role="status" className="py-6 text-center text-shio-muted">Carregando favoritos...</p>}
       {!state.loading && !state.error && items.length === 0 ? (
         <div className="mt-8 rounded-[18px] border border-black/15 px-6 py-16 text-center">
           <h2 className="text-xl font-bold">Você ainda não tem favoritos</h2>
-          <p className="mt-2 text-sm text-black/50">Salve os produtos que você quer acompanhar.</p>
+          <p className="mt-2 text-sm text-shio-muted">Salve os produtos que você quer acompanhar.</p>
           <Link to="/category/all" className="mt-6 inline-flex rounded-full bg-black px-6 py-3 text-sm font-semibold text-white">Explorar produtos</Link>
         </div>
       ) : null}

@@ -13,11 +13,11 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const STATUS_MAP = {
   AWAITING_PAYMENT: { label: 'Aguardando Pagamento', color: 'text-yellow-600' },
-  PAID: { label: 'Pago', color: 'text-[#00a651]' },
+  PAID: { label: 'Pago', color: 'text-shio-success' },
   PREPARING: { label: 'Preparando', color: 'text-blue-600' },
   SHIPPED: { label: 'Em transporte', color: 'text-indigo-600' },
-  DELIVERED: { label: 'Entregue', color: 'text-[#00a651]' },
-  CANCELED: { label: 'Cancelado', color: 'text-[#ff3333]' },
+  DELIVERED: { label: 'Entregue', color: 'text-shio-success' },
+  CANCELED: { label: 'Cancelado', color: 'text-shio-danger' },
 };
 
 const PAYMENT_METHOD_MAP = {
@@ -37,7 +37,7 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const formatCurrency = (v) => `R$ ${parseFloat(v || 0).toFixed(2)}`;
-  const statusInfo = order ? (STATUS_MAP[order.status] ?? { label: order.status, color: 'text-black/55' }) : null;
+  const statusInfo = order ? (STATUS_MAP[order.status] ?? { label: order.status, color: 'text-shio-muted' }) : null;
 
   const dispatchOrder = async () => {
     setActionLoading(true);
@@ -160,7 +160,7 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
       </div>
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center text-black/40">Carregando...</div>
+        <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
       ) : order ? (
         <>
           <div className="flex-1 overflow-y-auto">
@@ -174,20 +174,20 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
               <h3 className="mb-4 text-[15px] font-bold uppercase text-black">Resumo do pedido</h3>
               <div className="space-y-3 text-[14px]">
                 <div className="flex justify-between gap-4">
-                  <span className="text-black/55">Cliente</span>
+                  <span className="text-shio-muted">Cliente</span>
                   <span className="text-right font-medium">{order.user?.name || order.user?.email || '—'}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="text-black/55">Data do pedido</span>
+                  <span className="text-shio-muted">Data do pedido</span>
                   <span className="text-right font-medium">{formatDate(order.created_at)}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="text-black/55">Forma de pagamento</span>
+                  <span className="text-shio-muted">Forma de pagamento</span>
                   <span className="text-right font-medium">{PAYMENT_METHOD_MAP[order.payment?.method] ?? order.payment?.method ?? '—'}</span>
                 </div>
                 {shippingAddress && (
                   <div className="flex justify-between gap-4">
-                    <span className="shrink-0 text-black/55">Endereço</span>
+                    <span className="shrink-0 text-shio-muted">Endereço</span>
                     <span className="text-right font-medium">{shippingAddress}</span>
                   </div>
                 )}
@@ -204,10 +204,10 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
                       <div className="h-14 w-14 shrink-0 rounded-[6px] bg-[#f0f0f0]" />
                       <div className="flex-1 min-w-0">
                         <p className="truncate text-[14px] font-semibold text-black">{item.product_name}</p>
-                        {item.sku_snapshot && <p className="text-[12px] text-black/45">{item.sku_snapshot}</p>}
+                        {item.sku_snapshot && <p className="text-[12px] text-shio-muted">{item.sku_snapshot}</p>}
                         <p className="mt-1 text-[14px] font-bold text-black">
                           {formatCurrency(item.unit_price)}
-                          {item.quantity > 1 && <span className="ml-1 text-[12px] text-black/45">x{item.quantity}</span>}
+                          {item.quantity > 1 && <span className="ml-1 text-[12px] text-shio-muted">x{item.quantity}</span>}
                         </p>
                       </div>
                     </div>
@@ -237,17 +237,17 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
               <h3 className="mb-4 text-[15px] font-bold uppercase text-black">Resumo financeiro</h3>
               <div className="space-y-2 text-[14px]">
                 <div className="flex justify-between">
-                  <span className="text-black/55">Subtotal</span>
+                  <span className="text-shio-muted">Subtotal</span>
                   <span>{formatCurrency(order.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-black/55">Frete</span>
+                  <span className="text-shio-muted">Frete</span>
                   <span>{formatCurrency(order.shipping_cost)}</span>
                 </div>
                 {parseFloat(order.discount_amount || 0) > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-black/55">Desconto</span>
-                    <span className="text-[#00a651]">- {formatCurrency(order.discount_amount)}</span>
+                    <span className="text-shio-muted">Desconto</span>
+                    <span className="text-shio-success">- {formatCurrency(order.discount_amount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-black/10 pt-2 text-[16px] font-bold">
@@ -305,7 +305,7 @@ function OrderDetailDrawer({ id, onError, onChanged }) {
           )}
         </>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-black/40">Pedido não encontrado.</div>
+        <div className="flex flex-1 items-center justify-center text-shio-muted">Pedido não encontrado.</div>
       )}
     </aside>
   );
@@ -349,7 +349,7 @@ function OrderTimeline({ logs = [], refund, exchanges = [], trackingCode }) {
                 {info.label}
               </p>
 
-              <p className="mt-1 text-xs text-black/45">
+              <p className="mt-1 text-xs text-shio-muted">
                 {new Date(log.created_at).toLocaleString(
                   'pt-BR'
                 )}
@@ -373,7 +373,7 @@ function OrderTimeline({ logs = [], refund, exchanges = [], trackingCode }) {
 
       {trackingCode && (
         <div className="rounded-lg bg-[#f5f5f5] p-3 text-sm">
-          <span className="text-black/50">
+          <span className="text-shio-muted">
             Código de rastreio:
           </span>{' '}
           <strong>{trackingCode}</strong>
@@ -409,7 +409,7 @@ const OrdersPage = () => {
   };
 
   const renderStatus = (statusKey) => {
-    const { label, color } = STATUS_MAP[statusKey] ?? { label: statusKey, color: 'text-black/55' };
+    const { label, color } = STATUS_MAP[statusKey] ?? { label: statusKey, color: 'text-shio-muted' };
     return <span className={`text-[18px] font-semibold ${color}`}>{label}</span>;
   };
 
@@ -454,8 +454,8 @@ const OrdersPage = () => {
   };
 
   const renderContent = () => {
-    if (loading) return <div className="p-10 text-center text-black/55">Carregando pedidos...</div>;
-    if (error) return <div className="p-10 text-center text-red-500">Erro ao carregar pedidos. Tente novamente.</div>;
+    if (loading) return <div className="p-10 text-center text-shio-muted">Carregando pedidos...</div>;
+    if (error) return <div className="p-10 text-center text-shio-danger">Erro ao carregar pedidos. Tente novamente.</div>;
 
     const allOrders = Array.isArray(ordersData) ? ordersData : ordersData?.results ?? [];
     const orders = search.trim()
@@ -465,12 +465,12 @@ const OrdersPage = () => {
       )
       : allOrders;
 
-    if (orders.length === 0) return <div className="p-10 text-center text-black/55">Nenhum pedido encontrado.</div>;
+    if (orders.length === 0) return <div className="p-10 text-center text-shio-muted">Nenhum pedido encontrado.</div>;
 
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full text-left">
-          <thead className="bg-[#f0f0f0] text-[20px] text-black/55">
+          <thead className="bg-[#f0f0f0] text-[20px] text-shio-muted">
             <tr>
               <th className="px-10 py-6 font-normal">ID</th>
               <th className="px-10 py-6 font-normal">Cliente</th>
@@ -486,9 +486,9 @@ const OrdersPage = () => {
                 <td className="px-10 py-8 text-[20px] font-semibold text-black">
                   #{order.id.substring(0, 8).toUpperCase()}
                 </td>
-                <td className="px-10 py-8 text-[20px] text-black/55">{order.customer_name}</td>
-                <td className="px-10 py-8 text-[20px] text-black/55">{formatDate(order.created_at)}</td>
-                <td className="px-10 py-8 text-[20px] text-black/55">
+                <td className="px-10 py-8 text-[20px] text-shio-muted">{order.customer_name}</td>
+                <td className="px-10 py-8 text-[20px] text-shio-muted">{formatDate(order.created_at)}</td>
+                <td className="px-10 py-8 text-[20px] text-shio-muted">
                   R$ {parseFloat(order.total_amount).toFixed(2)}
                 </td>
                 <td className="px-10 py-8">
@@ -532,12 +532,12 @@ const OrdersPage = () => {
 
       <AdminPanel className="overflow-hidden">
         <div className="flex p-5 justify-between">
-          <label className="flex h-12 max-w-[675px] items-center gap-4 rounded-full border border-black/20 px-5 text-black/45">
+          <label className="flex h-12 max-w-[675px] items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
             <Icon name="search" className="h-5 w-5" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent text-[20px] outline-none placeholder:text-black/35"
+              className="w-full bg-transparent text-[20px] outline-none placeholder:text-shio-placeholder"
               placeholder="Buscar por ID ou cliente..."
             />
           </label>

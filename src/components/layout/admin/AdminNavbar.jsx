@@ -141,7 +141,7 @@ export default function AdminNavbar() {
                   active ? 'border-black/20 bg-[#f0f0f0]' : 'border-transparent hover:bg-[#f7f7f7]'
                 }`}
               >
-                <Icon name={item.icon} className={`h-5 w-5 ${active ? 'text-[#c5a100]' : 'text-black'}`} />
+                <Icon name={item.icon} className={`h-5 w-5 ${active ? 'text-shio-warning' : 'text-black'}`} />
                 {item.label}
               </Link>
             );
@@ -159,11 +159,11 @@ export default function AdminNavbar() {
                   {identity.name}
                 </p>
                 {identity.email && (
-                  <p className="truncate text-[12px] text-black/55" data-testid="admin-user-email">
+                  <p className="truncate text-[12px] text-shio-muted" data-testid="admin-user-email">
                     {identity.email}
                   </p>
                 )}
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-black/45">Administrador</p>
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-shio-muted">Administrador</p>
               </div>
             </div>
           </div>
@@ -176,7 +176,7 @@ export default function AdminNavbar() {
             <button
               type="button"
               onClick={handleLogout}
-              className="mt-3 flex h-12 items-center gap-5 text-[18px] text-[#ff3333]"
+              className="mt-3 flex h-12 items-center gap-5 text-[18px] text-shio-danger"
             >
               <Icon name="logout" className="h-5 w-5" />
               Sair
@@ -193,7 +193,7 @@ export default function AdminNavbar() {
           <Link to="/admin/dashboard" className="flex items-center gap-1.5">
             <img src={logo} alt="Shio" className="h-auto w-[60px]" />
           </Link>
-          <span className="text-[13px] font-semibold uppercase tracking-widest text-black/55">Admin</span>
+          <span className="text-[13px] font-semibold uppercase tracking-widest text-shio-muted">Admin</span>
         </div>
 
         {menuOpen && (
@@ -204,7 +204,7 @@ export default function AdminNavbar() {
               </span>
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-semibold text-black">{identity.name}</p>
-                {identity.email && <p className="truncate text-[11px] text-black/50">{identity.email}</p>}
+                {identity.email && <p className="truncate text-[12px] text-shio-muted">{identity.email}</p>}
               </div>
             </div>
             <Link
@@ -221,7 +221,7 @@ export default function AdminNavbar() {
                 setMenuOpen(false);
                 handleLogout();
               }}
-              className="flex h-10 items-center gap-3 text-[14px] text-[#ff3333]"
+              className="flex h-10 items-center gap-3 text-[14px] text-shio-danger"
             >
               <Icon name="logout" className="h-4 w-4" />
               Sair
@@ -238,8 +238,8 @@ export default function AdminNavbar() {
                 to={item.to}
                 onClick={() => setMenuOpen(false)}
                 aria-current={active ? 'page' : undefined}
-                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition ${
-                  active ? 'border-b-2 border-black text-black' : 'text-black/35'
+                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[12px] font-semibold transition ${
+                  active ? 'border-b-2 border-black text-black' : 'text-shio-muted'
                 }`}
               >
                 <Icon name={item.icon} className={`h-[18px] w-[18px] ${active ? 'text-black' : ''}`} />
@@ -253,7 +253,7 @@ export default function AdminNavbar() {
       <header className="hidden border-b border-black/20 bg-white lg:ml-[290px] lg:block">
         <div className="flex h-[128px] items-center justify-between px-14">
           <nav className="text-[20px]" aria-label="Localização no painel">
-            <span className="text-black/55">Admin</span>
+            <span className="text-shio-muted">Admin</span>
             <span className="mx-2 text-black">/</span>
             <span className="font-semibold text-black" data-testid="admin-current-section">
               {currentSection.label}
@@ -261,7 +261,7 @@ export default function AdminNavbar() {
           </nav>
           <div className="text-right">
             <p className="max-w-[260px] truncate text-[14px] font-semibold text-black">{identity.name}</p>
-            <p className="text-[12px] text-black/45">Administrador</p>
+            <p className="text-[12px] text-shio-muted">Administrador</p>
           </div>
         </div>
       </header>

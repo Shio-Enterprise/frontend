@@ -97,7 +97,7 @@ const CartPage = () => {
             <div className="rounded-[20px] border border-black/10 p-6">
               {items.length === 0 ? (
                 <div className="py-10 text-center">
-                  <p className="text-[20px] text-black/45">Seu carrinho está vazio.</p>
+                  <p className="text-[20px] text-shio-muted">Seu carrinho está vazio.</p>
                   <Link to="/" className="mt-4 inline-block rounded-full bg-black px-8 py-3 text-sm font-medium text-white">
                     Ver produtos
                   </Link>
@@ -128,12 +128,12 @@ const CartPage = () => {
                             )}
                           </div>
                           <button onClick={() => handleRemove(item.variation_id)} disabled={updating === item.variation_id}
-                            className="text-[#ff3333] transition hover:text-[#cc0000] disabled:opacity-40"
+                            className="text-shio-danger transition hover:text-[#cc0000] disabled:opacity-40"
                             aria-label={`Remover ${item.product_name}`}>
                             <Icon name="trash" className="h-5 w-5" />
                           </button>
                         </div>
-                        {item.is_promotion_active && <p className="mt-2 text-sm text-black/50"><s>R$ {Number(item.base_price).toFixed(2)}</s> — {Math.round((1 - Number(item.unit_price) / Number(item.base_price)) * 100)}% de desconto</p>}
+                        {item.is_promotion_active && <p className="mt-2 text-sm text-shio-muted"><s>R$ {Number(item.base_price).toFixed(2)}</s> — {Math.round((1 - Number(item.unit_price) / Number(item.base_price)) * 100)}% de desconto</p>}
                         <p className="mt-5 text-[24px] font-bold text-black">
                           R$ {Number(item.unit_price).toFixed(2)}
                         </p>
@@ -165,7 +165,7 @@ const CartPage = () => {
                   <strong className="text-black">R$ {subtotal.toFixed(2)}</strong>
                 </div>
                 {discount > 0 && (
-                  <div className="flex justify-between text-[#10a545]">
+                  <div className="flex justify-between text-shio-success">
                     <span>Desconto de boas-vindas</span>
                     <strong>- R$ {discount.toFixed(2)}</strong>
                   </div>

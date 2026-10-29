@@ -4,6 +4,13 @@
   --color-shio-white: #ffffff;
   --color-shio-gray: #2d2d2d;
   --color-shio-black: #000000;
+  /* Cores com contraste mínimo WCAG AA sobre branco (#64) */
+  --color-shio-muted: #666666; /* texto secundário, 5,7:1 */
+  --color-shio-placeholder: #767676; /* placeholder de campo, 4,5:1 */
+  --color-shio-warning: #8a6500; /* aviso/atenção, 5,3:1 */
+  --color-shio-success: #007a3d; /* sucesso/positivo, 5,4:1 */
+  --color-shio-danger: #c62828; /* erro/ação destrutiva, 5,6:1 (texto branco em cima também) */
+  --color-shio-danger-hover: #a31f1f; /* hover de botão destrutivo */
   --font-inter: 'Inter', sans-serif;
 }
 
@@ -25,13 +32,50 @@ body {
   margin: 0;
 }
 
-a {
-  text-decoration: none;
+/* Dentro de @layer base para não anular os utilitários do Tailwind (text-*, font-*, underline). */
+@layer base {
+  a {
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+/* Foco do teclado sempre visível, inclusive onde há outline-none. Fora de camada de propósito,
+   para vencer os utilitários. O anel branco interno mantém o contorno visível em fundo escuro. */
+:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+/* No celular, campo com fonte menor que 16px faz o Safari do iPhone dar zoom ao tocar. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Alvos de foco programático (ex.: <main> do "Pular para o conteúdo") não ganham contorno. */
+[tabindex="-1"]:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

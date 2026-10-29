@@ -59,11 +59,11 @@ export default function ProductReviews({ productId }) {
 
   let content;
   if (error) {
-    content = <p role="alert" className="mt-8 text-center text-black/50">Não foi possível carregar as avaliações.</p>;
+    content = <p role="alert" className="mt-8 text-center text-shio-muted">Não foi possível carregar as avaliações.</p>;
   } else if (!summary) {
-    content = <p role="status" className="mt-8 text-center text-black/50">Carregando avaliações...</p>;
+    content = <p role="status" className="mt-8 text-center text-shio-muted">Carregando avaliações...</p>;
   } else if (summary.rating_count === 0) {
-    content = <p className="mt-8 text-center text-black/50">Ainda não há avaliações para este produto.</p>;
+    content = <p className="mt-8 text-center text-shio-muted">Ainda não há avaliações para este produto.</p>;
   } else {
     content = (
       <>
@@ -83,9 +83,9 @@ export default function ProductReviews({ productId }) {
         </div>
 
         {loadingList ? (
-          <p role="status" className="mt-8 text-black/50">Carregando avaliações...</p>
+          <p role="status" className="mt-8 text-shio-muted">Carregando avaliações...</p>
         ) : list.results.length === 0 ? (
-          <p className="mt-8 text-black/50">Nenhuma avaliação com essa nota.</p>
+          <p className="mt-8 text-shio-muted">Nenhuma avaliação com essa nota.</p>
         ) : (
           <div className="mt-6 grid gap-4">
             {list.results.map((review) => <ReviewCard key={review.id} review={review} />)}
@@ -97,7 +97,7 @@ export default function ProductReviews({ productId }) {
             <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className={pageButtonClass}>
               Anterior
             </button>
-            <span className="text-black/55">Página {page} de {totalPages}</span>
+            <span className="text-shio-muted">Página {page} de {totalPages}</span>
             <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)} className={pageButtonClass}>
               Próxima
             </button>

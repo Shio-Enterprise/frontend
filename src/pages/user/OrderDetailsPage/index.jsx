@@ -18,10 +18,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const STATUS_LABEL = {
   AWAITING_PAYMENT: { label: 'Aguardando Pagamento', color: 'bg-[#fff3cd] text-[#856404]' },
-  PAID: { label: 'Pago', color: 'bg-[#d4f7e2] text-[#1da64a]' },
+  PAID: { label: 'Pago', color: 'bg-[#d4f7e2] text-shio-success' },
   PREPARING: { label: 'Em Preparação', color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
   SHIPPED: { label: 'Enviado', color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
-  DELIVERED: { label: 'Entregue', color: 'bg-[#d4f7e2] text-[#1da64a]' },
+  DELIVERED: { label: 'Entregue', color: 'bg-[#d4f7e2] text-shio-success' },
   CANCELED: { label: 'Cancelado', color: 'bg-[#ffe0e0] text-[#cc0000]' },
 };
 
@@ -129,7 +129,7 @@ const OrderDetailsPage = () => {
     return (
       <AccountLayout>
         <PageMarker name="OrderDetailsPage" />
-        <p className="text-black/40">Carregando pedido...</p>
+        <p className="text-shio-muted">Carregando pedido...</p>
       </AccountLayout>
     );
   }
@@ -151,7 +151,7 @@ const OrderDetailsPage = () => {
     );
   }
 
-  const s = STATUS_LABEL[order.status] ?? { label: order.status, color: 'bg-black/5 text-black/50' };
+  const s = STATUS_LABEL[order.status] ?? { label: order.status, color: 'bg-black/5 text-shio-muted' };
   const hasTracking = !!order.tracking_code;
   const history = [
     ...(order.status_logs ?? []).map((log) => ({
@@ -170,14 +170,14 @@ const OrderDetailsPage = () => {
       <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
         <div>
           <Link to="/my-orders"
-            className="mb-3 inline-flex items-center gap-2 text-[13px] text-black/40 transition hover:text-black">
+            className="mb-3 inline-flex items-center gap-2 text-[13px] text-shio-muted transition hover:text-black">
             <Icon name="arrowLeft" className="h-4 w-4" />
             Meus Pedidos
           </Link>
           <h1 className="text-[34px] font-black uppercase text-black">
             Pedido #{String(order.id).slice(0, 8).toUpperCase()}
           </h1>
-          <p className="mt-1 text-[14px] text-black/40">{formatDate(order.created_at)}</p>
+          <p className="mt-1 text-[14px] text-shio-muted">{formatDate(order.created_at)}</p>
         </div>
         <span className={`rounded-full px-4 py-2 text-[13px] font-semibold ${s.color}`}>
           {s.label}
@@ -195,14 +195,14 @@ const OrderDetailsPage = () => {
                 <div key={item.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
                   <div>
                     <p className="text-[15px] font-semibold text-black">{item.product_name}</p>
-                    <p className="text-[13px] text-black/40">SKU: {item.sku_snapshot}</p>
+                    <p className="text-[13px] text-shio-muted">SKU: {item.sku_snapshot}</p>
                     <ReviewAction item={item} review={reviewFor(item)} onOpen={() => setReviewItem(item)} />
                   </div>
                   <div className="shrink-0 whitespace-nowrap text-right">
                     <p className="text-[14px] font-semibold text-black">
                       {item.quantity}× R$ {Number(item.unit_price).toFixed(2)}
                     </p>
-                    <p className="text-[13px] text-black/40">
+                    <p className="text-[13px] text-shio-muted">
                       R$ {(item.quantity * Number(item.unit_price)).toFixed(2)}
                     </p>
                   </div>
@@ -214,7 +214,7 @@ const OrderDetailsPage = () => {
           {/* Rastreio Correios */}
           <Section title="Rastreamento">
             {!hasTracking ? (
-              <div className="flex items-center gap-3 text-black/40">
+              <div className="flex items-center gap-3 text-shio-muted">
                 <Icon name="bag" className="h-5 w-5 shrink-0" />
                 <p className="text-[14px]">
                   {order.status === 'AWAITING_PAYMENT' || order.status === 'PAID' || order.status === 'PREPARING'
@@ -223,17 +223,17 @@ const OrderDetailsPage = () => {
                 </p>
               </div>
             ) : trackingLoading ? (
-              <p className="text-[14px] text-black/40">Consultando Correios...</p>
+              <p className="text-[14px] text-shio-muted">Consultando Correios...</p>
             ) : tracking && tracking.status !== 'not_shipped' ? (
               <div>
                 <div className="mb-4 flex flex-wrap items-center gap-4">
                   <div>
-                    <p className="text-[12px] font-semibold uppercase tracking-wider text-black/40">Código</p>
+                    <p className="text-[12px] font-semibold uppercase tracking-wider text-shio-muted">Código</p>
                     <p className="font-mono text-[15px] font-bold text-black">{tracking.tracking_code}</p>
                   </div>
                   {tracking.previsao_entrega && (
                     <div>
-                      <p className="text-[12px] font-semibold uppercase tracking-wider text-black/40">Previsão</p>
+                      <p className="text-[12px] font-semibold uppercase tracking-wider text-shio-muted">Previsão</p>
                       <p className="text-[15px] font-semibold text-black">
                         {new Date(tracking.previsao_entrega).toLocaleDateString('pt-BR', {
                           day: '2-digit', month: 'short', year: 'numeric',
@@ -243,7 +243,7 @@ const OrderDetailsPage = () => {
                   )}
                   {tracking.status_atual && (
                     <div>
-                      <p className="text-[12px] font-semibold uppercase tracking-wider text-black/40">Status</p>
+                      <p className="text-[12px] font-semibold uppercase tracking-wider text-shio-muted">Status</p>
                       <p className="text-[14px] font-semibold text-black">{tracking.status_atual}</p>
                     </div>
                   )}
@@ -263,8 +263,8 @@ const OrderDetailsPage = () => {
                         {/* Event content */}
                         <div className="pb-5">
                           <p className="text-[14px] font-semibold text-black">{ev.descricao}</p>
-                          {ev.detalhe && <p className="text-[13px] text-black/50">{ev.detalhe}</p>}
-                          <p className="mt-1 text-[12px] text-black/40">
+                          {ev.detalhe && <p className="text-[13px] text-shio-muted">{ev.detalhe}</p>}
+                          <p className="mt-1 text-[12px] text-shio-muted">
                             {ev.local && <span>{ev.local} · </span>}
                             {formatDate(ev.data)}
                           </p>
@@ -275,7 +275,7 @@ const OrderDetailsPage = () => {
                 )}
               </div>
             ) : (
-              <p className="text-[14px] text-black/40">
+              <p className="text-[14px] text-shio-muted">
                 Código de rastreio: <span className="font-mono font-semibold text-black">{order.tracking_code}</span>
                 <br />Ainda sem eventos disponíveis nos Correios.
               </p>
@@ -313,20 +313,20 @@ const OrderDetailsPage = () => {
                               </p>
 
                               {i === 0 && (
-                                <span className="text-[11px] font-semibold uppercase text-black/40">
+                                <span className="text-[12px] font-semibold uppercase text-shio-muted">
                                   Atual
                                 </span>
                               )}
                             </div>
 
                             {log.comment && (
-                              <p className="mt-1 text-[13px] text-black/50">
+                              <p className="mt-1 text-[13px] text-shio-muted">
                                 {log.comment}
                               </p>
                             )}
 
                             {log.tracking_code && (
-                              <p className="mt-1 text-[13px] text-black/50">
+                              <p className="mt-1 text-[13px] text-shio-muted">
                                 Código de rastreio:{' '}
                                 <span className="font-mono font-semibold text-black">
                                   {log.tracking_code}
@@ -334,7 +334,7 @@ const OrderDetailsPage = () => {
                               </p>
                             )}
 
-                            <p className="mt-1 text-[12px] text-black/40">
+                            <p className="mt-1 text-[12px] text-shio-muted">
                               {formatDate(log.created_at)}
                             </p>
                           </div>
@@ -344,7 +344,7 @@ const OrderDetailsPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-3 text-black/40">
+              <div className="flex items-center gap-3 text-shio-muted">
                 <Icon
                   name="bag"
                   className="h-5 w-5 shrink-0"
@@ -371,7 +371,7 @@ const OrderDetailsPage = () => {
                 <span>R$ {Number(order.shipping_cost).toFixed(2)}</span>
               </div>
               {Number(order.discount_amount) > 0 && (
-                <div className="flex justify-between text-[#1da64a]">
+                <div className="flex justify-between text-shio-success">
                   <span>Desconto</span>
                   <span>− R$ {Number(order.discount_amount).toFixed(2)}</span>
                 </div>
