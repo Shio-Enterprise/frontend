@@ -6,6 +6,7 @@ import ProductReviews from '../../../components/reviews/ProductReviews';
 import SizeGuideTable from '../../../components/product/SizeGuideTable';
 import { getAccessToken } from '../../../lib/authToken';
 import { useCart } from '../../../context/CartContext';
+import { recordNavigationEvent } from '../../../lib/navigationAnalytics';
 import {
   createStockAlert, getPendingStockAlertVariationIds, stockAlertErrorMessage,
 } from '../../../lib/stockAlertsApi';
@@ -69,6 +70,12 @@ const ProductDetailContent = ({ id }) => {
         setProduct(data);
         setActiveImage(0);
         if (data.variations?.length > 0) setSelectedVarId(data.variations[0].id);
+        recordNavigationEvent({
+          eventType: 'PRODUCT_VIEW',
+          path: `/product/${id}`,
+          product: data.id,
+          variation: data.variations?.[0]?.id,
+        });
       })
       .catch(() => {
         if (!controller.signal.aborted) setNotFound(true);
@@ -127,13 +134,19 @@ const ProductDetailContent = ({ id }) => {
         setCartData(cartData);
       }
       setCartMsg({ type: 'success', text: 'Adicionado ao carrinho!' });
+      recordNavigationEvent({
+        eventType: 'ADD_TO_CART',
+        path: `/product/${id}`,
+        product: id,
+        variation: selectedVarId,
+      });
     } catch (e) {
       setCartMsg({ type: 'error', text: e.message });
     } finally {
       setAddingToCart(false);
       setTimeout(() => setCartMsg(null), 3000);
     }
-  }, [selectedVarId, quantity, cartItems, setCartData]);
+  }, [selectedVarId, quantity, cartItems, setCartData, id]);
 
   const handleStockAlert = async () => {
     if (!selectedVarId) return;

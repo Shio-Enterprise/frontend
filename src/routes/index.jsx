@@ -27,6 +27,7 @@ const MyStockAlertsPage = lazy(() => import("../pages/user/MyStockAlertsPage"));
 
 // Admin pages
 const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
+const NavigationDashboardPage = lazy(() => import("../pages/admin/NavigationDashboardPage"));
 const DetailedDashboardPage = lazy(() => import("../pages/admin/DetailedDashboardPage"));
 const ProductsPage = lazy(() => import("../pages/admin/ProductsPage"));
 const NewProductPage = lazy(() => import("../pages/admin/NewProductPage"));
@@ -144,6 +145,12 @@ const routes = [
   {
     path: "/admin/dashboard/detail",
     component: <AdminLayout><DetailedDashboardPage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.DASHBOARD,
+  },
+  {
+    path: "/admin/navigation",
+    component: <AdminLayout><NavigationDashboardPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.DASHBOARD,
   },

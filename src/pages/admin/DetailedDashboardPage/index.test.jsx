@@ -76,7 +76,7 @@ describe('DetailedDashboardPage', () => {
     expect(donutButton.textContent).toBe('');
     fireEvent.click(donutButton);
     expect(donutButton).toHaveAttribute('aria-pressed', 'true');
-    expect(within(dropSection).getByRole('img', { name: 'Gráfico de rosca: receita de itens por drop' })).toBeInTheDocument();
+    expect(within(dropSection).getByRole('group', { name: 'Gráfico de rosca: receita de itens por drop' })).toBeInTheDocument();
     expect(within(dropSection).getByText('R$ 120,00')).toBeInTheDocument();
     expect(within(dropSection).getByText('(60%)')).toBeInTheDocument();
     expect(within(dropSection).getByText('(40%)')).toBeInTheDocument();

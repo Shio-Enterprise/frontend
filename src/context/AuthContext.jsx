@@ -14,6 +14,7 @@ import {
   setAuthTokens,
 } from "../lib/authToken";
 import apiClient from "../lib/axios";
+import { linkAnonymousNavigation } from "../lib/navigationAnalytics";
 import { firstAllowedAdminRoute, resolveAdminPermissions } from '../lib/adminPermissions';
 
 const AuthContext = createContext(null);
@@ -115,6 +116,7 @@ export const AuthProvider = ({ children }) => {
     setIsAdmin(
       userData.is_admin || userData.is_staff || userData.is_superuser || false,
     );
+    linkAnonymousNavigation();
   };
 
   const refreshUser = async () => {

@@ -4,6 +4,7 @@ import PublicLayout from "../../../components/layout/public/PublicLayout";
 import { Icon, PageMarker } from "../../../components/ui/ShioDesign";
 import { getAccessToken } from "../../../lib/authToken";
 import { useCart } from "../../../context/CartContext";
+import { recordNavigationEvent } from "../../../lib/navigationAnalytics";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -132,6 +133,10 @@ const PaymentPage = () => {
     },
     [],
   );
+
+  useEffect(() => {
+    recordNavigationEvent({ eventType: 'CHECKOUT_STARTED', path: '/payment' });
+  }, []);
 
   const fetchCart = useCallback(() => {
     const token = getAccessToken();

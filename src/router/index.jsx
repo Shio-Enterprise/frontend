@@ -2,10 +2,12 @@ import { Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import routes from "../routes";
 import ProtectedRoute from "../components/ProtectedRoute";
+import NavigationTracker from "../components/NavigationTracker";
 
 const Router = () => {
   return (
     <BrowserRouter>
+      <NavigationTracker />
       <Suspense fallback={<div>Loading...</div>}>
         <Routes>
           {routes.map((route) => (
