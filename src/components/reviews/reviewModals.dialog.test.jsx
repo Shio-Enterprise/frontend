@@ -39,3 +39,22 @@ describe.each(cases)('%s com <Dialog>', (_, title, ui) => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+describe('ReviewModal — confirmação de exclusão', () => {
+  const setup = () => render(
+    <ReviewModal productId={1} productName="Boné Shio" review={review} onClose={vi.fn()} onSaved={vi.fn()} onDeleted={vi.fn()} />,
+  );
+
+  it('ao pedir para excluir, o foco vai para "Manter" (opção segura)', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir avaliação' }));
+    expect(screen.getByRole('button', { name: 'Manter' })).toHaveFocus();
+  });
+
+  it('ao escolher "Manter", o foco volta para "Excluir avaliação"', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir avaliação' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manter' }));
+    expect(screen.getByRole('button', { name: 'Excluir avaliação' })).toHaveFocus();
+  });
+});

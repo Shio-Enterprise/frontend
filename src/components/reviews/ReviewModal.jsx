@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { asSentence, removalText } from '../../lib/reviewLabels';
 import { createReview, deleteReview, reviewErrorMessage, updateReview } from '../../lib/reviewsApi';
 import ReviewForm from './ReviewForm';
@@ -8,6 +8,20 @@ export default function ReviewModal({ productId, productName, review = null, onC
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const deleteButtonRef = useRef(null);
+  const keepButtonRef = useRef(null);
+  const focusAfterToggle = useRef(null);
+
+  // O botão clicado some na troca "Excluir" ⇄ "Confirmar/Manter"; sem isso o foco se perde.
+  useEffect(() => {
+    focusAfterToggle.current?.current?.focus();
+    focusAfterToggle.current = null;
+  }, [confirmingDelete]);
+
+  const toggleConfirmDelete = (confirming) => {
+    focusAfterToggle.current = confirming ? keepButtonRef : deleteButtonRef;
+    setConfirmingDelete(confirming);
+  };
   const isEdit = Boolean(review);
   const isRemoved = review?.status === 'REMOVED';
   const submitLabel = !isEdit ? 'Publicar avaliação' : isRemoved ? 'Salvar e republicar' : 'Salvar alterações';
@@ -78,12 +92,12 @@ export default function ReviewModal({ productId, productName, review = null, onC
               <button type="button" onClick={handleDelete} disabled={submitting} className="font-semibold text-shio-danger disabled:opacity-40">
                 Confirmar exclusão
               </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="text-black/60">
+              <button ref={keepButtonRef} type="button" onClick={() => toggleConfirmDelete(false)} className="text-black/60">
                 Manter
               </button>
             </div>
           ) : (
-            <button type="button" onClick={() => setConfirmingDelete(true)} className="text-[13px] font-semibold text-shio-danger">
+            <button ref={deleteButtonRef} type="button" onClick={() => toggleConfirmDelete(true)} className="text-[13px] font-semibold text-shio-danger">
               Excluir avaliação
             </button>
           )}
