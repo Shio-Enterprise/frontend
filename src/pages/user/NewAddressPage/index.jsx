@@ -118,6 +118,10 @@ const NewAddressPage = () => {
           <label className="block">
             <span className="text-[15px] uppercase text-shio-muted">CEP</span>
             <input
+              autoComplete="postal-code"
+              inputMode="numeric"
+              aria-invalid={cepError ? true : undefined}
+              aria-describedby={cepError ? 'cep-error' : undefined}
               value={form.zip_code}
               onChange={handleCepChange}
               onBlur={lookupCep}
@@ -132,15 +136,16 @@ const NewAddressPage = () => {
             disabled={cepLoading}
             className="mt-auto h-12 rounded-full bg-black px-6 text-[14px] font-bold text-white disabled:bg-black/40"
           >
-            {cepLoading ? '...' : 'Buscar'}
+            {cepLoading ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
-        {cepError && <p className="text-[13px] text-shio-danger">{cepError}</p>}
+        {cepError && <p id="cep-error" role="alert" className="text-[13px] text-shio-danger">{cepError}</p>}
 
         <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
           <label className="block">
             <span className="text-[15px] uppercase text-shio-muted">Rua / Logradouro</span>
             <input
+              autoComplete="address-line1"
               value={form.street}
               onChange={(e) => set('street', e.target.value)}
               placeholder="Rua..."
@@ -163,6 +168,7 @@ const NewAddressPage = () => {
         <label className="block">
           <span className="text-[15px] uppercase text-shio-muted">Complemento <span className="normal-case font-normal text-shio-muted">(opcional)</span></span>
           <input
+            autoComplete="address-line2"
             value={form.complement}
             onChange={(e) => set('complement', e.target.value)}
             placeholder="Apto, Bloco..."
@@ -174,6 +180,7 @@ const NewAddressPage = () => {
           <label className="block sm:col-span-1">
             <span className="text-[15px] uppercase text-shio-muted">Bairro</span>
             <input
+              autoComplete="address-level3"
               value={form.neighborhood}
               onChange={(e) => set('neighborhood', e.target.value)}
               placeholder="Bairro"
@@ -184,6 +191,7 @@ const NewAddressPage = () => {
           <label className="block sm:col-span-1">
             <span className="text-[15px] uppercase text-shio-muted">Cidade</span>
             <input
+              autoComplete="address-level2"
               value={form.city}
               onChange={(e) => set('city', e.target.value)}
               placeholder="Cidade"
@@ -194,6 +202,7 @@ const NewAddressPage = () => {
           <label className="block sm:col-span-1">
             <span className="text-[15px] uppercase text-shio-muted">UF</span>
             <input
+              autoComplete="address-level1"
               value={form.state}
               onChange={(e) => set('state', e.target.value.toUpperCase().slice(0, 2))}
               placeholder="SP"
@@ -214,7 +223,7 @@ const NewAddressPage = () => {
         </label>
 
         {saveError && (
-          <p className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-[#cc0000]">{saveError}</p>
+          <p role="alert" className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-shio-danger">{saveError}</p>
         )}
 
         <div className="flex gap-4 pt-4">

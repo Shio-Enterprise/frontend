@@ -26,7 +26,7 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 font-sans text-gray-800">
+    <main className="min-h-screen bg-white flex flex-col items-center justify-center px-4 font-sans text-gray-800">
       <div className="w-full max-w-[380px] flex flex-col items-center">
         
         <div className="flex flex-col items-center mb-10">
@@ -41,7 +41,7 @@ const ForgotPasswordPage = () => {
 
         {success ? (
           <div className="w-full flex flex-col items-center">
-            <div className="rounded-md bg-green-50 w-full text-center border border-green-100 p-4 text-[14px] text-green-700 mb-6">
+            <div role="status" className="rounded-md bg-green-50 w-full text-center border border-green-100 p-4 text-[14px] text-shio-success mb-6">
               Se este e-mail estiver cadastrado, você receberá as instruções em instantes.
             </div>
             <Link to="/login" className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 text-center">
@@ -50,14 +50,20 @@ const ForgotPasswordPage = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
-            <input
-              type="email"
-              placeholder="E-mail"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
-            />
+            <div>
+              <label htmlFor="forgot-email" className="mb-1.5 block text-sm font-medium text-black">
+                E-mail
+              </label>
+              <input
+                id="forgot-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+              />
+            </div>
             
             <button
               type="submit"
@@ -70,7 +76,7 @@ const ForgotPasswordPage = () => {
         )}
 
         {error && (
-          <p className="mt-4 rounded-md bg-red-50 w-full text-center border border-red-100 p-3 text-[13px] text-red-600">
+          <p role="alert" className="mt-4 rounded-md bg-red-50 w-full text-center border border-red-100 p-3 text-[13px] text-shio-danger">
             {error}
           </p>
         )}
@@ -82,7 +88,7 @@ const ForgotPasswordPage = () => {
         )}
 
       </div>
-    </div>
+    </main>
   );
 };
 

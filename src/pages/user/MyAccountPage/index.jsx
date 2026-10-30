@@ -102,6 +102,7 @@ const MyAccountPage = () => {
             <label className="block">
               <span className="text-[14px] text-shio-muted lg:text-[20px]">Nome Completo</span>
               <input
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="mt-3 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black lg:mt-5 lg:h-12 lg:text-base"
@@ -111,6 +112,8 @@ const MyAccountPage = () => {
             <label className="block">
               <span className="text-[14px] text-shio-muted lg:text-[20px]">Telefone</span>
               <input
+                type="tel"
+                autoComplete="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="(11) 99999-9999"
@@ -118,19 +121,24 @@ const MyAccountPage = () => {
               />
             </label>
 
-            <label className="block">
-              <span className="text-[14px] text-shio-muted lg:text-[20px]">E-mail</span>
-              <input
-                value={me?.email ?? ''}
-                readOnly
-                className="mt-3 h-11 w-full rounded-full border border-black/20 bg-black/[0.03] px-5 text-[14px] outline-none lg:mt-5 lg:h-12 lg:text-base"
-              />
-              <span className="mt-2 block text-[12px] text-shio-muted">O e-mail não pode ser alterado.</span>
-            </label>
+            <div>
+              <label className="block">
+                <span className="text-[14px] text-shio-muted lg:text-[20px]">E-mail</span>
+                <input
+                  type="email"
+                  value={me?.email ?? ''}
+                  readOnly
+                  aria-describedby="email-readonly-hint"
+                  className="mt-3 h-11 w-full rounded-full border border-black/20 bg-black/[0.03] px-5 text-[14px] outline-none lg:mt-5 lg:h-12 lg:text-base"
+                />
+              </label>
+              <p id="email-readonly-hint" className="mt-2 text-[12px] text-shio-muted">O e-mail não pode ser alterado.</p>
+            </div>
 
             <label className="block">
               <span className="text-[14px] text-shio-muted lg:text-[20px]">CPF</span>
               <input
+                inputMode="numeric"
                 value={cpf}
                 onChange={(e) => setCpf(e.target.value)}
                 placeholder="000.000.000-00"
@@ -140,7 +148,9 @@ const MyAccountPage = () => {
           </div>
 
           {saveMsg && (
-            <p className={`mt-5 text-sm font-semibold ${saveMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
+            <p
+              role={saveMsg.type === 'success' ? 'status' : 'alert'}
+              className={`mt-5 text-sm font-semibold ${saveMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
               {saveMsg.text}
             </p>
           )}
@@ -178,7 +188,7 @@ const MyAccountPage = () => {
               />
             </button>
           </div>
-          {marketingError && <p className="mt-3 text-sm font-semibold text-shio-danger">{marketingError}</p>}
+          {marketingError && <p role="alert" className="mt-3 text-sm font-semibold text-shio-danger">{marketingError}</p>}
         </section>
       )}
     </AccountLayout>

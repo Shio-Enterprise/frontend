@@ -253,3 +253,42 @@ describe('OrderDetailsPage', () => {
     expect(screen.getByRole('button', { name: 'Avaliar' })).toBeInTheDocument();
   });
 });
+
+describe('OrderDetailsPage — histórico acessível', () => {
+  const mountWithLogs = (status_logs) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({ ok: true, json: async () => ({ ...order([item()]), status_logs }) }),
+      ),
+    );
+    getAllMyReviews.mockResolvedValue([]);
+    return render(
+      <MemoryRouter initialEntries={['/my-orders/abcdef12']}>
+        <Routes>
+          <Route path="/my-orders/:id" element={<OrderDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  };
+
+  it('a área rolável do histórico recebe foco pelo teclado e tem nome', async () => {
+    mountWithLogs([
+      { id: 1, new_status: 'PAID', created_at: '2026-09-01T10:00:00Z' },
+      { id: 2, new_status: 'DELIVERED', created_at: '2026-09-03T10:00:00Z' },
+    ]);
+    const region = await screen.findByRole('region', { name: 'Histórico do Pedido' });
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
+
+  it('eventos do histórico em lista ordenada, com o atual marcado', async () => {
+    mountWithLogs([
+      { id: 1, new_status: 'PAID', created_at: '2026-09-01T10:00:00Z' },
+      { id: 2, new_status: 'DELIVERED', created_at: '2026-09-03T10:00:00Z' },
+    ]);
+    const region = await screen.findByRole('region', { name: 'Histórico do Pedido' });
+    const items = within(within(region).getByRole('list')).getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('Atual');
+  });
+});

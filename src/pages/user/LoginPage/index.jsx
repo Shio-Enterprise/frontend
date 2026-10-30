@@ -4,6 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useGoogleAuth } from '../../../context/useGoogleAuth';
 import { GoogleLoginButton } from '../../../context/GoogleLoginButton';
 import logo from '../../../assets/logo/logo.svg';
+import PasswordInput from '../../../components/ui/PasswordInput';
 
 const LoginPage = () => {
   const location = useLocation();
@@ -37,7 +38,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 font-sans text-gray-800">
+    <main className="min-h-screen bg-white flex flex-col items-center justify-center px-4 font-sans text-gray-800">
       <div className="w-full max-w-[380px] flex flex-col items-center">
         
         <div className="flex flex-col items-center mb-10">
@@ -61,21 +62,26 @@ const LoginPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
-          <input
-            type="email"
-            placeholder="E-mail"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
-          />
-          <input
-            type="password"
-            placeholder="Senha"
+          <div>
+            <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-black">
+              E-mail
+            </label>
+            <input
+              id="login-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+            />
+          </div>
+          <PasswordInput
+            label="Senha"
+            autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
           />
           <button
             type="submit"
@@ -93,7 +99,7 @@ const LoginPage = () => {
         </form>
 
         {displayedError && (
-          <p className="mt-4 rounded-md bg-red-50 w-full text-center border border-red-100 p-3 text-[13px] text-red-600">
+          <p role="alert" className="mt-4 rounded-md bg-red-50 w-full text-center border border-red-100 p-3 text-[13px] text-shio-danger">
             {displayedError}
           </p>
         )}
@@ -106,7 +112,7 @@ const LoginPage = () => {
           Ao continuar você concorda com nossos Termos de uso e Política de Privacidade
         </p>
       </div>
-    </div>
+    </main>
   );
 };
 

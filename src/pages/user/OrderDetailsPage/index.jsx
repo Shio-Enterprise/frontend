@@ -33,9 +33,9 @@ const formatDate = (iso) =>
     })
     : '—';
 
-const Section = ({ title, children }) => (
+const Section = ({ title, titleId, children }) => (
   <div className="rounded-[18px] border border-black/10 p-6">
-    <h2 className="mb-4 text-[18px] font-bold text-black">{title}</h2>
+    <h2 id={titleId} className="mb-4 text-[18px] font-bold text-black">{title}</h2>
     {children}
   </div>
 );
@@ -250,28 +250,31 @@ const OrderDetailsPage = () => {
                 </div>
 
                 {tracking.eventos?.length > 0 && (
-                  <div className="relative ml-1 space-y-0">
+                  <ol className="relative ml-1 space-y-0">
                     {tracking.eventos.map((ev, i) => (
-                      <div key={i} className="flex gap-4">
+                      <li key={i} className="flex gap-4">
                         {/* Timeline dot */}
-                        <div className="flex flex-col items-center">
+                        <div aria-hidden="true" className="flex flex-col items-center">
                           <div className={`mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${i === 0 ? 'border-black bg-black' : 'border-black/30 bg-white'}`} />
                           {i < tracking.eventos.length - 1 && (
                             <div className="w-px flex-1 bg-black/10" />
                           )}
                         </div>
                         {/* Event content */}
-                        <div className="pb-5">
-                          <p className="text-[14px] font-semibold text-black">{ev.descricao}</p>
+                        <div className="min-w-0 pb-5 break-words">
+                          <p className="text-[14px] font-semibold text-black">
+                            {ev.descricao}
+                            {i === 0 && <span className="sr-only"> (mais recente)</span>}
+                          </p>
                           {ev.detalhe && <p className="text-[13px] text-shio-muted">{ev.detalhe}</p>}
                           <p className="mt-1 text-[12px] text-shio-muted">
                             {ev.local && <span>{ev.local} · </span>}
                             {formatDate(ev.data)}
                           </p>
                         </div>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ol>
                 )}
               </div>
             ) : (
@@ -283,16 +286,22 @@ const OrderDetailsPage = () => {
           </Section>
 
           {/* Histórico do Pedido */}
-          <Section title="Histórico do Pedido">
+          <Section title="Histórico do Pedido" titleId="historico-pedido">
             {history.length > 0 ? (
-              <div className="max-h-[20vh] overflow-y-auto pr-2">
-                <div className="relative ml-1 space-y-0">
+              // Rola por dentro: tabIndex deixa a área alcançável pelo teclado.
+              <div
+                role="region"
+                aria-labelledby="historico-pedido"
+                tabIndex={0}
+                className="max-h-[20vh] overflow-y-auto pr-2"
+              >
+                <ol className="relative ml-1 space-y-0">
                   {history
                     .map((log, i, logs) => {
                       return (
-                        <div key={log.id} className="flex gap-4">
+                        <li key={log.id} className="flex gap-4">
                           {/* Timeline dot */}
-                          <div className="flex flex-col items-center">
+                          <div aria-hidden="true" className="flex flex-col items-center">
                             <div
                               className={`mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${i === 0
                                 ? 'border-black bg-black'
@@ -306,7 +315,7 @@ const OrderDetailsPage = () => {
                           </div>
 
                           {/* Conteúdo do histórico */}
-                          <div className="pb-5">
+                          <div className="min-w-0 pb-5 break-words">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-[14px] font-semibold text-black">
                                 {log.label}
@@ -338,10 +347,10 @@ const OrderDetailsPage = () => {
                               {formatDate(log.created_at)}
                             </p>
                           </div>
-                        </div>
+                        </li>
                       );
                     })}
-                </div>
+                </ol>
               </div>
             ) : (
               <div className="flex items-center gap-3 text-shio-muted">
