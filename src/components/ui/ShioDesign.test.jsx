@@ -90,6 +90,11 @@ describe('ProductCard rating', () => {
 });
 
 describe('NewsletterBand', () => {
+  it('o campo de e-mail tem rótulo para leitor de tela', () => {
+    render(<NewsletterBand />);
+    expect(screen.getByRole('textbox', { name: 'E-mail para receber novidades' })).toBeInTheDocument();
+  });
+
   it('should keep the submit button disabled until consent is checked', () => {
     render(<NewsletterBand />);
     const submit = screen.getByRole('button', { name: /inscrever-se/i });

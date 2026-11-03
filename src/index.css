@@ -44,6 +44,13 @@ body {
   select {
     font: inherit;
   }
+
+  /* Palavra que não cabe na largura (título em caixa alta, nome de produto longo) quebra em vez de vazar. */
+  h1,
+  h2,
+  h3 {
+    overflow-wrap: break-word;
+  }
 }
 
 /* Foco do teclado sempre visível, inclusive onde há outline-none. Fora de camada de propósito,
