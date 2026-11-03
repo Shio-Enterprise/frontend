@@ -104,26 +104,26 @@ const NewAddressPage = () => {
       <form onSubmit={handleSubmit} className="max-w-[720px] space-y-6">
 
         <label className="block">
-          <span className="text-[15px] uppercase text-black/55">Título</span>
+          <span className="text-[15px] uppercase text-shio-muted">Título</span>
           <input
             value={form.title}
             onChange={(e) => set('title', e.target.value)}
             placeholder="Ex: Casa, Trabalho"
             required
-            className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+            className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
           />
         </label>
 
         <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
           <label className="block">
-            <span className="text-[15px] uppercase text-black/55">CEP</span>
+            <span className="text-[15px] uppercase text-shio-muted">CEP</span>
             <input
               value={form.zip_code}
               onChange={handleCepChange}
               onBlur={lookupCep}
               placeholder="00000-000"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
           <button
@@ -135,70 +135,70 @@ const NewAddressPage = () => {
             {cepLoading ? '...' : 'Buscar'}
           </button>
         </div>
-        {cepError && <p className="text-[13px] text-[#ff3333]">{cepError}</p>}
+        {cepError && <p className="text-[13px] text-shio-danger">{cepError}</p>}
 
         <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
           <label className="block">
-            <span className="text-[15px] uppercase text-black/55">Rua / Logradouro</span>
+            <span className="text-[15px] uppercase text-shio-muted">Rua / Logradouro</span>
             <input
               value={form.street}
               onChange={(e) => set('street', e.target.value)}
               placeholder="Rua..."
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
           <label className="block">
-            <span className="text-[15px] uppercase text-black/55">Número</span>
+            <span className="text-[15px] uppercase text-shio-muted">Número</span>
             <input
               value={form.address_number}
               onChange={(e) => set('address_number', e.target.value)}
               placeholder="123"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
         </div>
 
         <label className="block">
-          <span className="text-[15px] uppercase text-black/55">Complemento <span className="normal-case font-normal text-black/35">(opcional)</span></span>
+          <span className="text-[15px] uppercase text-shio-muted">Complemento <span className="normal-case font-normal text-shio-muted">(opcional)</span></span>
           <input
             value={form.complement}
             onChange={(e) => set('complement', e.target.value)}
             placeholder="Apto, Bloco..."
-            className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+            className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
           />
         </label>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <label className="block sm:col-span-1">
-            <span className="text-[15px] uppercase text-black/55">Bairro</span>
+            <span className="text-[15px] uppercase text-shio-muted">Bairro</span>
             <input
               value={form.neighborhood}
               onChange={(e) => set('neighborhood', e.target.value)}
               placeholder="Bairro"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
           <label className="block sm:col-span-1">
-            <span className="text-[15px] uppercase text-black/55">Cidade</span>
+            <span className="text-[15px] uppercase text-shio-muted">Cidade</span>
             <input
               value={form.city}
               onChange={(e) => set('city', e.target.value)}
               placeholder="Cidade"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
           <label className="block sm:col-span-1">
-            <span className="text-[15px] uppercase text-black/55">UF</span>
+            <span className="text-[15px] uppercase text-shio-muted">UF</span>
             <input
               value={form.state}
               onChange={(e) => set('state', e.target.value.toUpperCase().slice(0, 2))}
               placeholder="SP"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
         </div>
@@ -219,7 +219,7 @@ const NewAddressPage = () => {
 
         <div className="flex gap-4 pt-4">
           <Link to={returnTo}
-            className="flex h-12 flex-1 items-center justify-center rounded-full border border-black/25 text-[14px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black">
+            className="flex h-12 flex-1 items-center justify-center rounded-full border border-black/25 text-[14px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black">
             Cancelar
           </Link>
           <button

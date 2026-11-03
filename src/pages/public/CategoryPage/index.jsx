@@ -116,7 +116,7 @@ function FilterSection({ title, open, onToggle, children }) {
         className="flex w-full items-center justify-between"
       >
         <span className="text-[18px] font-bold text-black">{title}</span>
-        <span className="text-black/55 text-[18px]">{open ? "∧" : "∨"}</span>
+        <span className="text-shio-muted text-[18px]">{open ? "∧" : "∨"}</span>
       </button>
       {open && <div className="mt-4">{children}</div>}
     </div>
@@ -155,7 +155,7 @@ function FilterModal({
       >
         <div className="flex shrink-0 items-center justify-between border-b border-black/10 px-6 py-5">
           <div className="flex items-center gap-3">
-            <Icon name="tag" className="h-5 w-5 text-black/55" />
+            <Icon name="tag" className="h-5 w-5 text-shio-muted" />
             <span className="text-[20px] font-bold text-black">Filtros</span>
           </div>
           <button
@@ -180,7 +180,7 @@ function FilterModal({
                 onChange={setPendingPrice}
               />
             ) : (
-              <p className="text-[13px] text-black/40">
+              <p className="text-[13px] text-shio-muted">
                 Faixa de preço indisponível.
               </p>
             )}
@@ -227,7 +227,7 @@ function FilterModal({
                 })}
               </div>
             ) : (
-              <p className="text-[13px] text-black/40">
+              <p className="text-[13px] text-shio-muted">
                 Nenhuma cor disponível.
               </p>
             )}
@@ -258,7 +258,7 @@ function FilterModal({
                 ))}
               </div>
             ) : (
-              <p className="text-[13px] text-black/40">
+              <p className="text-[13px] text-shio-muted">
                 Nenhum tamanho disponível.
               </p>
             )}
@@ -489,7 +489,7 @@ const CategoryCatalog = ({ category, search }) => {
   const hasActiveFilters = priceActive || !!appliedSize || colorsActive;
 
   const sortSelect = (
-    <div className="flex items-center gap-2 text-[14px] text-black/55">
+    <div className="flex items-center gap-2 text-[14px] text-shio-muted">
       <span>Ordenar por:</span>
       <select
         value={sortBy}
@@ -526,7 +526,7 @@ const CategoryCatalog = ({ category, search }) => {
             <button
               key={n}
               onClick={() => setPage(n)}
-              className={`rounded-[8px] px-4 py-2 ${n === currentPage ? "bg-black text-white" : "text-black/50 hover:bg-black/5"}`}
+              className={`rounded-[8px] px-4 py-2 ${n === currentPage ? "bg-black text-white" : "text-shio-muted hover:bg-black/5"}`}
             >
               {n}
             </button>
@@ -577,7 +577,7 @@ const CategoryCatalog = ({ category, search }) => {
 
           {/* Active filter chips */}
           <div className="mb-6 flex flex-wrap items-center gap-3">
-            <p className="text-[14px] text-black/55">
+            <p className="text-[14px] text-shio-muted">
               {loading
                 ? "Carregando..."
                 : `Mostrando ${count} produto${count !== 1 ? "s" : ""}`}
@@ -587,7 +587,7 @@ const CategoryCatalog = ({ category, search }) => {
                 Preço R${appliedPrice[0]} – R${appliedPrice[1]}
                 <button
                   onClick={clearPrice}
-                  className="ml-0.5 text-black/40 hover:text-black"
+                  className="ml-0.5 text-shio-muted hover:text-black"
                 >
                   <Icon name="close" className="h-3.5 w-3.5" />
                 </button>
@@ -599,7 +599,7 @@ const CategoryCatalog = ({ category, search }) => {
                 {appliedColors.length > 1 ? "s" : ""}
                 <button
                   onClick={clearColors}
-                  className="ml-0.5 text-black/40 hover:text-black"
+                  className="ml-0.5 text-shio-muted hover:text-black"
                 >
                   <Icon name="close" className="h-3.5 w-3.5" />
                 </button>
@@ -610,7 +610,7 @@ const CategoryCatalog = ({ category, search }) => {
                 Tamanho: {appliedSize}
                 <button
                   onClick={clearSize}
-                  className="ml-0.5 text-black/40 hover:text-black"
+                  className="ml-0.5 text-shio-muted hover:text-black"
                 >
                   <Icon name="close" className="h-3.5 w-3.5" />
                 </button>
@@ -627,7 +627,7 @@ const CategoryCatalog = ({ category, search }) => {
                     page: 1,
                   });
                 }}
-                className="text-[13px] font-medium text-black/45 underline hover:text-black"
+                className="text-[13px] font-medium text-shio-muted underline hover:text-black"
               >
                 Limpar todos
               </button>
@@ -641,7 +641,7 @@ const CategoryCatalog = ({ category, search }) => {
               <p className="mt-4 text-[20px] font-bold text-black">
                 Nenhum produto encontrado
               </p>
-              <p className="mt-2 text-black/45">Tente ajustar os filtros.</p>
+              <p className="mt-2 text-shio-muted">Tente ajustar os filtros.</p>
             </div>
           ) : (
             <div className="grid gap-x-5 gap-y-10 grid-cols-2">
@@ -674,7 +674,7 @@ const CategoryCatalog = ({ category, search }) => {
                   onChange={setPendingPrice}
                 />
               ) : (
-                <p className="text-[13px] text-black/40">
+                <p className="text-[13px] text-shio-muted">
                   Faixa de preço indisponível.
                 </p>
               )}
@@ -723,7 +723,7 @@ const CategoryCatalog = ({ category, search }) => {
                   })}
                 </div>
               ) : (
-                <p className="text-[13px] text-black/40">
+                <p className="text-[13px] text-shio-muted">
                   Nenhuma cor disponível.
                 </p>
               )}
@@ -754,7 +754,7 @@ const CategoryCatalog = ({ category, search }) => {
                   ))}
                 </div>
               ) : (
-                <p className="text-[13px] text-black/40">
+                <p className="text-[13px] text-shio-muted">
                   Nenhum tamanho disponível.
                 </p>
               )}
@@ -774,7 +774,7 @@ const CategoryCatalog = ({ category, search }) => {
           {/* Products area */}
           <div className="flex-1">
             <div className="mb-6 flex items-center justify-between">
-              <p className="text-[14px] text-black/55">
+              <p className="text-[14px] text-shio-muted">
                 {loading
                   ? "Carregando..."
                   : `${count} produto${count !== 1 ? "s" : ""}`}
@@ -788,7 +788,7 @@ const CategoryCatalog = ({ category, search }) => {
                 <p className="mt-4 text-[20px] font-bold text-black">
                   Nenhum produto encontrado
                 </p>
-                <p className="mt-2 text-black/45">Tente ajustar os filtros.</p>
+                <p className="mt-2 text-shio-muted">Tente ajustar os filtros.</p>
               </div>
             ) : (
               <div className="grid gap-x-5 gap-y-10 lg:grid-cols-3">

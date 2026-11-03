@@ -106,8 +106,8 @@ const NewProductPage = () => {
     <div>
       <PageMarker name="NewProductPage" />
       {showSuccess && (
-        <div className="mb-4 flex h-12 items-center gap-3 rounded-[12px] bg-[#b6edc8] px-5 text-[14px] font-bold uppercase text-[#1da64a] md:h-[72px] md:gap-4 md:px-8 md:text-[18px]">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-[#1da64a] text-[#1da64a] md:h-8 md:w-8">✓</span>
+        <div className="mb-4 flex h-12 items-center gap-3 rounded-[12px] bg-[#b6edc8] px-5 text-[14px] font-bold uppercase text-shio-success md:h-[72px] md:gap-4 md:px-8 md:text-[18px]">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-shio-success text-shio-success md:h-8 md:w-8">✓</span>
           Produto salvo com sucesso!
         </div>
       )}
@@ -122,20 +122,20 @@ const NewProductPage = () => {
       <AdminPanel className="mx-auto max-w-[650px] p-9">
         <form onSubmit={handleSubmit} className="grid gap-6">
           <label>
-            <span className="text-[15px] uppercase text-black/55">Nome do produto</span>
+            <span className="text-[15px] uppercase text-shio-muted">Nome do produto</span>
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Ex: Moletom"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
 
           <div className="grid gap-8 md:grid-cols-2">
             <label>
-              <span className="text-[15px] uppercase text-black/55">Preço (R$)</span>
+              <span className="text-[15px] uppercase text-shio-muted">Preço (R$)</span>
               <input
                 type="number"
                 min="0"
@@ -144,7 +144,7 @@ const NewProductPage = () => {
                 onChange={(event) => setPrice(event.target.value)}
                 placeholder="0.00"
                 required
-                className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+                className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
               />
             </label>
 
@@ -153,7 +153,7 @@ const NewProductPage = () => {
           <VariationFields rows={variations} onChange={setVariations} />
 
           <label>
-            <span className="text-[15px] uppercase text-black/55">Drop (Coleção)</span>
+            <span className="text-[15px] uppercase text-shio-muted">Drop (Coleção)</span>
             <select
               value={dropId}
               onChange={(event) => setDropId(event.target.value)}
@@ -167,17 +167,17 @@ const NewProductPage = () => {
           </label>
 
           <label>
-            <span className="text-[15px] uppercase text-black/55">Descrição (Opcional)</span>
+            <span className="text-[15px] uppercase text-shio-muted">Descrição (Opcional)</span>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Descrição do produto"
-              className="mt-3 min-h-[135px] w-full rounded-[18px] border border-black/25 px-7 py-4 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 min-h-[135px] w-full rounded-[18px] border border-black/25 px-7 py-4 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
 
           <div>
-            <span className="text-[15px] uppercase text-black/55">Imagens (Opcional)</span>
+            <span className="text-[15px] uppercase text-shio-muted">Imagens (Opcional)</span>
             <input
               ref={fileInputRef}
               type="file"
@@ -189,7 +189,7 @@ const NewProductPage = () => {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="mt-3 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-black/45 transition hover:border-black/50 hover:text-black/65"
+              className="mt-3 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-shio-muted transition hover:border-black/50 hover:text-black/65"
             >
               <Icon name="plus" className="h-5 w-5" />
               Adicionar imagens
@@ -213,12 +213,12 @@ const NewProductPage = () => {
             )}
           </div>
 
-          {submitError && <p className="text-center text-sm font-semibold text-red-500">{submitError}</p>}
+          {submitError && <p className="text-center text-sm font-semibold text-shio-danger">{submitError}</p>}
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-end sm:gap-5">
             <Link
               to="/admin/products"
-              className="inline-flex h-12 w-full items-center justify-center rounded-full border border-black/25 text-[13px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black sm:h-11 sm:w-auto sm:min-w-[195px] sm:rounded-[8px] sm:text-[15px]"
+              className="inline-flex h-12 w-full items-center justify-center rounded-full border border-black/25 text-[13px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black sm:h-11 sm:w-auto sm:min-w-[195px] sm:rounded-[8px] sm:text-[15px]"
             >
               Cancelar
             </Link>

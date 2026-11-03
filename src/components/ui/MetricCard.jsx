@@ -18,7 +18,7 @@ const MetricCard = ({ label, value, change, icon, negative, onClick }) => (
         {icon === '$' ? '$' : <Icon name={icon} className="h-5 w-5" />}
       </div>
       {change && (
-        <span className={`text-[14px] font-semibold md:text-[20px] ${negative ? 'text-[#ff3333]' : 'text-[#14b85a]'}`}>
+        <span className={`text-[14px] font-semibold md:text-[20px] ${negative ? 'text-shio-danger' : 'text-shio-success'}`}>
           {change}
         </span>
       )}

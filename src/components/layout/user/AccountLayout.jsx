@@ -35,7 +35,7 @@ export default function AccountLayout({ children }) {
             <Icon name="arrowLeft" className="h-4 w-4" />
             Voltar para Loja
           </Link>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-[14px] text-[#ff3333]">
+          <button onClick={handleLogout} className="flex items-center gap-2 text-[14px] text-shio-danger">
             <Icon name="logout" className="h-4 w-4" />
             Sair
           </button>
@@ -47,7 +47,7 @@ export default function AccountLayout({ children }) {
             const active = isActive(item.to);
             return (
               <Link key={item.to} to={item.to}
-                className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-3 text-center text-[11px] font-semibold transition ${active ? 'border-b-2 border-black text-black' : 'text-black/35'
+                className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-3 text-center text-[12px] font-semibold transition ${active ? 'border-b-2 border-black text-black' : 'text-shio-muted'
                   }`}>
                 <Icon name={item.icon} className="h-5 w-5" />
                 {item.label}
@@ -94,7 +94,7 @@ export default function AccountLayout({ children }) {
 
               <button
                 onClick={handleLogout}
-                className="mt-3 flex h-12 items-center gap-5 text-[18px] text-[#ff3333]"
+                className="mt-3 flex h-12 items-center gap-5 text-[18px] text-shio-danger"
               >
                 <Icon name="logout" className="h-5 w-5" />
                 Sair

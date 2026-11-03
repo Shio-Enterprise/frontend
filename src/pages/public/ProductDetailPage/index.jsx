@@ -160,7 +160,7 @@ const ProductDetailContent = ({ id }) => {
   if (loading) {
     return (
       <PublicLayout>
-        <div className="flex min-h-[400px] items-center justify-center text-black/40">Carregando produto...</div>
+        <div className="flex min-h-[400px] items-center justify-center text-shio-muted">Carregando produto...</div>
       </PublicLayout>
     );
   }
@@ -226,7 +226,7 @@ const ProductDetailContent = ({ id }) => {
             <h1 className="text-[36px] font-black leading-tight text-black md:text-[42px]">{product.name}</h1>
 
             {product.category?.name && (
-              <p className="mt-2 text-[14px] font-semibold uppercase text-black/45">{product.category.name}</p>
+              <p className="mt-2 text-[14px] font-semibold uppercase text-shio-muted">{product.category.name}</p>
             )}
 
             {Number(product.rating_count) > 0 && (
@@ -238,21 +238,21 @@ const ProductDetailContent = ({ id }) => {
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <span className="text-[32px] font-bold text-black">R$ {price}</span>
               {promoPrice && (
-                <span className="text-[22px] font-bold text-black/35 line-through">R$ {basePrice.toFixed(2)}</span>
+                <span className="text-[22px] font-bold text-shio-muted line-through">R$ {basePrice.toFixed(2)}</span>
               )}
               {discount && (
-                <span className="rounded-full bg-[#ffebeb] px-4 py-1 text-sm font-semibold text-[#ff3333]">-{discount}%</span>
+                <span className="rounded-full bg-[#ffebeb] px-4 py-1 text-sm font-semibold text-shio-danger">-{discount}%</span>
               )}
               {totalStock === 0 && (
-                <span className="rounded-full bg-red-50 px-4 py-1 text-sm font-medium text-[#ff3333]">Esgotado</span>
+                <span className="rounded-full bg-red-50 px-4 py-1 text-sm font-medium text-shio-danger">Esgotado</span>
               )}
               {notSellable && (
-                <span className="rounded-full bg-black/5 px-4 py-1 text-sm font-medium text-black/55">Indisponível para compra</span>
+                <span className="rounded-full bg-black/5 px-4 py-1 text-sm font-medium text-shio-muted">Indisponível para compra</span>
               )}
             </div>
 
             {product.description && (
-              <p className="mt-4 max-w-[620px] border-b border-black/10 pb-6 text-[16px] leading-7 text-black/55">
+              <p className="mt-4 max-w-[620px] border-b border-black/10 pb-6 text-[16px] leading-7 text-shio-muted">
                 {product.description}
               </p>
             )}
@@ -261,7 +261,7 @@ const ProductDetailContent = ({ id }) => {
             {product.variations?.length > 0 && (
               <div className="border-b border-black/10 py-6">
                 <div className="mb-4 flex items-center justify-between gap-4">
-                  <p className="text-[15px] text-black/55">Tamanho e cor</p>
+                  <p className="text-[15px] text-shio-muted">Tamanho e cor</p>
                   {product.size_guide && (
                     <a href="#tabela-de-medidas" className="text-[13px] font-semibold text-black underline">
                       Tabela de medidas
@@ -271,14 +271,14 @@ const ProductDetailContent = ({ id }) => {
                 <div className="flex flex-wrap gap-3">
                   {product.variations.map((v) => (
                     <button key={v.id} onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
-                      className={`min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-black/55 hover:bg-black/10 ${v.stock_quantity === 0 ? 'opacity-40' : ''}`}`}>
+                      className={`min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-shio-muted hover:bg-black/10 ${v.stock_quantity === 0 ? 'opacity-40' : ''}`}`}>
                       {v.size}{v.color ? ` / ${v.color}` : ''}
                       {v.stock_quantity === 0 && ' (esgotado)'}
                     </button>
                   ))}
                 </div>
                 {selectedVariation && (
-                  <p className="mt-3 text-[13px] text-black/45">
+                  <p className="mt-3 text-[13px] text-shio-muted">
                     {selectedVariation.stock_quantity > 0
                       ? `${selectedVariation.stock_quantity} unidades em estoque`
                       : 'Sem estoque para este tamanho'}
@@ -301,7 +301,7 @@ const ProductDetailContent = ({ id }) => {
                     Avise-me quando chegar
                   </button>
                 )}
-                {alertError && <p role="alert" className="mt-3 text-sm font-semibold text-[#ff3333]">{alertError}</p>}
+                {alertError && <p role="alert" className="mt-3 text-sm font-semibold text-shio-danger">{alertError}</p>}
               </div>
             ) : (
               <>
@@ -321,13 +321,13 @@ const ProductDetailContent = ({ id }) => {
             )}
 
             {cartMsg && (
-              <p className={`mt-3 text-sm font-semibold ${cartMsg.type === 'success' ? 'text-[#10a545]' : 'text-[#ff3333]'}`}>
+              <p className={`mt-3 text-sm font-semibold ${cartMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
                 {cartMsg.text}
               </p>
             )}
 
             {product.drop?.name && (
-              <Link to={`/drop/${product.drop.slug}`} className="mt-4 inline-block text-[14px] text-black/40 underline hover:text-black/70">
+              <Link to={`/drop/${product.drop.slug}`} className="mt-4 inline-block text-[14px] text-shio-muted underline hover:text-black/70">
                 Drop: {product.drop.name}
               </Link>
             )}
@@ -342,11 +342,11 @@ const ProductDetailContent = ({ id }) => {
       <section className="mx-auto max-w-[1240px] border-t border-black/10 px-6 py-16">
         <SectionTitle>Recomendações para você</SectionTitle>
         {recommendationsLoading ? (
-          <p role="status" className="mt-10 text-center text-black/50">Carregando recomendações...</p>
+          <p role="status" className="mt-10 text-center text-shio-muted">Carregando recomendações...</p>
         ) : recommendationsError ? (
-          <p role="alert" className="mt-10 text-center text-black/50">Não foi possível carregar as recomendações.</p>
+          <p role="alert" className="mt-10 text-center text-shio-muted">Não foi possível carregar as recomendações.</p>
         ) : recommendations.length === 0 ? (
-          <p className="mt-10 text-center text-black/50">Nenhuma recomendação disponível no momento.</p>
+          <p className="mt-10 text-center text-shio-muted">Nenhuma recomendação disponível no momento.</p>
         ) : (
           <div className="mt-10 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {recommendations.map(toCardShape).map((p) => <ProductCard key={p.id} product={p} />)}

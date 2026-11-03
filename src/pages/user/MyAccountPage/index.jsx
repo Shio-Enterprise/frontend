@@ -92,7 +92,7 @@ const MyAccountPage = () => {
       <h1 className="mb-7 text-[34px] font-black uppercase text-black">Meus Dados</h1>
 
       {loading ? (
-        <div className="py-12 text-center text-black/40">Carregando...</div>
+        <div className="py-12 text-center text-shio-muted">Carregando...</div>
       ) : (
         <form
           className="rounded-[18px] border border-black/20 p-5 md:p-8 lg:p-12"
@@ -100,7 +100,7 @@ const MyAccountPage = () => {
         >
           <div className="grid gap-x-20 gap-y-6 md:grid-cols-2">
             <label className="block">
-              <span className="text-[14px] text-black/55 lg:text-[20px]">Nome Completo</span>
+              <span className="text-[14px] text-shio-muted lg:text-[20px]">Nome Completo</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -109,7 +109,7 @@ const MyAccountPage = () => {
             </label>
 
             <label className="block">
-              <span className="text-[14px] text-black/55 lg:text-[20px]">Telefone</span>
+              <span className="text-[14px] text-shio-muted lg:text-[20px]">Telefone</span>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -119,17 +119,17 @@ const MyAccountPage = () => {
             </label>
 
             <label className="block">
-              <span className="text-[14px] text-black/55 lg:text-[20px]">E-mail</span>
+              <span className="text-[14px] text-shio-muted lg:text-[20px]">E-mail</span>
               <input
                 value={me?.email ?? ''}
                 readOnly
                 className="mt-3 h-11 w-full rounded-full border border-black/20 bg-black/[0.03] px-5 text-[14px] outline-none lg:mt-5 lg:h-12 lg:text-base"
               />
-              <span className="mt-2 block text-[12px] text-black/45">O e-mail não pode ser alterado.</span>
+              <span className="mt-2 block text-[12px] text-shio-muted">O e-mail não pode ser alterado.</span>
             </label>
 
             <label className="block">
-              <span className="text-[14px] text-black/55 lg:text-[20px]">CPF</span>
+              <span className="text-[14px] text-shio-muted lg:text-[20px]">CPF</span>
               <input
                 value={cpf}
                 onChange={(e) => setCpf(e.target.value)}
@@ -140,7 +140,7 @@ const MyAccountPage = () => {
           </div>
 
           {saveMsg && (
-            <p className={`mt-5 text-sm font-semibold ${saveMsg.type === 'success' ? 'text-[#10a545]' : 'text-[#ff3333]'}`}>
+            <p className={`mt-5 text-sm font-semibold ${saveMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
               {saveMsg.text}
             </p>
           )}
@@ -178,7 +178,7 @@ const MyAccountPage = () => {
               />
             </button>
           </div>
-          {marketingError && <p className="mt-3 text-sm font-semibold text-[#ff3333]">{marketingError}</p>}
+          {marketingError && <p className="mt-3 text-sm font-semibold text-shio-danger">{marketingError}</p>}
         </section>
       )}
     </AccountLayout>

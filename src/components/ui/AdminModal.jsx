@@ -37,7 +37,7 @@ export default function AdminModal({ title, titleId, onClose, onSubmit, children
           <button
             type="submit"
             disabled={!canSubmit}
-            className={`h-11 whitespace-nowrap rounded-full px-6 text-sm font-medium text-white transition disabled:opacity-40 ${danger ? 'bg-[#ff3333] hover:bg-[#e02020]' : 'bg-black hover:bg-black/80'}`}
+            className={`h-11 whitespace-nowrap rounded-full px-6 text-sm font-medium text-white transition disabled:opacity-40 ${danger ? 'bg-shio-danger hover:bg-shio-danger-hover' : 'bg-black hover:bg-black/80'}`}
           >
             {submitLabel}
           </button>

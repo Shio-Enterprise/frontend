@@ -55,7 +55,7 @@ export default function RefundRequestModal({ order, onClose, onRequested }) {
         <p className="mt-2 text-[14px] text-black/70">
           Valor a ser devolvido: <strong className="text-black">{formatMoney(order.total_amount)}</strong>
         </p>
-        <p className="mt-2 text-[13px] text-black/55">
+        <p className="mt-2 text-[13px] text-shio-muted">
           {delivered
             ? 'A loja vai analisar o pedido. Se for aprovado, você recebe por e-mail as instruções para devolver o produto.'
             : 'A loja vai analisar o pedido. Se for aprovado, a compra é cancelada e não será enviada.'}

@@ -83,3 +83,30 @@ describe('HomePage', () => {
     expect(screen.queryByText('Produto 1')).not.toBeInTheDocument();
   });
 });
+
+describe('HomePage — carrossel', () => {
+  const slideTrack = () => document.querySelector('[style*="translateX"]');
+  const stubReducedMotion = (reduce) => vi.stubGlobal('matchMedia', vi.fn((query) => ({
+    matches: reduce && query === '(prefers-reduced-motion: reduce)',
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  })));
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('troca de slide sozinho a cada 5 segundos', () => {
+    stubReducedMotion(false);
+    mount();
+    act(() => vi.advanceTimersByTime(5000));
+    expect(slideTrack().style.transform).toBe('translateX(-100%)');
+  });
+
+  it('não troca sozinho quando o sistema pede menos movimento', () => {
+    stubReducedMotion(true);
+    mount();
+    act(() => vi.advanceTimersByTime(15000));
+    expect(slideTrack().style.transform).toBe('translateX(-0%)');
+  });
+});

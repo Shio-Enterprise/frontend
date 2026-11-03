@@ -80,7 +80,7 @@ export function Rating({ value, count }) {
   const label = ratingFormatter.format(rounded);
 
   return (
-    <div role="img" aria-label={`Nota ${label} de 5`} className="flex items-center gap-2 text-[13px] text-black/55">
+    <div role="img" aria-label={`Nota ${label} de 5`} className="flex items-center gap-2 text-[13px] text-shio-muted">
       <span className="flex text-base">
         {fills.map((fill, index) => <Star key={index} fill={fill} />)}
       </span>
@@ -128,12 +128,12 @@ export function ProductCard({ product }) {
         </button>
       </div>
       {isAuthenticated && idsError && (
-        <div className="mt-2 text-xs text-[#ff3333]">
+        <div className="mt-2 text-xs text-shio-danger">
           <p role="alert">Não foi possível consultar os favoritos.</p>
           <button type="button" onClick={() => refreshWishlist()} className="mt-1 underline">Tentar novamente</button>
         </div>
       )}
-      {wishlistError && <p role="alert" className="mt-2 text-xs text-[#ff3333]">Não foi possível atualizar os favoritos.</p>}
+      {wishlistError && <p role="alert" className="mt-2 text-xs text-shio-danger">Não foi possível atualizar os favoritos.</p>}
       <h3 className="mt-4 text-[16px] font-semibold leading-tight text-black">{product.name}</h3>
       {product.ratingCount > 0 && (
         <div className="mt-2">
@@ -142,9 +142,9 @@ export function ProductCard({ product }) {
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-[20px] font-bold text-black">{product.price}</span>
-        {product.oldPrice && <span className="text-[18px] font-bold text-black/35 line-through">{product.oldPrice}</span>}
+        {product.oldPrice && <span className="text-[18px] font-bold text-shio-muted line-through">{product.oldPrice}</span>}
         {product.discount && (
-          <span className="rounded-full bg-[#ffebeb] px-3 py-1 text-xs font-medium text-[#ff3333]">
+          <span className="rounded-full bg-[#ffebeb] px-3 py-1 text-xs font-medium text-shio-danger">
             {product.discount}
           </span>
         )}
@@ -215,18 +215,18 @@ export function NewsletterBand() {
             Cadastre-se para receber novidades
           </h2>
           <div className="grid gap-3">
-            <label className="flex h-12 items-center gap-3 rounded-full bg-white px-5 text-black/45">
+            <label className="flex h-12 items-center gap-3 rounded-full bg-white px-5 text-shio-muted">
               <Icon name="mail" className="h-5 w-5 shrink-0" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Digite seu e-mail"
-                className="w-full bg-transparent text-sm text-black outline-none placeholder:text-black/35"
+                className="w-full bg-transparent text-sm text-black outline-none placeholder:text-shio-placeholder"
               />
             </label>
             {status === 'success' ? (
-              <p className="h-12 flex items-center justify-center rounded-full bg-[#10a545] text-sm font-medium text-white">
+              <p className="h-12 flex items-center justify-center rounded-full bg-shio-success text-sm font-medium text-white">
                 Inscrito com sucesso!
               </p>
             ) : (
@@ -285,7 +285,7 @@ export function AdminTitle({ eyebrow, title, action }) {
   return (
     <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        {eyebrow && <p className="text-[15px] text-black/55">{eyebrow}</p>}
+        {eyebrow && <p className="text-[15px] text-shio-muted">{eyebrow}</p>}
         <h1 className="mt-2 text-[34px] font-black uppercase leading-tight text-black md:text-[42px]">{title}</h1>
       </div>
       {action}
@@ -331,7 +331,7 @@ export function ActionMenu({ label, items }) {
             return <div key={item.key ?? `sep-${i}`} className="mx-4 border-t border-black/10" />;
           }
           const cls = `flex w-full items-center gap-2.5 px-5 py-3 text-[15px] text-left ${item.danger
-              ? 'font-semibold text-[#ff3333] hover:bg-[#fff5f5]'
+              ? 'font-semibold text-shio-danger hover:bg-[#fff5f5]'
               : 'text-black hover:bg-[#f5f5f5]'
             }`;
           if (item.to) {

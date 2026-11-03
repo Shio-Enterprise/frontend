@@ -4,7 +4,7 @@ import { Icon } from '../../../components/ui/ShioDesign';
 const palette = ['#171717', '#c59b00', '#2663a7', '#bd473c', '#48845d', '#815aa2', '#3c858b', '#8d6a53'];
 
 export function HorizontalBars({ rows, getKey, getLabel, getValue, formatValue, getHref, onSelect }) {
-  if (!rows?.length) return <p className="rounded-lg bg-black/[0.03] px-4 py-6 text-sm text-black/55">Nenhum dado no período.</p>;
+  if (!rows?.length) return <p className="rounded-lg bg-black/[0.03] px-4 py-6 text-sm text-shio-muted">Nenhum dado no período.</p>;
   const max = Math.max(0, ...rows.map((row) => Number(getValue(row)) || 0));
 
   return <div className="min-w-0 space-y-4" role="list">
@@ -28,7 +28,7 @@ export function HorizontalBars({ rows, getKey, getLabel, getValue, formatValue, 
 export function DonutChart({ rows, getKey, getLabel, getValue, formatValue, totalLabel, onSelect }) {
   const values = rows?.map((row) => Math.max(0, Number(getValue(row)) || 0)) ?? [];
   const total = values.reduce((sum, value) => sum + value, 0);
-  if (!total) return <p className="rounded-lg bg-black/[0.03] px-4 py-6 text-sm text-black/55">Nenhum dado no período.</p>;
+  if (!total) return <p className="rounded-lg bg-black/[0.03] px-4 py-6 text-sm text-shio-muted">Nenhum dado no período.</p>;
 
   return <div className="grid min-w-0 items-center gap-4 2xl:grid-cols-[160px_minmax(0,1fr)]">
     <svg className="mx-auto h-auto w-full max-w-[180px]" viewBox="0 0 100 100" role="img" aria-label={`Gráfico de rosca: ${totalLabel}`}>
@@ -47,7 +47,7 @@ export function DonutChart({ rows, getKey, getLabel, getValue, formatValue, tota
     <div className="min-w-0 space-y-2" role="list">
       {rows.map((row, index) => <div key={getKey(row, index)} role="listitem" className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
         <span className="flex min-w-0 items-center gap-2 [overflow-wrap:anywhere]"><span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: palette[index % palette.length] }} /><span className="min-w-0">{getLabel(row)}</span></span>
-        <span className="flex min-w-0 items-center gap-2 font-semibold [overflow-wrap:anywhere]"><span>{formatValue(row)} <span className="font-normal text-black/55">({(values[index] / total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)</span></span>{onSelect && <button type="button" onClick={() => onSelect(row)} aria-label={`Ver pedidos de ${getLabel(row)}`} title={`Ver pedidos de ${getLabel(row)}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-black/15 hover:bg-black/5"><Icon name="arrowRight" className="h-4 w-4" /></button>}</span>
+        <span className="flex min-w-0 items-center gap-2 font-semibold [overflow-wrap:anywhere]"><span>{formatValue(row)} <span className="font-normal text-shio-muted">({(values[index] / total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)</span></span>{onSelect && <button type="button" onClick={() => onSelect(row)} aria-label={`Ver pedidos de ${getLabel(row)}`} title={`Ver pedidos de ${getLabel(row)}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-black/15 hover:bg-black/5"><Icon name="arrowRight" className="h-4 w-4" /></button>}</span>
       </div>)}
     </div>
   </div>;

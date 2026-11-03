@@ -426,7 +426,7 @@ export default function CouponsPage() {
       <div className="mt-8 bg-white border border-black/10 shadow-sm rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-gray-500 uppercase font-semibold text-[11px] tracking-wider border-b">
+            <thead className="bg-gray-50 text-gray-500 uppercase font-semibold text-[12px] tracking-wider border-b">
               <tr>
                 <th className="px-6 py-4">Código / Status</th>
                 <th className="px-6 py-4">Regras</th>
@@ -476,7 +476,7 @@ export default function CouponsPage() {
                   <td className="px-6 py-4 text-right">
                     <div className="flex flex-col">
                       <span className="font-semibold text-green-700">{formatMoney(coupon.revenue)} gerado</span>
-                      <span className="text-xs text-red-500">-{formatMoney(coupon.total_discount_given)} descontado</span>
+                      <span className="text-xs text-shio-danger">-{formatMoney(coupon.total_discount_given)} descontado</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">

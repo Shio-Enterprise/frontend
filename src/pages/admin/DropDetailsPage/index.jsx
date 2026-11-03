@@ -146,7 +146,7 @@ const DropDetailsPage = () => {
   }
 
   if (error) {
-    return <div className="p-8 text-center text-red-500">Erro ao carregar o drop. Verifique se o ID é válido.</div>;
+    return <div className="p-8 text-center text-shio-danger">Erro ao carregar o drop. Verifique se o ID é válido.</div>;
   }
 
   const currentDrop = managedDrop || drop;
@@ -190,28 +190,28 @@ const DropDetailsPage = () => {
       <AdminPanel className="mt-4 p-5">
         <div className="grid gap-2 text-[14px]">
           <div className="flex justify-between">
-            <span className="text-black/50">Nome do drop</span>
+            <span className="text-shio-muted">Nome do drop</span>
             <span className="font-medium">{currentDrop.name}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-black/50">Data</span>
+            <span className="text-shio-muted">Data</span>
             <span>{formatDate(currentDrop.launch_date)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-black/50">Status</span>
+            <span className="text-shio-muted">Status</span>
             <span className={statusColor}>{statusLabel}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-black/50">Produtos</span>
+            <span className="text-shio-muted">Produtos</span>
             <span>{products.length} itens</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-black/50">Receita</span>
+            <span className="text-shio-muted">Receita</span>
             <span>{formattedRevenue}</span>
           </div>
         </div>
         {currentDrop.description && (
-          <p className="mt-4 text-[13px] leading-relaxed text-black/55">{currentDrop.description}</p>
+          <p className="mt-4 text-[13px] leading-relaxed text-shio-muted">{currentDrop.description}</p>
         )}
       </AdminPanel>
 
@@ -232,12 +232,12 @@ const DropDetailsPage = () => {
         {isManagingProducts && (
           <div className="border-t border-black/10 p-5">
             {/* Search bar */}
-            <label className="flex h-11 items-center gap-3 rounded-full border border-black/20 px-4 text-black/45">
+            <label className="flex h-11 items-center gap-3 rounded-full border border-black/20 px-4 text-shio-muted">
               <Icon name="search" className="h-4 w-4 shrink-0" />
               <input
                 value={productSearch}
                 onChange={(event) => setProductSearch(event.target.value)}
-                className="w-full bg-transparent text-[14px] outline-none placeholder:text-black/35"
+                className="w-full bg-transparent text-[14px] outline-none placeholder:text-shio-placeholder"
                 placeholder="Buscar produto..."
               />
             </label>
@@ -246,16 +246,16 @@ const DropDetailsPage = () => {
             <button
               type="button"
               onClick={() => setIsManagingProducts(true)}
-              className="mt-3 flex h-11 w-full items-center justify-center rounded-[10px] border border-dashed border-black/20 text-[13px] font-semibold text-black/55 hover:border-black/40 transition"
+              className="mt-3 flex h-11 w-full items-center justify-center rounded-[10px] border border-dashed border-black/20 text-[13px] font-semibold text-shio-muted hover:border-black/40 transition"
             >
               + Adicionar produto
             </button>
 
-            {managerError && <p className="mt-4 text-sm font-semibold text-red-500">{managerError}</p>}
+            {managerError && <p className="mt-4 text-sm font-semibold text-shio-danger">{managerError}</p>}
 
             <div className="mt-4 grid gap-3">
               {loadingProducts ? (
-                <div className="rounded-[10px] bg-[#f0f0f0] p-5 text-center text-black/55">Carregando produtos...</div>
+                <div className="rounded-[10px] bg-[#f0f0f0] p-5 text-center text-shio-muted">Carregando produtos...</div>
               ) : allProducts.length > 0 ? allProducts.map((product) => {
                 const isLinked = linkedProductIds.has(product.id);
                 const productImage = productImageMap[product.id] || getProductImage(product);
@@ -268,7 +268,7 @@ const DropDetailsPage = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold text-black truncate">{product.name}</p>
-                      <p className="text-[13px] text-black/55">{formatPrice(product)}</p>
+                      <p className="text-[13px] text-shio-muted">{formatPrice(product)}</p>
                     </div>
                     <button
                       type="button"
@@ -281,7 +281,7 @@ const DropDetailsPage = () => {
                   </div>
                 );
               }) : (
-                <div className="rounded-[10px] bg-[#f0f0f0] p-5 text-center text-black/55">Nenhum produto encontrado.</div>
+                <div className="rounded-[10px] bg-[#f0f0f0] p-5 text-center text-shio-muted">Nenhum produto encontrado.</div>
               )}
             </div>
           </div>
@@ -298,12 +298,12 @@ const DropDetailsPage = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-bold text-black truncate">{product.name}</p>
-                <p className="text-[12px] text-black/50">Estoque: {getStock(product)}</p>
+                <p className="text-[12px] text-shio-muted">Estoque: {getStock(product)}</p>
                 <p className="text-[14px] font-semibold text-black">{formatPrice(product)}</p>
               </div>
             </div>
           )) : (
-            <p className="text-center text-[14px] text-black/55">Nenhum produto associado a este drop.</p>
+            <p className="text-center text-[14px] text-shio-muted">Nenhum produto associado a este drop.</p>
           )}
         </div>
 
@@ -311,11 +311,11 @@ const DropDetailsPage = () => {
         {isManagingProducts && (
           <div className="border-t border-black/10 px-5 py-4 text-[13px]">
             <div className="flex justify-between">
-              <span className="text-black/50">Total de produtos</span>
+              <span className="text-shio-muted">Total de produtos</span>
               <span>{products.length}</span>
             </div>
             <div className="flex justify-between mt-1">
-              <span className="text-black/50">Receita estimada</span>
+              <span className="text-shio-muted">Receita estimada</span>
               <span className="font-semibold">{formattedRevenue}</span>
             </div>
           </div>
@@ -355,7 +355,7 @@ const DropDetailsPage = () => {
         </button>
         <button
           onClick={handleDelete}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-[#ff3333] text-[13px] font-bold uppercase tracking-widest text-white hover:bg-[#cc0000] transition"
+          className="flex h-12 w-full items-center justify-center rounded-full bg-shio-danger text-[13px] font-bold uppercase tracking-widest text-white hover:bg-shio-danger-hover transition"
         >
           EXCLUIR DROP
         </button>
@@ -387,7 +387,7 @@ const DropDetailsPage = () => {
               </span>
             </div>
             {currentDrop.description && (
-              <p className="mt-4 max-w-2xl text-[18px] leading-7 text-black/55">{currentDrop.description}</p>
+              <p className="mt-4 max-w-2xl text-[18px] leading-7 text-shio-muted">{currentDrop.description}</p>
             )}
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               <div className="rounded-[14px] bg-[#f0f0f0] p-5 text-[18px] font-semibold">
@@ -426,13 +426,13 @@ const DropDetailsPage = () => {
               </button>
               <button
                 onClick={handleDelete}
-                className="flex h-12 items-center justify-center rounded-[10px] bg-[#ff3333] text-[15px] font-semibold text-white hover:bg-[#cc0000] transition"
+                className="flex h-12 items-center justify-center rounded-[10px] bg-shio-danger text-[15px] font-semibold text-white hover:bg-shio-danger-hover transition"
               >
                 Excluir drop
               </button>
             </div>
             {actionError && (
-              <p className="mt-4 text-sm font-semibold text-red-500">{actionError}</p>
+              <p className="mt-4 text-sm font-semibold text-shio-danger">{actionError}</p>
             )}
           </AdminPanel>
         </div>
@@ -454,20 +454,20 @@ const DropDetailsPage = () => {
           {isManagingProducts && (
             <div className="border-t border-black/10 px-8 pb-8">
               <div className="mt-6 flex gap-4">
-                <label className="flex flex-1 h-11 items-center gap-3 rounded-full border border-black/20 px-4 text-black/45">
+                <label className="flex flex-1 h-11 items-center gap-3 rounded-full border border-black/20 px-4 text-shio-muted">
                   <Icon name="search" className="h-4 w-4 shrink-0" />
                   <input
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    className="w-full bg-transparent text-[14px] outline-none placeholder:text-black/35"
+                    className="w-full bg-transparent text-[14px] outline-none placeholder:text-shio-placeholder"
                     placeholder="Buscar produto..."
                   />
                 </label>
               </div>
-              {managerError && <p className="mt-4 text-sm font-semibold text-red-500">{managerError}</p>}
+              {managerError && <p className="mt-4 text-sm font-semibold text-shio-danger">{managerError}</p>}
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {loadingProducts ? (
-                  <div className="col-span-full rounded-[10px] bg-[#f0f0f0] p-5 text-center text-black/55">Carregando produtos...</div>
+                  <div className="col-span-full rounded-[10px] bg-[#f0f0f0] p-5 text-center text-shio-muted">Carregando produtos...</div>
                 ) : allProducts.length > 0 ? allProducts.map((product) => {
                   const isLinked = linkedProductIds.has(product.id);
                   const productImage = productImageMap[product.id] || getProductImage(product);
@@ -478,7 +478,7 @@ const DropDetailsPage = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[14px] font-semibold text-black truncate">{product.name}</p>
-                        <p className="text-[13px] text-black/55">{formatPrice(product)}</p>
+                        <p className="text-[13px] text-shio-muted">{formatPrice(product)}</p>
                       </div>
                       <button
                         type="button"
@@ -491,7 +491,7 @@ const DropDetailsPage = () => {
                     </div>
                   );
                 }) : (
-                  <div className="col-span-full rounded-[10px] bg-[#f0f0f0] p-5 text-center text-black/55">Nenhum produto encontrado.</div>
+                  <div className="col-span-full rounded-[10px] bg-[#f0f0f0] p-5 text-center text-shio-muted">Nenhum produto encontrado.</div>
                 )}
               </div>
             </div>
@@ -500,7 +500,7 @@ const DropDetailsPage = () => {
           {products.length > 0 ? (
             <table className="w-full">
               <thead>
-                <tr className="border-t border-black/10 text-left text-[14px] text-black/55">
+                <tr className="border-t border-black/10 text-left text-[14px] text-shio-muted">
                   <th className="px-8 py-4 font-medium">Produto</th>
                   <th className="px-8 py-4 font-medium">Preço</th>
                   <th className="px-8 py-4 font-medium">Estoque</th>
@@ -527,7 +527,7 @@ const DropDetailsPage = () => {
               </tbody>
             </table>
           ) : (
-            <p className="px-8 pb-8 text-[16px] text-black/55">Nenhum produto associado a este drop.</p>
+            <p className="px-8 pb-8 text-[16px] text-shio-muted">Nenhum produto associado a este drop.</p>
           )}
         </AdminPanel>
       </div>{/* end hidden lg:block */}

@@ -31,7 +31,7 @@ const ForgotPasswordPage = () => {
         
         <div className="flex flex-col items-center mb-10">
           <img src={logo} alt="Shio Logo" className="w-[180px] h-auto mb-1" />
-          <p className="text-gray-400 text-[13px]">Esqueceu a senha?</p>
+          <p className="text-shio-muted text-[13px]">Esqueceu a senha?</p>
         </div>
 
         <h1 className="text-2xl text-black font-medium mb-2">Recuperar conta</h1>

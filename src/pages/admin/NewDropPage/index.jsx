@@ -82,8 +82,8 @@ const NewDropPage = () => {
       <PageMarker name="NewDropPage" />
 
       {showSuccess && (
-        <div className="mb-4 flex h-12 w-full items-center justify-center gap-3 rounded-[12px] bg-[#b6edc8] text-[14px] font-bold uppercase text-[#1da64a] md:text-[16px]">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#1da64a]">✓</span>
+        <div className="mb-4 flex h-12 w-full items-center justify-center gap-3 rounded-[12px] bg-[#b6edc8] text-[14px] font-bold uppercase text-shio-success md:text-[16px]">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-shio-success">✓</span>
           Drop salvo com sucesso!
         </div>
       )}
@@ -98,20 +98,20 @@ const NewDropPage = () => {
       <AdminPanel className="mx-auto max-w-[650px] p-5 md:p-9">
         <form onSubmit={handleSubmit} className="grid gap-6">
           <label>
-            <span className="text-[15px] uppercase text-black/55">Nome do drop</span>
+            <span className="text-[15px] uppercase text-shio-muted">Nome do drop</span>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ex: Drop Genesis"
               required
-              className="mt-3 h-11 w-full rounded-full border border-black/25 px-7 text-[14px] outline-none placeholder:text-black/45 focus:border-black md:h-12 md:text-[16px]"
+              className="mt-3 h-11 w-full rounded-full border border-black/25 px-7 text-[14px] outline-none placeholder:text-shio-placeholder focus:border-black md:h-12 md:text-[16px]"
             />
           </label>
 
           <div className="grid gap-6 sm:grid-cols-2">
             <label>
-              <span className="text-[15px] uppercase text-black/55">Data de lançamento</span>
+              <span className="text-[15px] uppercase text-shio-muted">Data de lançamento</span>
               <input
                 type="date"
                 value={launchDate}
@@ -121,7 +121,7 @@ const NewDropPage = () => {
             </label>
 
             <label>
-              <span className="text-[15px] uppercase text-black/55">Data de encerramento</span>
+              <span className="text-[15px] uppercase text-shio-muted">Data de encerramento</span>
               <input
                 type="date"
                 value={endDate}
@@ -133,7 +133,7 @@ const NewDropPage = () => {
 
           <div className="grid gap-6 sm:grid-cols-2">
             <label>
-              <span className="text-[15px] uppercase text-black/55">Status</span>
+              <span className="text-[15px] uppercase text-shio-muted">Status</span>
               <select
                 value={isActive ? 'true' : 'false'}
                 onChange={(e) => setIsActive(e.target.value === 'true')}
@@ -145,7 +145,7 @@ const NewDropPage = () => {
             </label>
 
             <label>
-              <span className="text-[15px] uppercase text-black/55">Visibilidade</span>
+              <span className="text-[15px] uppercase text-shio-muted">Visibilidade</span>
               <select
                 value={isPublic ? 'true' : 'false'}
                 onChange={(e) => setIsPublic(e.target.value === 'true')}
@@ -158,7 +158,7 @@ const NewDropPage = () => {
           </div>
 
           <label>
-            <span className="text-[15px] uppercase text-black/55">Limite de unidades (Opcional)</span>
+            <span className="text-[15px] uppercase text-shio-muted">Limite de unidades (Opcional)</span>
             <input
               type="number"
               min="1"
@@ -166,22 +166,22 @@ const NewDropPage = () => {
               value={maxQuantity}
               onChange={(e) => setMaxQuantity(e.target.value)}
               placeholder="Sem limite"
-              className="mt-3 h-11 w-full rounded-full border border-black/25 px-7 text-[14px] outline-none placeholder:text-black/45 focus:border-black md:h-12 md:text-[16px]"
+              className="mt-3 h-11 w-full rounded-full border border-black/25 px-7 text-[14px] outline-none placeholder:text-shio-placeholder focus:border-black md:h-12 md:text-[16px]"
             />
           </label>
 
           <label>
-            <span className="text-[15px] uppercase text-black/55">Descrição (Opcional)</span>
+            <span className="text-[15px] uppercase text-shio-muted">Descrição (Opcional)</span>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descrição do conceito do drop"
-              className="mt-3 min-h-[135px] w-full rounded-[18px] border border-black/25 px-7 py-4 text-[14px] outline-none placeholder:text-black/45 focus:border-black md:text-[16px]"
+              className="mt-3 min-h-[135px] w-full rounded-[18px] border border-black/25 px-7 py-4 text-[14px] outline-none placeholder:text-shio-placeholder focus:border-black md:text-[16px]"
             />
           </label>
 
           <div>
-            <span className="text-[15px] uppercase text-black/55">Banner (Opcional)</span>
+            <span className="text-[15px] uppercase text-shio-muted">Banner (Opcional)</span>
             <input
               ref={bannerInputRef}
               type="file"
@@ -205,7 +205,7 @@ const NewDropPage = () => {
               <button
                 type="button"
                 onClick={() => bannerInputRef.current?.click()}
-                className="mt-3 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-black/45 transition hover:border-black/50 hover:text-black/65"
+                className="mt-3 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-shio-muted transition hover:border-black/50 hover:text-black/65"
               >
                 <Icon name="plus" className="h-5 w-5" />
                 Adicionar banner
@@ -213,12 +213,12 @@ const NewDropPage = () => {
             )}
           </div>
 
-          {error && <p className="text-center text-sm font-semibold text-red-500">{error}</p>}
+          {error && <p className="text-center text-sm font-semibold text-shio-danger">{error}</p>}
 
           <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:justify-end">
             <Link
               to="/admin/drops"
-              className="inline-flex h-12 w-full items-center justify-center rounded-full border border-black/25 text-[15px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black sm:w-auto sm:min-w-[195px] md:rounded-[8px]"
+              className="inline-flex h-12 w-full items-center justify-center rounded-full border border-black/25 text-[15px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black sm:w-auto sm:min-w-[195px] md:rounded-[8px]"
             >
               Cancelar
             </Link>

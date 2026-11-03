@@ -88,7 +88,7 @@ export default function ExportButton({
         className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-[14px] font-medium text-black transition hover:bg-black/5"
       >
         <span className="font-semibold text-black/70">CSV</span>
-        <span className="text-xs text-black/45">(.csv)</span>
+        <span className="text-xs text-shio-muted">(.csv)</span>
       </button>
 
       <button
@@ -98,7 +98,7 @@ export default function ExportButton({
         className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-[14px] font-medium text-black transition hover:bg-black/5"
       >
         <span className="font-semibold text-black/70">Excel</span>
-        <span className="text-xs text-black/45">(.xlsx)</span>
+        <span className="text-xs text-shio-muted">(.xlsx)</span>
       </button>
     </div>
   ) : null;
@@ -134,7 +134,7 @@ export default function ExportButton({
             <button
               type="button"
               onClick={() => setError(null)}
-              className="text-red-500 hover:text-red-800"
+              className="text-shio-danger hover:text-red-800"
               aria-label="Fechar erro"
             >
               ✕

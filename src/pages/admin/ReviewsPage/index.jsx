@@ -10,7 +10,7 @@ const TABS = [
   { value: 'REMOVED', label: 'Removidas' },
 ];
 const ACTION = 'rounded-full border border-black/15 px-4 py-2 text-[13px] font-semibold text-black transition hover:border-black disabled:opacity-40';
-const DANGER = 'rounded-full border border-[#ff3333]/30 px-4 py-2 text-[13px] font-semibold text-[#ff3333] transition hover:border-[#ff3333]';
+const DANGER = 'rounded-full border border-shio-danger/30 px-4 py-2 text-[13px] font-semibold text-shio-danger transition hover:border-shio-danger';
 
 function AdminReviewItem({ review, replyDraft, onReplyDraftChange, onFilterProduct, onRemove, onRestore, onSaveReply, onClearReply }) {
   const isPublished = review.status === 'PUBLISHED';
@@ -32,14 +32,14 @@ function AdminReviewItem({ review, replyDraft, onReplyDraftChange, onFilterProdu
           >
             {review.product_name}
           </button>
-          <p className="mt-1 text-[13px] text-black/50">
+          <p className="mt-1 text-[13px] text-shio-muted">
             {review.author_name} · {review.author_email} · {formatReviewDate(review.created_at)}
           </p>
         </div>
         <Rating value={review.rating} />
       </div>
 
-      {details.length > 0 && <p className="mt-2 text-[13px] text-black/50">{details.join(' · ')}</p>}
+      {details.length > 0 && <p className="mt-2 text-[13px] text-shio-muted">{details.join(' · ')}</p>}
       {review.comment && <p className="mt-3 text-[15px] leading-6 text-black/80">{review.comment}</p>}
 
       {!isPublished && (
@@ -50,7 +50,7 @@ function AdminReviewItem({ review, replyDraft, onReplyDraftChange, onFilterProdu
 
       {review.admin_reply && !editingReply && (
         <div className="mt-3 rounded-[10px] bg-[#f5f5f5] px-4 py-3">
-          <p className="text-[12px] font-semibold uppercase text-black/45">Resposta da Shio</p>
+          <p className="text-[12px] font-semibold uppercase text-shio-muted">Resposta da Shio</p>
           <p className="mt-1 text-[14px] text-black/80">{review.admin_reply}</p>
         </div>
       )}
@@ -173,7 +173,7 @@ export default function ReviewsPage() {
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-3 text-[14px]">
-        <label htmlFor="review-rating-filter" className="text-black/55">Filtrar por nota</label>
+        <label htmlFor="review-rating-filter" className="text-shio-muted">Filtrar por nota</label>
         <select
           id="review-rating-filter"
           value={rating}
@@ -198,11 +198,11 @@ export default function ReviewsPage() {
       {actionError && <p role="alert" className="mb-4 text-[13px] text-[#cc0000]">{actionError}</p>}
 
       {loading ? (
-        <p className="text-black/40">Carregando avaliações...</p>
+        <p className="text-shio-muted">Carregando avaliações...</p>
       ) : list.error ? (
         <p className="text-[13px] text-[#cc0000]">Não foi possível carregar as avaliações.</p>
       ) : list.results.length === 0 ? (
-        <p className="text-black/45">Nenhuma avaliação encontrada.</p>
+        <p className="text-shio-muted">Nenhuma avaliação encontrada.</p>
       ) : (
         <ul className="space-y-4">
           {list.results.map((review) => (
@@ -228,7 +228,7 @@ export default function ReviewsPage() {
       {totalPages > 1 && (
         <div className="mt-8 flex items-center justify-between text-sm">
           <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className={ACTION}>Anterior</button>
-          <span className="text-black/55">Página {page} de {totalPages}</span>
+          <span className="text-shio-muted">Página {page} de {totalPages}</span>
           <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)} className={ACTION}>Próxima</button>
         </div>
       )}

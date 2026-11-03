@@ -73,7 +73,7 @@ export default function OrderDrilldown({ selection, onClose, formatMoney }) {
       <div className="flex shrink-0 items-start justify-between gap-4 border-b border-black/10 pb-4">
         <div className="min-w-0">
           <h2 id="dashboard-orders-title" className="text-lg font-black uppercase [overflow-wrap:anywhere]">{selection.title}</h2>
-          <p className="mt-1 text-xs text-black/55">{selection.dateBasis === 'order_created_at' ? 'Data de criação do pedido' : 'Data do pagamento'} · {selection.periodLabel}</p>
+          <p className="mt-1 text-xs text-shio-muted">{selection.dateBasis === 'order_created_at' ? 'Data de criação do pedido' : 'Data do pagamento'} · {selection.periodLabel}</p>
         </div>
         <button ref={closeRef} type="button" onClick={onClose} aria-label="Fechar detalhamento" className="shrink-0 rounded-lg border border-black/20 px-3 py-2 text-sm font-semibold hover:bg-black/5">Fechar</button>
       </div>
@@ -81,18 +81,18 @@ export default function OrderDrilldown({ selection, onClose, formatMoney }) {
       <div className="min-h-0 flex-1 overflow-y-auto" aria-busy={loading}>
         {loading ? <p role="status" className="py-10 text-center text-black/60">Carregando pedidos...</p>
           : error ? <div className="py-8"><p role="alert" className="text-[#b42318]">{error}</p><button type="button" onClick={() => setRetry((current) => current + 1)} className="mt-4 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white">Tentar novamente</button></div>
-            : !page?.results?.length ? <p className="py-10 text-center text-black/55">Nenhum pedido compõe esta métrica.</p>
+            : !page?.results?.length ? <p className="py-10 text-center text-shio-muted">Nenhum pedido compõe esta métrica.</p>
               : <div className="divide-y divide-black/10">{page.results.map((order) => <div key={order.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
                 <div className="min-w-0">
                   <Link to={order.admin_path} className="font-bold underline-offset-2 hover:underline">SH-{String(order.id).split('-')[0].toUpperCase()}</Link>
                   <p className="mt-1 text-sm text-black/65 [overflow-wrap:anywhere]">{order.customer_name} · {order.status}</p>
-                  <p className="mt-1 text-xs text-black/50">{selection.dateBasis === 'order_created_at' ? `Criado em ${new Date(order.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : order.paid_at ? `Pago em ${new Date(order.paid_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : 'Sem pagamento confirmado'}</p>
+                  <p className="mt-1 text-xs text-shio-muted">{selection.dateBasis === 'order_created_at' ? `Criado em ${new Date(order.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : order.paid_at ? `Pago em ${new Date(order.paid_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : 'Sem pagamento confirmado'}</p>
                 </div>
                 <div className="min-w-0 text-right text-sm">
                   {order.metric_item_revenue != null ? selection.metric === 'product_units'
-                    ? <><strong>{order.metric_units} un.</strong><p className="text-xs text-black/55">{formatMoney(order.metric_item_revenue)} em itens selecionados</p></>
-                    : <><strong>{formatMoney(order.metric_item_revenue)}</strong><p className="text-xs text-black/55">{order.metric_units} un. dos itens selecionados</p></>
-                    : <><strong>{formatMoney(['net_revenue', 'average_ticket'].includes(selection.metric) ? order.revenue_value : order.total_amount)}</strong><p className="text-xs text-black/55">{['net_revenue', 'average_ticket'].includes(selection.metric) ? 'Contribuição para o líquido' : 'Total do pedido'}</p></>}
+                    ? <><strong>{order.metric_units} un.</strong><p className="text-xs text-shio-muted">{formatMoney(order.metric_item_revenue)} em itens selecionados</p></>
+                    : <><strong>{formatMoney(order.metric_item_revenue)}</strong><p className="text-xs text-shio-muted">{order.metric_units} un. dos itens selecionados</p></>
+                    : <><strong>{formatMoney(['net_revenue', 'average_ticket'].includes(selection.metric) ? order.revenue_value : order.total_amount)}</strong><p className="text-xs text-shio-muted">{['net_revenue', 'average_ticket'].includes(selection.metric) ? 'Contribuição para o líquido' : 'Total do pedido'}</p></>}
                 </div>
               </div>)}</div>}
       </div>

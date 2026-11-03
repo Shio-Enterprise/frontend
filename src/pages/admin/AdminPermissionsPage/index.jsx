@@ -161,24 +161,24 @@ export default function AdminPermissionsPage() {
         <AdminPanel className="overflow-hidden">
           <div className="border-b border-black/10 p-5">
             <h2 className="text-[18px] font-bold text-black">Administradores</h2>
-            <p className="mt-1 text-[13px] text-black/55">
+            <p className="mt-1 text-[13px] text-shio-muted">
               Selecione uma conta para revisar o acesso ao painel.
             </p>
-            <label className="mt-4 flex h-11 items-center gap-3 rounded-full bg-[#f0f0f0] px-4 text-black/45">
+            <label className="mt-4 flex h-11 items-center gap-3 rounded-full bg-[#f0f0f0] px-4 text-shio-muted">
               <Icon name="search" className="h-4 w-4" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar administrador..."
-                className="w-full bg-transparent text-sm text-black outline-none placeholder:text-black/35"
+                className="w-full bg-transparent text-sm text-black outline-none placeholder:text-shio-placeholder"
               />
             </label>
           </div>
 
           {loading ? (
-            <p className="p-5 text-sm text-black/55">Carregando administradores...</p>
+            <p className="p-5 text-sm text-shio-muted">Carregando administradores...</p>
           ) : filteredAdmins.length === 0 ? (
-            <p className="p-5 text-sm text-black/55">Nenhum administrador encontrado.</p>
+            <p className="p-5 text-sm text-shio-muted">Nenhum administrador encontrado.</p>
           ) : (
             <div className="max-h-[560px] overflow-y-auto p-2">
               {filteredAdmins.map((admin) => {
@@ -195,12 +195,12 @@ export default function AdminPermissionsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{admin.name || admin.email}</p>
-                        <p className={`mt-0.5 truncate text-xs ${active ? 'text-white/65' : 'text-black/50'}`}>
+                        <p className={`mt-0.5 truncate text-xs ${active ? 'text-white/65' : 'text-shio-muted'}`}>
                           {admin.email}
                         </p>
                       </div>
                       {admin.is_superuser && (
-                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${active ? 'bg-white/15 text-white' : 'bg-black/10 text-black/65'}`}>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[12px] font-bold uppercase ${active ? 'bg-white/15 text-white' : 'bg-black/10 text-black/65'}`}>
                           Superuser
                         </span>
                       )}
@@ -214,18 +214,18 @@ export default function AdminPermissionsPage() {
 
         <AdminPanel className="overflow-hidden">
           {!selectedAdmin ? (
-            <div className="p-8 text-sm text-black/55">Selecione um administrador.</div>
+            <div className="p-8 text-sm text-shio-muted">Selecione um administrador.</div>
           ) : (
             <>
               <div className="flex flex-col gap-4 border-b border-black/10 p-6 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-[13px] font-semibold uppercase tracking-wide text-black/45">
+                  <p className="text-[13px] font-semibold uppercase tracking-wide text-shio-muted">
                     Conta selecionada
                   </p>
                   <h2 className="mt-1 text-[22px] font-bold text-black">
                     {selectedAdmin.name || selectedAdmin.email}
                   </h2>
-                  <p className="mt-1 text-sm text-black/55">{selectedAdmin.email}</p>
+                  <p className="mt-1 text-sm text-shio-muted">{selectedAdmin.email}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {isCurrentUser && (
@@ -268,7 +268,7 @@ export default function AdminPermissionsPage() {
                           <span className="block text-[15px] font-semibold text-black">
                             {permission.label}
                           </span>
-                          <span className="mt-1 block text-[13px] leading-5 text-black/55">
+                          <span className="mt-1 block text-[13px] leading-5 text-shio-muted">
                             {permission.description}
                           </span>
                         </span>
@@ -278,7 +278,7 @@ export default function AdminPermissionsPage() {
                 </div>
 
                 {isCurrentUser && !isSuperuser && (
-                  <p className="mt-3 text-xs text-black/45">
+                  <p className="mt-3 text-xs text-shio-muted">
                     A permissão de gerenciar administradores não pode ser removida da própria conta nesta tela.
                   </p>
                 )}

@@ -66,12 +66,12 @@ const AddressesPage = () => {
       )}
 
       {loading ? (
-        <p className="text-black/40">Carregando...</p>
+        <p className="text-shio-muted">Carregando...</p>
       ) : addresses.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-[18px] border border-black/10 px-8 py-20 text-center">
           <Icon name="tag" className="h-16 w-16 text-black/20" />
           <p className="mt-6 text-[22px] font-bold text-black">Nenhum endereço cadastrado</p>
-          <p className="mt-3 max-w-sm text-[16px] text-black/45">
+          <p className="mt-3 max-w-sm text-[16px] text-shio-muted">
             Cadastre um endereço para agilizar suas compras.
           </p>
           <Link to="/new-address"
@@ -85,7 +85,7 @@ const AddressesPage = () => {
             <div key={addr.id}
               className="relative rounded-[18px] border border-black/10 p-6">
               {addr.is_default && (
-                <span className="mb-3 inline-block rounded-full bg-[#d4f7e2] px-3 py-1 text-[12px] font-semibold text-[#1da64a]">
+                <span className="mb-3 inline-block rounded-full bg-[#d4f7e2] px-3 py-1 text-[12px] font-semibold text-shio-success">
                   Padrão
                 </span>
               )}
@@ -97,12 +97,12 @@ const AddressesPage = () => {
               <p className="text-[14px] text-black/60">
                 {addr.neighborhood} — {addr.city}/{addr.state}
               </p>
-              <p className="text-[14px] text-black/45">{addr.zip_code}</p>
+              <p className="text-[14px] text-shio-muted">{addr.zip_code}</p>
 
               <button
                 onClick={() => handleDelete(addr.id)}
                 disabled={deletingId === addr.id}
-                className="absolute right-5 top-5 text-black/25 transition hover:text-[#ff3333] disabled:opacity-40"
+                className="absolute right-5 top-5 text-shio-muted transition hover:text-shio-danger disabled:opacity-40"
                 aria-label="Excluir endereço"
               >
                 <Icon name="trash" className="h-5 w-5" />

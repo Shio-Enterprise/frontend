@@ -225,13 +225,13 @@ const DashboardPage = () => {
       </div>
 
       {low_stock_alerts && low_stock_alerts.length > 0 && (
-        <AdminPanel className="mx-auto mt-6 max-w-[920px] border border-[#ff3333]/20 p-5 md:mt-14 md:p-8">
-          <h2 className="text-[16px] font-bold uppercase text-[#ff3333] md:text-[20px]">Alertas de Estoque Baixo</h2>
+        <AdminPanel className="mx-auto mt-6 max-w-[920px] border border-shio-danger/20 p-5 md:mt-14 md:p-8">
+          <h2 className="text-[16px] font-bold uppercase text-shio-danger md:text-[20px]">Alertas de Estoque Baixo</h2>
           <div className="mt-4 space-y-3">
             {low_stock_alerts.map((alert) => (
               <div key={alert.id} className="flex justify-between border-b border-black/10 pb-2 text-[14px] last:border-0 last:pb-0 md:text-base">
                 <span className="text-black/80">{alert.product_name} — {alert.size}</span>
-                <span className="font-bold text-[#ff3333]">{alert.stock_quantity} un.</span>
+                <span className="font-bold text-shio-danger">{alert.stock_quantity} un.</span>
               </div>
             ))}
           </div>
@@ -246,11 +246,11 @@ const DashboardPage = () => {
           <DashboardViewToggle label="Visualização de vendas" views={[["bars", "Barras"], ["list", "Lista"]]} value={seriesView} onChange={setSeriesView} />
         </div>
         {chartData.length === 0 || chartData.every((d) => Number(d.total_revenue) === 0 && d.total_orders === 0) ? (
-          <p className="mt-6 text-[14px] text-black/40">Nenhuma venda no período.</p>
+          <p className="mt-6 text-[14px] text-shio-muted">Nenhuma venda no período.</p>
         ) : seriesView === 'list' ? (
           <div className="mt-5 max-h-[420px] overflow-auto">
             <table className="w-full min-w-[420px] text-left text-sm">
-              <thead className="sticky top-0 bg-white text-xs uppercase text-black/55"><tr><th className="py-2">Período</th><th className="py-2 text-right">Vendas</th><th className="py-2 text-right">Receita líquida</th><th className="py-2 text-right">Detalhamento</th></tr></thead>
+              <thead className="sticky top-0 bg-white text-xs uppercase text-shio-muted"><tr><th className="py-2">Período</th><th className="py-2 text-right">Vendas</th><th className="py-2 text-right">Receita líquida</th><th className="py-2 text-right">Detalhamento</th></tr></thead>
               <tbody className="divide-y divide-black/10">
                 {chartData.map((point) => <tr key={point.period}>
                   <td className="py-2">{new Date(`${point.period}T12:00:00`).toLocaleDateString('pt-BR')}</td>
@@ -289,7 +289,7 @@ const DashboardPage = () => {
                 </div>
                 <div className="mt-2 flex gap-2 pl-8 md:gap-6 md:pl-[52px]">
                   {chartData.map((d) => (
-                    <p key={d.period} className="w-full text-center text-[10px] capitalize text-black/40 md:text-[12px]">
+                    <p key={d.period} className="w-full text-center text-[12px] capitalize text-shio-muted md:text-[12px]">
                       {new Date(`${d.period}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                     </p>
                   ))}
@@ -314,7 +314,7 @@ const DashboardPage = () => {
                   <Link to={`/admin/orders/${order.id}`} className="text-[14px] font-bold text-black underline-offset-2 hover:underline md:text-[20px]">
                     SH-{String(order.id).split('-')[0].toUpperCase()}
                   </Link>
-                  <p className="text-[12px] text-black/55 md:text-[16px]">
+                  <p className="text-[12px] text-shio-muted md:text-[16px]">
                     {order.customer_name || 'Cliente Anônimo'}
                   </p>
                 </div>
@@ -322,7 +322,7 @@ const DashboardPage = () => {
                   <p className="text-[14px] font-bold text-black md:text-[20px]">
                     R$ {parseFloat(order.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[12px] text-black/55 md:text-[16px]">{order.status}</p>
+                  <p className="text-[12px] text-shio-muted md:text-[16px]">{order.status}</p>
                 </div>
               </div>
             ))}

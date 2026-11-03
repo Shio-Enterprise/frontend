@@ -42,9 +42,9 @@ const columns = [
 function PaymentBadges() {
   return (
     <div className="flex flex-wrap justify-center gap-3 md:justify-end">
-      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[11px] font-bold text-[#10a545] shadow-sm">Pix</span>
-      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[11px] font-bold text-black shadow-sm">Cartão</span>
-      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[11px] font-bold text-black shadow-sm">Boleto</span>
+      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[12px] font-bold text-shio-success shadow-sm">Pix</span>
+      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[12px] font-bold text-black shadow-sm">Cartão</span>
+      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[12px] font-bold text-black shadow-sm">Boleto</span>
     </div>
   );
 }
@@ -68,7 +68,7 @@ export default function Footer({ showNewsletter = true }) {
             {columns.map((column) => (
               <div key={column.title}>
                 <h3 className="mb-6 text-[13px] font-bold uppercase tracking-[0.22em]">{column.title}</h3>
-                <ul className="space-y-4 text-[14px] text-black/50">
+                <ul className="space-y-4 text-[14px] text-shio-muted">
                   {column.links.map((link) => (
                     <li key={link.label}>
                       <Link to={link.to} className="transition hover:text-black">{link.label}</Link>
@@ -81,7 +81,7 @@ export default function Footer({ showNewsletter = true }) {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-black/10 pt-5 sm:flex-row">
-          <p className="text-[13px] text-black/40">© 2026 Shio Company. Todos os direitos reservados.</p>
+          <p className="text-[13px] text-shio-muted">© 2026 Shio Company. Todos os direitos reservados.</p>
           <PaymentBadges />
         </div>
       </div>

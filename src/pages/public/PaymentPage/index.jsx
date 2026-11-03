@@ -58,14 +58,14 @@ function StepCard({ number, title, active, onClick, children }) {
       >
         <span
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[14px] font-bold ${
-            active ? "bg-black text-white" : "bg-black/10 text-black/40"
+            active ? "bg-black text-white" : "bg-black/10 text-shio-muted"
           }`}
         >
           {number}
         </span>
         <h2
           className={`text-[18px] font-black uppercase tracking-widest ${
-            active ? "text-black" : "text-black/30"
+            active ? "text-black" : "text-shio-muted"
           }`}
         >
           {title}
@@ -676,13 +676,13 @@ const PaymentPage = () => {
           >
             <Icon
               name="tag"
-              className="mt-0.5 h-5 w-5 shrink-0 text-[#c8970a]"
+              className="mt-0.5 h-5 w-5 shrink-0 text-shio-warning"
             />
             <div>
-              <p className="text-[14px] font-bold text-[#9a6e00]">
+              <p className="text-[14px] font-bold text-shio-warning">
                 Complete seu perfil para finalizar a compra
               </p>
-              <p className="mt-0.5 text-[13px] text-[#b8860b]">
+              <p className="mt-0.5 text-[13px] text-shio-warning">
                 {[
                   !userProfile.phone_number && "telefone",
                   !userProfile.cpf && "CPF",
@@ -707,12 +707,12 @@ const PaymentPage = () => {
           >
             <div className="space-y-4">
               {addressesLoading ? (
-                <p className="text-[14px] text-black/40">
+                <p className="text-[14px] text-shio-muted">
                   Carregando endereços...
                 </p>
               ) : addresses.length === 0 ? (
                 <div className="rounded-[12px] border border-black/10 p-5 text-center">
-                  <p className="text-[14px] text-black/55">
+                  <p className="text-[14px] text-shio-muted">
                     Você ainda não tem endereços cadastrados.
                   </p>
                   <Link
@@ -750,13 +750,13 @@ const PaymentPage = () => {
                           {addr.street}, {addr.address_number}
                           {addr.complement ? `, ${addr.complement}` : ""}
                         </p>
-                        <p className="text-black/55">
+                        <p className="text-shio-muted">
                           {addr.neighborhood} — {addr.city}/{addr.state} ·{" "}
                           {addr.zip_code}
                         </p>
                       </div>
                       {addr.is_default && (
-                        <span className="shrink-0 rounded-full bg-[#d4f7e2] px-2 py-0.5 text-[11px] font-semibold text-[#1da64a]">
+                        <span className="shrink-0 rounded-full bg-[#d4f7e2] px-2 py-0.5 text-[12px] font-semibold text-shio-success">
                           Padrão
                         </span>
                       )}
@@ -765,7 +765,7 @@ const PaymentPage = () => {
 
                   <Link
                     to="/new-address?return=/payment"
-                    className="flex h-10 w-full items-center justify-center gap-2 rounded-full border border-dashed border-black/25 text-[13px] text-black/45 transition hover:border-black/50 hover:text-black/65"
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded-full border border-dashed border-black/25 text-[13px] text-shio-muted transition hover:border-black/50 hover:text-black/65"
                   >
                     <Icon name="plus" className="h-4 w-4" />
                     Adicionar outro endereço
@@ -781,12 +781,12 @@ const PaymentPage = () => {
                       O frete está vinculado à tentativa anterior. Consulte o resultado abaixo.
                     </span>
                   ) : freightLoading ? (
-                    <span className="text-black/45">Calculando frete...</span>
+                    <span className="text-shio-muted">Calculando frete...</span>
                   ) : freightError ? (
                     <span className="text-[#cc0000]">{freightError}</span>
                   ) : hasCalculation ? (
                     <div className="flex items-center justify-between">
-                      <span className="text-black/55">
+                      <span className="text-shio-muted">
                         Frete estimado
                         {freightData.prazo_dias &&
                           ` (${freightData.prazo_dias} dias úteis)`}
@@ -833,10 +833,10 @@ const PaymentPage = () => {
                   <span className="text-[15px] font-bold text-black">
                     Cartão
                   </span>
-                  <span className="text-[12px] text-black/45">ATÉ 12X</span>
+                  <span className="text-[12px] text-shio-muted">ATÉ 12X</span>
                 </div>
               </div>
-              <p className="text-[13px] text-black/55">
+              <p className="text-[13px] text-shio-muted">
                 Escolha PIX ou cartão na página de pagamento da InfinitePay.
               </p>
               <button
@@ -858,19 +858,19 @@ const PaymentPage = () => {
             onClick={() => setActiveStep(2)}
           >
             {cartLoading ? (
-              <p className="py-4 text-center text-[14px] text-black/40">
+              <p className="py-4 text-center text-[14px] text-shio-muted">
                 Carregando...
               </p>
             ) : (
               <div className="space-y-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-shio-muted">
                   Resumo da compra
                 </p>
 
                 {/* Address summary */}
                 {selectedAddress && (
                   <div className="rounded-[10px] bg-[#f7f7f7] px-4 py-3 text-[13px]">
-                    <p className="font-semibold text-black/55 uppercase text-[11px] mb-1">
+                    <p className="font-semibold text-shio-muted uppercase text-[12px] mb-1">
                       Entrega em
                     </p>
                     <p className="font-bold text-black">
@@ -934,7 +934,7 @@ const PaymentPage = () => {
                             </button>
                           </div>
                           {item.size && (
-                            <p className="text-[12px] text-black/50">
+                            <p className="text-[12px] text-shio-muted">
                               Tamanho: {item.size}
                             </p>
                           )}
@@ -945,7 +945,7 @@ const PaymentPage = () => {
                           )}
                           <div className="mt-1 flex items-center justify-between">
                             {item.is_promotion_active && (
-                              <p className="text-sm text-black/50">
+                              <p className="text-sm text-shio-muted">
                                 <s>R$ {Number(item.base_price).toFixed(2)}</s> —{" "}
                                 {Math.round(
                                   (1 -
@@ -1011,7 +1011,7 @@ const PaymentPage = () => {
                 <form onSubmit={handleApplyCoupon} className="space-y-2">
                   <label
                     htmlFor="coupon-code"
-                    className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40"
+                    className="text-[12px] font-semibold uppercase tracking-[0.18em] text-shio-muted"
                   >
                     Cupom de desconto
                   </label>
@@ -1063,7 +1063,7 @@ const PaymentPage = () => {
 
                 {/* Totals */}
                 <div className="space-y-2 text-[14px]">
-                  <div className="flex justify-between text-black/55">
+                  <div className="flex justify-between text-shio-muted">
                     <span>Subtotal</span>
                     <span className="font-medium text-black">
                       {subtotal === null
@@ -1072,7 +1072,7 @@ const PaymentPage = () => {
                     </span>
                   </div>
                   {discount > 0 && (
-                    <div className="flex justify-between text-[#10a545]">
+                    <div className="flex justify-between text-shio-success">
                       <span>
                         {discountCouponCode
                           ? `Cupom ${discountCouponCode}`
@@ -1083,7 +1083,7 @@ const PaymentPage = () => {
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between text-black/55">
+                  <div className="flex justify-between text-shio-muted">
                     <span>
                       Frete
                       {hasCalculation && freightData.prazo_dias && (
@@ -1146,7 +1146,7 @@ const PaymentPage = () => {
                 )}
 
                 {userProfile && !userProfile.phone_number && (
-                  <p className="text-center text-[13px] text-[#c8970a]">
+                  <p className="text-center text-[13px] text-shio-warning">
                     Cadastre seu telefone em{" "}
                     <Link to="/my-account" className="font-bold underline">
                       Meus Dados

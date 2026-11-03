@@ -42,7 +42,7 @@ const LoginPage = () => {
         
         <div className="flex flex-col items-center mb-10">
           <img src={logo} alt="Shio Logo" className="w-[180px] h-auto mb-1" />
-          <p className="text-gray-400 text-[13px]">Acesse sua conta</p>
+          <p className="text-shio-muted text-[13px]">Acesse sua conta</p>
         </div>
 
         <h1 className="text-2xl text-black font-medium mb-2">Bem vindo(a)</h1>
@@ -56,7 +56,7 @@ const LoginPage = () => {
 
         <div className="flex w-full items-center gap-3 my-6">
           <hr className="w-full border-gray-200" />
-          <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">ou</span>
+          <span className="text-[12px] text-shio-muted uppercase tracking-widest font-semibold">ou</span>
           <hr className="w-full border-gray-200" />
         </div>
 
@@ -102,7 +102,7 @@ const LoginPage = () => {
           Não tem conta? <Link to="/signup" className="font-semibold text-black">Cadastre-se</Link>
         </p>
 
-        <p className="mt-14 text-[11px] text-gray-400 text-center leading-relaxed max-w-[320px]">
+        <p className="mt-14 text-[12px] text-shio-muted text-center leading-relaxed max-w-[320px]">
           Ao continuar você concorda com nossos Termos de uso e Política de Privacidade
         </p>
       </div>
