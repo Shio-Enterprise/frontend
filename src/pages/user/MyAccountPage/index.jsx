@@ -7,6 +7,27 @@ import apiClient from '../../../lib/axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
+const PROFILE_FIELDS = ['name', 'phone_number', 'cpf'];
+const FIELD_INPUT_CLASS =
+  'mt-3 h-11 w-full rounded-full border px-5 text-[14px] outline-none focus:border-black lg:mt-5 lg:h-12 lg:text-base';
+
+const asText = (value) => (Array.isArray(value) ? value.join(' ') : String(value));
+
+// O /me responde { error, details: { campo: [mensagens] } }; o DRF puro
+// responde { campo: [mensagens] }. Erro de campo vai para o campo.
+const parseSaveError = (data) => {
+  const source = data?.details && typeof data.details === 'object' ? data.details : data ?? {};
+  const fieldErrors = {};
+  PROFILE_FIELDS.forEach((field) => {
+    if (source[field]) fieldErrors[field] = asText(source[field]);
+  });
+  if (Object.keys(fieldErrors).length > 0) {
+    return { fieldErrors, message: 'Revise os campos destacados.' };
+  }
+  const message = typeof data?.error === 'string' ? data.error : 'Não foi possível salvar. Tente de novo.';
+  return { fieldErrors, message };
+};
+
 const MyAccountPage = () => {
   const { data: me, loading } = useApi('/api/auth/me/');
 
@@ -15,6 +36,7 @@ const MyAccountPage = () => {
   const [cpf, setCpf] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [receives, setReceives] = useState(null);
   const [savingMarketing, setSavingMarketing] = useState(false);
@@ -56,10 +78,35 @@ const MyAccountPage = () => {
     setCpf(me.cpf ?? '');
   }, [me]);
 
+  const editField = (field, setter) => (e) => {
+    setter(e.target.value);
+    if (fieldErrors[field]) {
+      setFieldErrors((errors) => {
+        const next = { ...errors };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
+  const fieldProps = (field) => ({
+    'aria-invalid': fieldErrors[field] ? true : undefined,
+    'aria-describedby': fieldErrors[field] ? `${field}-error` : undefined,
+    className: `${FIELD_INPUT_CLASS} ${fieldErrors[field] ? 'border-shio-danger' : 'border-black/20'}`,
+  });
+
+  const fieldError = (field) =>
+    fieldErrors[field] && (
+      <p id={`${field}-error`} className="mt-2 text-[13px] text-shio-danger">
+        {fieldErrors[field]}
+      </p>
+    );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setSaveMsg(null);
+    setFieldErrors({});
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE_URL}/api/auth/me/`, {
@@ -72,17 +119,18 @@ const MyAccountPage = () => {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const msg = Object.entries(data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join(' | ') || 'Falha ao salvar.';
-        throw new Error(msg);
+        const { fieldErrors: errors, message } = parseSaveError(data);
+        setFieldErrors(errors);
+        setSaveMsg({ type: 'error', text: message });
+        return;
       }
       setSaveMsg({ type: 'success', text: 'Dados salvos com sucesso!' });
-    } catch (err) {
-      setSaveMsg({ type: 'error', text: err.message });
+      // Só o sucesso some sozinho; o erro fica até a pessoa corrigir.
+      setTimeout(() => setSaveMsg((msg) => (msg?.type === 'success' ? null : msg)), 4000);
+    } catch {
+      setSaveMsg({ type: 'error', text: 'Não foi possível salvar. Tente de novo.' });
     } finally {
       setSaving(false);
-      setTimeout(() => setSaveMsg(null), 4000);
     }
   };
 
@@ -99,48 +147,67 @@ const MyAccountPage = () => {
           onSubmit={handleSubmit}
         >
           <div className="grid gap-x-20 gap-y-6 md:grid-cols-2">
-            <label className="block">
-              <span className="text-[14px] text-shio-muted lg:text-[20px]">Nome Completo</span>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-3 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black lg:mt-5 lg:h-12 lg:text-base"
-              />
-            </label>
+            <div>
+              <label className="block">
+                <span className="text-[14px] text-shio-muted lg:text-[20px]">Nome Completo</span>
+                <input
+                  autoComplete="name"
+                  value={name}
+                  onChange={editField('name', setName)}
+                  {...fieldProps('name')}
+                />
+              </label>
+              {fieldError('name')}
+            </div>
 
-            <label className="block">
-              <span className="text-[14px] text-shio-muted lg:text-[20px]">Telefone</span>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(11) 99999-9999"
-                className="mt-3 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black lg:mt-5 lg:h-12 lg:text-base"
-              />
-            </label>
+            <div>
+              <label className="block">
+                <span className="text-[14px] text-shio-muted lg:text-[20px]">Telefone</span>
+                <input
+                  type="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={editField('phone_number', setPhone)}
+                  placeholder="(11) 99999-9999"
+                  {...fieldProps('phone_number')}
+                />
+              </label>
+              {fieldError('phone_number')}
+            </div>
 
-            <label className="block">
-              <span className="text-[14px] text-shio-muted lg:text-[20px]">E-mail</span>
-              <input
-                value={me?.email ?? ''}
-                readOnly
-                className="mt-3 h-11 w-full rounded-full border border-black/20 bg-black/[0.03] px-5 text-[14px] outline-none lg:mt-5 lg:h-12 lg:text-base"
-              />
-              <span className="mt-2 block text-[12px] text-shio-muted">O e-mail não pode ser alterado.</span>
-            </label>
+            <div>
+              <label className="block">
+                <span className="text-[14px] text-shio-muted lg:text-[20px]">E-mail</span>
+                <input
+                  type="email"
+                  value={me?.email ?? ''}
+                  readOnly
+                  aria-describedby="email-readonly-hint"
+                  className="mt-3 h-11 w-full rounded-full border border-black/20 bg-black/[0.03] px-5 text-[14px] outline-none lg:mt-5 lg:h-12 lg:text-base"
+                />
+              </label>
+              <p id="email-readonly-hint" className="mt-2 text-[12px] text-shio-muted">O e-mail não pode ser alterado.</p>
+            </div>
 
-            <label className="block">
-              <span className="text-[14px] text-shio-muted lg:text-[20px]">CPF</span>
-              <input
-                value={cpf}
-                onChange={(e) => setCpf(e.target.value)}
-                placeholder="000.000.000-00"
-                className="mt-3 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black lg:mt-5 lg:h-12 lg:text-base"
-              />
-            </label>
+            <div>
+              <label className="block">
+                <span className="text-[14px] text-shio-muted lg:text-[20px]">CPF</span>
+                <input
+                  inputMode="numeric"
+                  value={cpf}
+                  onChange={editField('cpf', setCpf)}
+                  placeholder="000.000.000-00"
+                  {...fieldProps('cpf')}
+                />
+              </label>
+              {fieldError('cpf')}
+            </div>
           </div>
 
           {saveMsg && (
-            <p className={`mt-5 text-sm font-semibold ${saveMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
+            <p
+              role={saveMsg.type === 'success' ? 'status' : 'alert'}
+              className={`mt-5 text-sm font-semibold ${saveMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
               {saveMsg.text}
             </p>
           )}
@@ -178,7 +245,7 @@ const MyAccountPage = () => {
               />
             </button>
           </div>
-          {marketingError && <p className="mt-3 text-sm font-semibold text-shio-danger">{marketingError}</p>}
+          {marketingError && <p role="alert" className="mt-3 text-sm font-semibold text-shio-danger">{marketingError}</p>}
         </section>
       )}
     </AccountLayout>

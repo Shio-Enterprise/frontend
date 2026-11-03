@@ -29,8 +29,8 @@ describe('LoginPage', () => {
 
     expect(screen.getByAltText('Shio Logo')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Bem vindo\(a\)/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('E-mail')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Senha')).toBeInTheDocument();
+    expect(screen.getByLabelText('E-mail')).toBeInTheDocument();
+    expect(screen.getByLabelText('Senha')).toBeInTheDocument();
   });
 
   it('returns to the complete source location, including query and hash', async () => {
@@ -43,8 +43,8 @@ describe('LoginPage', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByPlaceholderText('E-mail'), { target: { value: 'a@example.com' } });
-    fireEvent.change(screen.getByPlaceholderText('Senha'), { target: { value: 'password' } });
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'a@example.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/category/shoes?size=42#results'));
@@ -78,10 +78,10 @@ describe('LoginPage', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByPlaceholderText('E-mail'), {
+    fireEvent.change(screen.getByLabelText('E-mail'), {
       target: { value: 'admin@shio.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Senha'), {
+    fireEvent.change(screen.getByLabelText('Senha'), {
       target: { value: 'senha-segura' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
@@ -94,5 +94,32 @@ describe('LoginPage', () => {
       'admin@shio.com',
       'senha-segura',
     );
+  });
+  it('campos com rótulo visível, autocomplete e olho na senha', () => {
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('main')).toBeInTheDocument();
+    expect(screen.getByLabelText('E-mail')).toHaveAttribute('autocomplete', 'email');
+    expect(screen.getByLabelText('Senha')).toHaveAttribute('autocomplete', 'current-password');
+    expect(screen.getByRole('button', { name: 'Mostrar senha' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('anuncia o erro de login', async () => {
+    loginWithPasswordMock.mockRejectedValueOnce({ response: { data: { error: 'Credenciais inválidas.' } } });
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'a@example.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'errada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Credenciais inválidas.');
   });
 });

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../../../lib/axios';
 import logo from '../../../assets/logo/logo.svg';
+import PasswordInput from '../../../components/ui/PasswordInput';
 
 const ResetPasswordPage = () => {
   const { uid, token } = useParams();
@@ -11,16 +12,18 @@ const ResetPasswordPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [mismatchError, setMismatchError] = useState(null);
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setMismatchError(null);
     setSuccess(false);
 
     if (newPassword !== confirmPassword) {
-      setError('As senhas não coincidem.');
+      setMismatchError('As senhas não coincidem.');
       setIsLoading(false);
       return;
     }
@@ -44,7 +47,7 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 font-sans text-gray-800">
+    <main className="min-h-screen bg-white flex flex-col items-center justify-center px-4 font-sans text-gray-800">
       <div className="w-full max-w-[380px] flex flex-col items-center">
         
         <div className="flex flex-col items-center mb-10">
@@ -59,30 +62,32 @@ const ResetPasswordPage = () => {
 
         {success ? (
           <div className="w-full flex flex-col items-center">
-            <div className="rounded-md bg-green-50 w-full text-center border border-green-100 p-4 text-[14px] text-green-700 mb-6">
+            <div role="status" className="rounded-md bg-green-50 w-full text-center border border-green-100 p-4 text-[14px] text-shio-success mb-6">
               Senha redefinida com sucesso! Redirecionando para o login...
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
-            <input
-              type="password"
-              placeholder="Nova senha"
+            <PasswordInput
+              label="Nova senha"
+              autoComplete="new-password"
               required
               minLength="8"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
             />
-            
-            <input
-              type="password"
-              placeholder="Confirmar nova senha"
+
+            <PasswordInput
+              label="Confirmar nova senha"
+              autoComplete="new-password"
               required
               minLength="8"
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setMismatchError(null);
+              }}
+              error={mismatchError}
             />
 
             <button
@@ -96,13 +101,13 @@ const ResetPasswordPage = () => {
         )}
 
         {error && (
-          <p className="mt-4 rounded-md bg-red-50 w-full text-center border border-red-100 p-3 text-[13px] text-red-600">
+          <p role="alert" className="mt-4 rounded-md bg-red-50 w-full text-center border border-red-100 p-3 text-[13px] text-shio-danger">
             {error}
           </p>
         )}
 
       </div>
-    </div>
+    </main>
   );
 };
 

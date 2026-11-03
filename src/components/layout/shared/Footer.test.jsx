@@ -25,4 +25,14 @@ describe('Footer', () => {
     expect(screen.queryByText('VISA')).not.toBeInTheDocument();
     expect(screen.queryByText('PayPal')).not.toBeInTheDocument();
   });
+
+  it('títulos das colunas são h2 (não pulam nível em páginas só com h1)', () => {
+    render(
+      <BrowserRouter>
+        <Footer showNewsletter={false} />
+      </BrowserRouter>
+    );
+    expect(screen.queryAllByRole('heading', { level: 3 })).toHaveLength(0);
+    expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThan(0);
+  });
 });
