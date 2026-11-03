@@ -245,11 +245,14 @@ const DropPage = () => {
         )}
 
         {products.length > 0 ? (
+          <>
+          <h2 className="sr-only">Produtos do drop</h2>
           <div className="mt-14 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
+          </>
         ) : (
           <p className="mt-14 text-[14px] text-shio-muted">Nenhum produto publicado neste drop ainda.</p>
         )}
