@@ -11,6 +11,7 @@ import { hasCustomerRefundPanel, refundTimelineEvents } from '../../../lib/refun
 import CustomerRefundPanel from '../../../components/refunds/CustomerRefundPanel';
 import RefundRequestModal from '../../../components/refunds/RefundRequestModal';
 import { exchangeTimelineEvents, hasCustomerExchangePanel } from '../../../lib/exchanges';
+import { formatDeliveryDate } from '../../../lib/deliveryDate';
 import CustomerExchangePanel from '../../../components/exchanges/CustomerExchangePanel';
 import ExchangeRequestModal from '../../../components/exchanges/ExchangeRequestModal';
 
@@ -231,13 +232,11 @@ const OrderDetailsPage = () => {
                     <p className="text-[12px] font-semibold uppercase tracking-wider text-shio-muted">Código</p>
                     <p className="font-mono text-[15px] font-bold text-black">{tracking.tracking_code}</p>
                   </div>
-                  {tracking.previsao_entrega && (
+                  {formatDeliveryDate(tracking.previsao_entrega) && (
                     <div>
                       <p className="text-[12px] font-semibold uppercase tracking-wider text-shio-muted">Previsão</p>
                       <p className="text-[15px] font-semibold text-black">
-                        {new Date(tracking.previsao_entrega).toLocaleDateString('pt-BR', {
-                          day: '2-digit', month: 'short', year: 'numeric',
-                        })}
+                        {formatDeliveryDate(tracking.previsao_entrega)}
                       </p>
                     </div>
                   )}

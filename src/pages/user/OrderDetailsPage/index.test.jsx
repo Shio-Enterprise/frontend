@@ -292,3 +292,43 @@ describe('OrderDetailsPage — histórico acessível', () => {
     expect(items[0]).toHaveTextContent('Atual');
   });
 });
+
+describe('OrderDetailsPage — previsão de entrega', () => {
+  beforeEach(() => {
+    // O CI roda em UTC, onde o erro não aparece: fixa o fuso de Brasília.
+    vi.stubEnv('TZ', 'America/Sao_Paulo');
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('mostra a previsão sem hora no dia certo, sem voltar um dia', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url) =>
+        Promise.resolve({
+          ok: true,
+          json: async () =>
+            url.includes('/tracking/')
+              ? {
+                  tracking_code: 'AA123456789BR',
+                  status_atual: 'Objeto postado',
+                  previsao_entrega: '2026-11-10',
+                  eventos: [],
+                }
+              : { ...order([item()]), status: 'SHIPPED', tracking_code: 'AA123456789BR' },
+        }),
+      ),
+    );
+    getAllMyReviews.mockResolvedValue([]);
+    render(
+      <MemoryRouter initialEntries={['/my-orders/abcdef12']}>
+        <Routes>
+          <Route path="/my-orders/:id" element={<OrderDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('10 de nov. de 2026')).toBeInTheDocument();
+    expect(screen.queryByText('09 de nov. de 2026')).not.toBeInTheDocument();
+  });
+});
