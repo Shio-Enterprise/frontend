@@ -433,4 +433,24 @@ describe('PixPage', () => {
       finish(response());
     });
   });
+
+  describe('acessibilidade (#64, área 4)', () => {
+    it('título da página é h1 e fica dentro da região de status', async () => {
+      renderReturn();
+      const heading = await screen.findByRole('heading', { level: 1, name: 'Pagamento em processamento' });
+      expect(screen.getByRole('status')).toContainElement(heading);
+    });
+
+    it('ao consultar novamente, o foco vai para o título (o botão some durante a consulta)', async () => {
+      renderReturn();
+      fireEvent.click(await screen.findByRole('button', { name: 'Consultar novamente' }));
+      expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();
+      await screen.findByText('Pagamento em processamento');
+    });
+
+    it('número do pedido quebra linha em tela estreita', async () => {
+      renderReturn();
+      expect(await screen.findByText(orderId)).toHaveClass('break-all');
+    });
+  });
 });
