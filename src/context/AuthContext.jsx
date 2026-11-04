@@ -129,7 +129,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginWithPassword = async (email, password) => {
-    const response = await apiClient.post("/auth/login/", { email, password });
+    // withCredentials: manda o cookie da sessão para o backend juntar o carrinho do visitante.
+    const response = await apiClient.post(
+      "/auth/login/",
+      { email, password },
+      { withCredentials: true },
+    );
     login(response.data);
     return response.data;
   };
@@ -140,7 +145,7 @@ export const AuthProvider = ({ children }) => {
       email,
       password,
       marketing_opt_in: marketingOptIn,
-    });
+    }, { withCredentials: true });
     login(response.data);
     return response.data;
   };
