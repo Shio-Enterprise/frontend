@@ -21,7 +21,8 @@ describe('AdminModal', () => {
   it('é um formulário anunciado como modal com o título', () => {
     renderModal();
     const dialog = screen.getByRole('dialog', { name: 'Aprovar reembolso' });
-    expect(dialog.tagName).toBe('FORM');
+    // O form fica dentro do diálogo (role=dialog não é permitido em <form>).
+    expect(dialog.querySelector('form')).toContainElement(screen.getByRole('button', { name: 'Confirmar' }));
   });
 
   it('Tab no botão de confirmar volta para o primeiro campo', () => {

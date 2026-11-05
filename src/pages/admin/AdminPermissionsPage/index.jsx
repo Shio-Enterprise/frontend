@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
@@ -28,6 +28,10 @@ export default function AdminPermissionsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // Erro ao carregar fica fora do painel da conta: sem dados, aquele painel nem aparece.
+  const [loadError, setLoadError] = useState('');
+  const lockHintId = useId();
+  const superHintId = useId();
 
   const selectedAdmin = useMemo(
     () => admins.find((admin) => String(admin.id) === String(selectedId)) ?? null,
@@ -62,7 +66,7 @@ export default function AdminPermissionsPage() {
         setSelectedPermissions(initialAdmin?.admin_permissions ?? []);
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || 'Não foi possível carregar as permissões administrativas.');
+          setLoadError(err.message || 'Não foi possível carregar as permissões administrativas.');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -109,7 +113,7 @@ export default function AdminPermissionsPage() {
   };
 
   const savePermissions = async () => {
-    if (!selectedAdmin || !hasChanges || isSuperuser) return;
+    if (!selectedAdmin || !hasChanges || isSuperuser || saving) return;
     if (selectedPermissions.length === 0) {
       setError('Selecione ao menos uma permissão para esta conta administrativa.');
       return;
@@ -157,6 +161,10 @@ export default function AdminPermissionsPage() {
         title="Permissões administrativas"
       />
 
+      {loadError && (
+        <p role="alert" className="mb-6 rounded-[12px] bg-[#fff0f0] px-4 py-3 text-sm text-[#b00020]">{loadError}</p>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <AdminPanel className="overflow-hidden">
           <div className="border-b border-black/10 p-5">
@@ -165,31 +173,42 @@ export default function AdminPermissionsPage() {
               Selecione uma conta para revisar o acesso ao painel.
             </p>
             <label className="mt-4 flex h-11 items-center gap-3 rounded-full bg-[#f0f0f0] px-4 text-shio-muted">
-              <Icon name="search" className="h-4 w-4" />
+              <Icon name="search" className="h-4 w-4 shrink-0" />
               <input
+                type="search"
+                aria-label="Buscar administrador"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar administrador..."
-                className="w-full bg-transparent text-sm text-black outline-none placeholder:text-shio-placeholder"
+                className="h-full w-full min-w-0 bg-transparent text-[16px] text-black outline-none placeholder:text-shio-placeholder md:text-sm"
               />
             </label>
           </div>
 
+          {/* Resultado da busca anunciado sem tirar o foco do campo (WCAG 4.1.3). */}
+          <p role="status" className="sr-only">
+            {!loading && search.trim()
+              ? filteredAdmins.length === 0
+                ? 'Nenhum administrador encontrado.'
+                : `${filteredAdmins.length} ${filteredAdmins.length === 1 ? 'administrador encontrado' : 'administradores encontrados'}.`
+              : ''}
+          </p>
           {loading ? (
-            <p className="p-5 text-sm text-shio-muted">Carregando administradores...</p>
+            <p role="status" className="p-5 text-sm text-shio-muted">Carregando administradores...</p>
           ) : filteredAdmins.length === 0 ? (
             <p className="p-5 text-sm text-shio-muted">Nenhum administrador encontrado.</p>
           ) : (
-            <div className="max-h-[560px] overflow-y-auto p-2">
+            <ul aria-label="Administradores" className="max-h-[560px] overflow-y-auto p-2">
               {filteredAdmins.map((admin) => {
                 const active = String(admin.id) === String(selectedId);
                 return (
+                  <li key={admin.id}>
                   <button
-                    key={admin.id}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => selectAdmin(admin)}
-                    className={`w-full rounded-[14px] px-4 py-3 text-left transition ${
-                      active ? 'bg-black text-white' : 'hover:bg-black/5'
+                    className={`w-full rounded-[14px] px-4 py-3 text-left transition forced-colors:border-2 ${
+                      active ? 'bg-black text-white forced-colors:border-[Highlight]' : 'hover:bg-black/5 forced-colors:border-transparent'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -206,9 +225,10 @@ export default function AdminPermissionsPage() {
                       )}
                     </div>
                   </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
         </AdminPanel>
 
@@ -243,15 +263,17 @@ export default function AdminPermissionsPage() {
 
               <div className="p-6">
                 {isSuperuser && (
-                  <div className="mb-5 rounded-[14px] border border-black/10 bg-[#f7f7f7] px-4 py-3 text-sm text-black/65">
+                  <div id={superHintId} className="mb-5 rounded-[14px] border border-black/10 bg-[#f7f7f7] px-4 py-3 text-sm text-black/65">
                     Superusuários possuem todas as permissões automaticamente. Para segurança, elas não podem ser alteradas por esta tela.
                   </div>
                 )}
 
-                <div className="divide-y divide-black/10 rounded-[16px] border border-black/10">
+                <fieldset className="divide-y divide-black/10 rounded-[16px] border border-black/10">
+                  <legend className="sr-only">Permissões de {selectedAdmin.name || selectedAdmin.email}</legend>
                   {permissionOptions.map((permission) => {
                     const checked = isSuperuser || selectedPermissions.includes(permission.code);
-                    const locked = isSuperuser || (isCurrentUser && permission.code === 'manage_admin_permissions');
+                    const lockedSelf = !isSuperuser && isCurrentUser && permission.code === 'manage_admin_permissions';
+                    const locked = isSuperuser || lockedSelf;
                     return (
                       <label
                         key={permission.code}
@@ -261,6 +283,7 @@ export default function AdminPermissionsPage() {
                           type="checkbox"
                           checked={checked}
                           disabled={locked}
+                          aria-describedby={isSuperuser ? superHintId : lockedSelf ? lockHintId : undefined}
                           onChange={() => togglePermission(permission.code)}
                           className="mt-1 h-4 w-4 accent-black"
                         />
@@ -275,10 +298,10 @@ export default function AdminPermissionsPage() {
                       </label>
                     );
                   })}
-                </div>
+                </fieldset>
 
                 {isCurrentUser && !isSuperuser && (
-                  <p className="mt-3 text-xs text-shio-muted">
+                  <p id={lockHintId} className="mt-3 text-xs text-shio-muted">
                     A permissão de gerenciar administradores não pode ser removida da própria conta nesta tela.
                   </p>
                 )}
@@ -288,16 +311,22 @@ export default function AdminPermissionsPage() {
                     {error}
                   </p>
                 )}
+                {/* Sempre montado: região viva inserida junto com o texto às vezes não é lida. */}
+                <div role="status">
                 {success && (
                   <p className="mt-5 rounded-[12px] bg-[#eef9f1] px-4 py-3 text-sm text-[#176b35]">
                     {success}
                   </p>
                 )}
+                </div>
 
                 <div className="mt-6 flex justify-end">
+                  {/* aria-disabled e não disabled: ao salvar o botão fica inativo e, com disabled,
+                      o foco cairia no início da página (#64). */}
                   <BlackButton
                     onClick={savePermissions}
-                    disabled={!hasChanges || saving || isSuperuser}
+                    aria-disabled={!hasChanges || saving || isSuperuser}
+                    className="aria-disabled:cursor-not-allowed aria-disabled:bg-black/45"
                   >
                     <Icon name="save" className="h-4 w-4" />
                     {saving ? 'Salvando...' : 'Salvar permissões'}

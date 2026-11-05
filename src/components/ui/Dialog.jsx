@@ -2,6 +2,10 @@ import { useEffect, useRef } from 'react';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// Diálogos abertos, do mais antigo ao mais novo. Com um modal aberto por cima de outro (ex.:
+// aprovar reembolso dentro do painel do pedido no celular), só o de cima responde a Esc e Tab.
+const openDialogs = [];
+
 // Modal acessível (#64): anuncia como diálogo, prende o foco, fecha com Esc e devolve o foco
 // a quem abriu. O visual do painel fica com quem usa (className/overlayClassName).
 export default function Dialog({
@@ -15,13 +19,17 @@ export default function Dialog({
   ...panelProps
 }) {
   const panelRef = useRef(null);
+  const tokenRef = useRef({});
 
   useEffect(() => {
     const opener = document.activeElement;
     const previousOverflow = document.body.style.overflow;
+    const token = tokenRef.current;
+    openDialogs.push(token);
     document.body.style.overflow = 'hidden';
     panelRef.current?.focus();
     return () => {
+      openDialogs.splice(openDialogs.indexOf(token), 1);
       document.body.style.overflow = previousOverflow;
       if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) {
         opener.focus();
@@ -39,6 +47,7 @@ export default function Dialog({
   // No document, e não no painel: se um clique tirar o foco do modal, Esc e Tab continuam valendo.
   useEffect(() => {
     const handleKeyDown = (event) => {
+      if (openDialogs[openDialogs.length - 1] !== tokenRef.current) return;
       if (event.key === 'Escape') {
         event.stopPropagation();
         onClose();
@@ -82,17 +91,25 @@ export default function Dialog({
         if (closeOnBackdrop && event.target === event.currentTarget) onClose();
       }}
     >
-      <Panel
-        ref={panelRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={labelledBy}
-        className={className}
-        {...panelProps}
-      >
-        {children}
-      </Panel>
+      {Panel === 'form' ? (
+        // role="dialog" não é permitido em <form> (ARIA): o diálogo é a div e o form fica dentro,
+        // com display: contents para não mudar o layout de quem usa.
+        <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={labelledBy} className={className}>
+          <form className="contents" {...panelProps}>{children}</form>
+        </div>
+      ) : (
+        <Panel
+          ref={panelRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={labelledBy}
+          className={className}
+          {...panelProps}
+        >
+          {children}
+        </Panel>
+      )}
     </div>
   );
 }
