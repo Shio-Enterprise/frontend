@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import PaymentPage from './index';
+import { axe } from 'vitest-axe';
 
 vi.mock('../../../context/AuthContext', () => ({
   useAuth: () => ({ isAdmin: false }),
@@ -547,5 +548,29 @@ describe('PaymentPage', () => {
       const checkout = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
       expect(JSON.parse(checkout[1].body)).not.toHaveProperty('coupon_code');
     });
+  });
+});
+
+// Testes mínimos da #64: formulário de pagamento sem violações em cada etapa e com erro.
+describe('PaymentPage — acessibilidade (axe)', () => {
+  it('sem violações no endereço, no pagamento, na revisão e com erro ao finalizar', async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar para Pagamento' }));
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar Pedido' }));
+    expect(await axe(container)).toHaveNoViolations();
+    confirmQuote();
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));
+    await screen.findByText('Gateway indisponível.');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('sem violações quando o cálculo do frete falha', async () => {
+    calculationResponse = async () => jsonResponse({ detail: 'Correios indisponíveis.' }, false);
+    const { container } = renderPage();
+    await screen.findByText(/Correios indisponíveis/);
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

@@ -2,6 +2,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import HomePage from './index';
+import { axe } from 'vitest-axe';
 
 vi.mock('../../../components/layout/public/PublicLayout', () => ({
   default: ({ children }) => <main>{children}</main>,
@@ -108,5 +109,23 @@ describe('HomePage — carrossel', () => {
     mount();
     act(() => vi.advanceTimersByTime(15000));
     expect(slideTrack().style.transform).toBe('translateX(-0%)');
+  });
+});
+
+// Testes mínimos da #64: vitest-axe no carrossel e na Home com produtos carregados.
+describe('HomePage — acessibilidade (axe)', () => {
+  it('carrossel e vitrines sem violações, também depois de trocar de slide', async () => {
+    const { container } = mount();
+    await screen.findByText('Produto 25');
+    expect(await axe(container)).toHaveNoViolations();
+    act(() => { screen.getByRole('button', { name: 'Próximo slide' }).click(); });
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('sem violações com erro ao carregar os produtos', async () => {
+    fetch.mockResolvedValue({ ok: false, json: async () => ({}) });
+    const { container } = mount();
+    expect(await screen.findAllByRole('alert')).toHaveLength(2);
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
