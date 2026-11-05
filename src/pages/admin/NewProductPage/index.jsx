@@ -27,6 +27,7 @@ const NewProductPage = () => {
   const [submitError, setSubmitError] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const fileInputRef = useRef(null);
+  const addImagesRef = useRef(null);
 
   const handleImageSelect = (event) => {
     const files = Array.from(event.target.files);
@@ -42,6 +43,8 @@ const NewProductPage = () => {
       URL.revokeObjectURL(prev[index].preview);
       return prev.filter((_, i) => i !== index);
     });
+    // O botão clicado some: o foco vai para "Adicionar imagens".
+    setTimeout(() => addImagesRef.current?.focus());
   };
 
   const drops = getResults(dropsResponse);
@@ -106,14 +109,14 @@ const NewProductPage = () => {
     <div>
       <PageMarker name="NewProductPage" />
       {showSuccess && (
-        <div className="mb-4 flex h-12 items-center gap-3 rounded-[12px] bg-[#b6edc8] px-5 text-[14px] font-bold uppercase text-shio-success md:h-[72px] md:gap-4 md:px-8 md:text-[18px]">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-shio-success text-shio-success md:h-8 md:w-8">✓</span>
+        <div role="status" className="mb-4 flex h-12 items-center gap-3 rounded-[12px] bg-[#b6edc8] px-5 text-[14px] font-bold uppercase text-shio-success md:h-[72px] md:gap-4 md:px-8 md:text-[18px]">
+          <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-shio-success text-shio-success md:h-8 md:w-8">✓</span>
           Produto salvo com sucesso!
         </div>
       )}
 
-      <div className="mb-8 flex items-center gap-5 md:gap-7">
-        <Link to="/admin/products" aria-label="Voltar para produtos" className="text-black transition hover:text-black/60">
+      <div className="mb-8 flex items-center gap-3 md:gap-5">
+        <Link to="/admin/products" aria-label="Voltar para produtos" className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-black transition hover:bg-black/5">
           <Icon name="arrowLeft" className="h-6 w-6 md:h-7 md:w-7" />
         </Link>
         <h1 className="text-[24px] font-black uppercase leading-tight text-black md:text-[34px] lg:text-[42px]">Novo Produto</h1>
@@ -183,10 +186,13 @@ const NewProductPage = () => {
               type="file"
               accept="image/jpeg,image/png,image/webp"
               multiple
-              className="sr-only"
+              // Escondido de verdade: o botão ao lado é quem abre o seletor (o input sr-only era uma
+              // parada de Tab invisível e sem rótulo).
+              hidden
               onChange={handleImageSelect}
             />
             <button
+              ref={addImagesRef}
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="mt-3 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-shio-muted transition hover:border-black/50 hover:text-black/65"
@@ -195,25 +201,25 @@ const NewProductPage = () => {
               Adicionar imagens
             </button>
             {images.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-3">
-                {images.map(({ preview }, index) => (
-                  <div key={preview} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[10px] border border-black/15">
-                    <img src={preview} alt="" className="h-full w-full object-cover" />
+              <ul aria-label="Imagens selecionadas" className="mt-3 flex flex-wrap gap-3">
+                {images.map(({ preview, file }, index) => (
+                  <li key={preview} className="flex w-20 shrink-0 flex-col items-center">
+                    <img src={preview} alt={`Imagem ${index + 1}: ${file.name}`} className="h-20 w-20 rounded-[10px] border border-black/15 object-cover" />
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      aria-label="Remover imagem"
-                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black"
+                      aria-label={`Remover imagem ${index + 1}`}
+                      className="min-h-11 w-full text-[13px] font-semibold text-black underline"
                     >
-                      <Icon name="close" className="h-3 w-3" />
+                      Remover
                     </button>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
 
-          {submitError && <p className="text-center text-sm font-semibold text-shio-danger">{submitError}</p>}
+          {submitError && <p role="alert" className="text-center text-sm font-semibold text-shio-danger">{submitError}</p>}
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-end sm:gap-5">
             <Link

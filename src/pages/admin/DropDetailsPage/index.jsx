@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { getDropStatus } from '../../../lib/dropStatus';
 import { AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import Dialog from '../../../components/ui/Dialog';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -19,9 +20,15 @@ const DropDetailsPage = () => {
   const [updatingProductId, setUpdatingProductId] = useState(null);
   const [managerError, setManagerError] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [linkStatus, setLinkStatus] = useState('');
+  const managerId = useId();
+  const mobileSearchRef = useRef(null);
 
   const handleDelete = async () => {
-    if (!window.confirm('Excluir este drop? Os produtos associados ficarão sem drop.')) return;
+    if (deleting) return;
+    setDeleting(true);
     setActionError(null);
     try {
       const token = getAccessToken();
@@ -32,7 +39,10 @@ const DropDetailsPage = () => {
       if (!res.ok) throw new Error('Falha ao excluir o drop.');
       navigate('/admin/drops');
     } catch (err) {
+      setConfirmingDelete(false);
       setActionError(err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -105,8 +115,10 @@ const DropDetailsPage = () => {
   }, [productsResponse, productSearch]);
 
   const handleProductLink = async (product, shouldAttach) => {
+    if (updatingProductId) return;
     setUpdatingProductId(product.id);
     setManagerError(null);
+    setLinkStatus('');
 
     try {
       const token = getAccessToken();
@@ -134,6 +146,7 @@ const DropDetailsPage = () => {
           products: ((previousDrop || drop)?.products || []).filter((dropProduct) => dropProduct.id !== product.id),
         }));
       }
+      setLinkStatus(`${product.name} ${shouldAttach ? 'adicionado ao' : 'removido do'} drop.`);
     } catch (err) {
       setManagerError(err.message);
     } finally {
@@ -141,18 +154,45 @@ const DropDetailsPage = () => {
     }
   };
 
+  // O botão não usa disabled durante a gravação: disabled tira o foco de quem está no teclado.
+  const renderLinkButton = (product, isLinked) => {
+    const isUpdating = updatingProductId === product.id;
+    return (
+      <button
+        type="button"
+        onClick={() => handleProductLink(product, !isLinked)}
+        aria-disabled={updatingProductId ? true : undefined}
+        aria-label={`${isLinked ? 'Remover' : 'Adicionar'} ${product.name} ${isLinked ? 'do' : 'ao'} drop`}
+        className={`h-11 shrink-0 rounded-full px-4 text-[12px] font-bold uppercase transition aria-disabled:cursor-not-allowed aria-disabled:opacity-60 lg:h-9 ${isLinked ? 'border border-black/20 text-black hover:border-black' : 'bg-black text-white hover:bg-black/85'}`}
+      >
+        {isUpdating ? 'Salvando...' : isLinked ? 'Remover' : 'Adicionar'}
+      </button>
+    );
+  };
+
+  // Mesmo sem o drop, a página mantém o título (h1) para quem navega por cabeçalhos.
+  const fallback = (message, className = '') => (
+    <div>
+      <h1 className="sr-only">Detalhes do drop</h1>
+      <p role="status" className={`p-8 text-center ${className}`}>{message}</p>
+      <p className="text-center">
+        <Link to="/admin/drops" className="inline-flex min-h-11 items-center font-semibold underline">Voltar para drops</Link>
+      </p>
+    </div>
+  );
+
   if (loading) {
-    return <div className="p-8 text-center">Carregando detalhes do drop...</div>;
+    return fallback('Carregando detalhes do drop...');
   }
 
   if (error) {
-    return <div className="p-8 text-center text-shio-danger">Erro ao carregar o drop. Verifique se o ID é válido.</div>;
+    return fallback('Erro ao carregar o drop. Verifique se o ID é válido.', 'text-shio-danger');
   }
 
   const currentDrop = managedDrop || drop;
 
   if (!currentDrop) {
-    return <div className="p-8 text-center">Drop não encontrado.</div>;
+    return fallback('Drop não encontrado.');
   }
 
   const products = currentDrop.products || [];
@@ -171,9 +211,9 @@ const DropDetailsPage = () => {
       <div className="lg:hidden">
 
       {/* Header row */}
-      <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-[22px] font-black uppercase">DETALHES DO DROP</h1>
-        <Link to="/admin/drops">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="text-[22px] font-black uppercase">Detalhes do drop</h1>
+        <Link to="/admin/drops" aria-label="Voltar para drops" className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition hover:bg-black/5">
           <Icon name="close" className="h-6 w-6" />
         </Link>
       </div>
@@ -189,9 +229,9 @@ const DropDetailsPage = () => {
       {/* Drop details card */}
       <AdminPanel className="mt-4 p-5">
         <div className="grid gap-2 text-[14px]">
-          <div className="flex justify-between">
-            <span className="text-shio-muted">Nome do drop</span>
-            <span className="font-medium">{currentDrop.name}</span>
+          <div className="flex justify-between gap-4">
+            <span className="shrink-0 text-shio-muted">Nome do drop</span>
+            <span className="min-w-0 break-words text-right font-medium">{currentDrop.name}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-shio-muted">Data</span>
@@ -216,28 +256,34 @@ const DropDetailsPage = () => {
       </AdminPanel>
 
       {/* Products section */}
-      <AdminPanel className="mt-4 overflow-hidden">
+      <AdminPanel className="mt-4">
         <div className="flex items-center justify-between p-5">
           <h2 className="text-[16px] font-bold text-black">Produtos do drop</h2>
           <button
             type="button"
             onClick={() => setIsManagingProducts((isOpen) => !isOpen)}
-            className="inline-flex items-center gap-2 text-[13px] font-semibold text-black"
+            aria-expanded={isManagingProducts}
+            aria-controls={`${managerId}-mobile`}
+            className="inline-flex min-h-11 items-center gap-2 text-[13px] font-semibold text-black"
           >
-            <Icon name="plus" className="h-4 w-4" />
-            {isManagingProducts ? 'Fechar' : 'Gerenciar'}
+            {/* Texto fixo: o estado aberto/fechado vem do aria-expanded e do ícone. */}
+            <Icon name={isManagingProducts ? 'close' : 'plus'} className="h-4 w-4" />
+            Gerenciar
           </button>
         </div>
 
         {isManagingProducts && (
-          <div className="border-t border-black/10 p-5">
+          <div id={`${managerId}-mobile`} className="border-t border-black/10 p-5">
             {/* Search bar */}
-            <label className="flex h-11 items-center gap-3 rounded-full border border-black/20 px-4 text-shio-muted">
+            <label className="flex h-12 items-center gap-3 rounded-full border border-black/20 px-4 text-shio-muted">
               <Icon name="search" className="h-4 w-4 shrink-0" />
               <input
+                ref={mobileSearchRef}
+                type="search"
+                aria-label="Buscar produto para o drop"
                 value={productSearch}
                 onChange={(event) => setProductSearch(event.target.value)}
-                className="w-full bg-transparent text-[14px] outline-none placeholder:text-shio-placeholder"
+                className="h-full w-full min-w-0 bg-transparent text-[16px] outline-none placeholder:text-shio-placeholder"
                 placeholder="Buscar produto..."
               />
             </label>
@@ -245,13 +291,13 @@ const DropDetailsPage = () => {
             {/* Add product button */}
             <button
               type="button"
-              onClick={() => setIsManagingProducts(true)}
+              onClick={() => mobileSearchRef.current?.focus()}
               className="mt-3 flex h-11 w-full items-center justify-center rounded-[10px] border border-dashed border-black/20 text-[13px] font-semibold text-shio-muted hover:border-black/40 transition"
             >
               + Adicionar produto
             </button>
 
-            {managerError && <p className="mt-4 text-sm font-semibold text-shio-danger">{managerError}</p>}
+            {managerError && <p role="alert" className="mt-4 text-sm font-semibold text-shio-danger">{managerError}</p>}
 
             <div className="mt-4 grid gap-3">
               {loadingProducts ? (
@@ -263,21 +309,14 @@ const DropDetailsPage = () => {
                   <div key={product.id} className="flex items-center gap-3 rounded-[10px] border border-black/10 p-3">
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-[6px] bg-[#f0f0f0]">
                       {productImage && (
-                        <img src={productImage} alt={product.name} className="h-full w-full object-cover" />
+                        <img src={productImage} alt="" className="h-full w-full object-cover" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold text-black truncate">{product.name}</p>
                       <p className="text-[13px] text-shio-muted">{formatPrice(product)}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleProductLink(product, !isLinked)}
-                      disabled={updatingProductId === product.id}
-                      className={`h-9 shrink-0 rounded-full px-4 text-[12px] font-bold uppercase transition disabled:cursor-not-allowed disabled:opacity-60 ${isLinked ? 'border border-black/20 text-black hover:border-black' : 'bg-black text-white hover:bg-black/85'}`}
-                    >
-                      {updatingProductId === product.id ? '...' : isLinked ? 'Remover' : 'Adicionar'}
-                    </button>
+                    {renderLinkButton(product, isLinked)}
                   </div>
                 );
               }) : (
@@ -288,12 +327,13 @@ const DropDetailsPage = () => {
         )}
 
         {/* Attached products list */}
-        <div className="space-y-3 p-5">
-          {products.length > 0 ? products.map((product) => (
-            <div key={product.id} className="flex items-center gap-3">
+        {products.length > 0 ? (
+        <ul aria-label="Produtos do drop" className="space-y-3 p-5">
+          {products.map((product) => (
+            <li key={product.id} className="flex items-center gap-3">
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[8px] bg-[#f0f0f0]">
                 {(productImageMap[product.id] || getProductImage(product)) && (
-                  <img src={productImageMap[product.id] || getProductImage(product)} alt={product.name} className="h-full w-full object-cover" />
+                  <img src={productImageMap[product.id] || getProductImage(product)} alt="" className="h-full w-full object-cover" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -301,11 +341,12 @@ const DropDetailsPage = () => {
                 <p className="text-[12px] text-shio-muted">Estoque: {getStock(product)}</p>
                 <p className="text-[14px] font-semibold text-black">{formatPrice(product)}</p>
               </div>
-            </div>
-          )) : (
-            <p className="text-center text-[14px] text-shio-muted">Nenhum produto associado a este drop.</p>
-          )}
-        </div>
+            </li>
+          ))}
+        </ul>
+        ) : (
+          <p className="p-5 text-center text-[14px] text-shio-muted">Nenhum produto associado a este drop.</p>
+        )}
 
         {/* Summary row (when managing) */}
         {isManagingProducts && (
@@ -324,7 +365,7 @@ const DropDetailsPage = () => {
 
       {/* Error message */}
       {actionError && (
-        <p className="mt-4 rounded-[8px] bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{actionError}</p>
+        <p role="alert" className="mt-4 rounded-[8px] bg-red-50 px-4 py-3 text-sm font-semibold text-shio-danger">{actionError}</p>
       )}
 
       {/* Bottom buttons */}
@@ -348,13 +389,15 @@ const DropDetailsPage = () => {
           VER PÁGINA PÚBLICA
         </Link>
         <button
+          type="button"
           onClick={handleDuplicate}
           className="flex h-12 w-full items-center justify-center rounded-full border border-black/20 text-[13px] font-bold uppercase tracking-widest text-black hover:bg-black/5 transition"
         >
           DUPLICAR DROP
         </button>
         <button
-          onClick={handleDelete}
+          type="button"
+          onClick={() => setConfirmingDelete(true)}
           className="flex h-12 w-full items-center justify-center rounded-full bg-shio-danger text-[13px] font-bold uppercase tracking-widest text-white hover:bg-shio-danger-hover transition"
         >
           EXCLUIR DROP
@@ -419,52 +462,58 @@ const DropDetailsPage = () => {
                 Ver página pública
               </Link>
               <button
+                type="button"
                 onClick={handleDuplicate}
                 className="flex h-12 items-center justify-center rounded-[10px] border border-black/20 text-[15px] font-semibold text-black hover:bg-[#f0f0f0] transition"
               >
                 Duplicar drop
               </button>
               <button
-                onClick={handleDelete}
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
                 className="flex h-12 items-center justify-center rounded-[10px] bg-shio-danger text-[15px] font-semibold text-white hover:bg-shio-danger-hover transition"
               >
                 Excluir drop
               </button>
             </div>
             {actionError && (
-              <p className="mt-4 text-sm font-semibold text-shio-danger">{actionError}</p>
+              <p role="alert" className="mt-4 text-sm font-semibold text-shio-danger">{actionError}</p>
             )}
           </AdminPanel>
         </div>
 
         {/* Products panel */}
-        <AdminPanel className="mt-10 overflow-hidden">
+        <AdminPanel className="mt-10">
           <div className="flex items-center justify-between p-8">
             <h2 className="text-[20px] font-bold">Produtos do drop</h2>
             <button
               type="button"
               onClick={() => setIsManagingProducts((v) => !v)}
-              className="inline-flex items-center gap-2 text-[14px] font-semibold text-black"
+              aria-expanded={isManagingProducts}
+              aria-controls={`${managerId}-desktop`}
+              className="inline-flex min-h-11 items-center gap-2 text-[14px] font-semibold text-black"
             >
-              <Icon name="plus" className="h-4 w-4" />
-              {isManagingProducts ? 'Fechar gerenciamento' : 'Gerenciar produtos'}
+              <Icon name={isManagingProducts ? 'close' : 'plus'} className="h-4 w-4" />
+              Gerenciar produtos
             </button>
           </div>
 
           {isManagingProducts && (
-            <div className="border-t border-black/10 px-8 pb-8">
+            <div id={`${managerId}-desktop`} className="border-t border-black/10 px-8 pb-8">
               <div className="mt-6 flex gap-4">
-                <label className="flex flex-1 h-11 items-center gap-3 rounded-full border border-black/20 px-4 text-shio-muted">
+                <label className="flex flex-1 h-12 items-center gap-3 rounded-full border border-black/20 px-4 text-shio-muted">
                   <Icon name="search" className="h-4 w-4 shrink-0" />
                   <input
+                    type="search"
+                    aria-label="Buscar produto para o drop"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    className="w-full bg-transparent text-[14px] outline-none placeholder:text-shio-placeholder"
+                    className="h-full w-full min-w-0 bg-transparent text-[14px] outline-none placeholder:text-shio-placeholder"
                     placeholder="Buscar produto..."
                   />
                 </label>
               </div>
-              {managerError && <p className="mt-4 text-sm font-semibold text-shio-danger">{managerError}</p>}
+              {managerError && <p role="alert" className="mt-4 text-sm font-semibold text-shio-danger">{managerError}</p>}
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {loadingProducts ? (
                   <div className="col-span-full rounded-[10px] bg-[#f0f0f0] p-5 text-center text-shio-muted">Carregando produtos...</div>
@@ -474,20 +523,13 @@ const DropDetailsPage = () => {
                   return (
                     <div key={product.id} className="flex items-center gap-3 rounded-[10px] border border-black/10 p-3">
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-[6px] bg-[#f0f0f0]">
-                        {productImage && <img src={productImage} alt={product.name} className="h-full w-full object-cover" />}
+                        {productImage && <img src={productImage} alt="" className="h-full w-full object-cover" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[14px] font-semibold text-black truncate">{product.name}</p>
                         <p className="text-[13px] text-shio-muted">{formatPrice(product)}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleProductLink(product, !isLinked)}
-                        disabled={updatingProductId === product.id}
-                        className={`h-9 shrink-0 rounded-full px-4 text-[12px] font-bold uppercase transition disabled:opacity-60 ${isLinked ? 'border border-black/20 text-black hover:border-black' : 'bg-black text-white hover:bg-black/85'}`}
-                      >
-                        {updatingProductId === product.id ? '...' : isLinked ? 'Remover' : 'Adicionar'}
-                      </button>
+                      {renderLinkButton(product, isLinked)}
                     </div>
                   );
                 }) : (
@@ -498,7 +540,10 @@ const DropDetailsPage = () => {
           )}
 
           {products.length > 0 ? (
+            // Rola por dentro se faltar espaço (decisão do time, #64); tabIndex deixa rolar pelo teclado.
+            <div role="region" aria-label="Produtos do drop" tabIndex={0} className="overflow-x-auto rounded-b-[18px]" style={{ outlineOffset: '-4px' }}>
             <table className="w-full">
+              <caption className="sr-only">Produtos do drop</caption>
               <thead>
                 <tr className="border-t border-black/10 text-left text-[14px] text-shio-muted">
                   <th className="px-8 py-4 font-medium">Produto</th>
@@ -514,7 +559,7 @@ const DropDetailsPage = () => {
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-4">
                           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-[8px] bg-[#f0f0f0]">
-                            {productImage && <img src={productImage} alt={product.name} className="h-full w-full object-cover" />}
+                            {productImage && <img src={productImage} alt="" className="h-full w-full object-cover" />}
                           </div>
                           <span className="text-[16px] font-semibold text-black">{product.name}</span>
                         </div>
@@ -526,11 +571,49 @@ const DropDetailsPage = () => {
                 })}
               </tbody>
             </table>
+            </div>
           ) : (
             <p className="px-8 pb-8 text-[16px] text-shio-muted">Nenhum produto associado a este drop.</p>
           )}
         </AdminPanel>
       </div>{/* end hidden lg:block */}
+
+      <p role="status" className="sr-only">{linkStatus}</p>
+
+      {confirmingDelete && (
+        <Dialog
+          labelledBy="delete-drop-title"
+          aria-describedby="delete-drop-warning"
+          onClose={() => setConfirmingDelete(false)}
+          className="w-full max-w-[480px] rounded-2xl bg-white p-6 shadow-2xl sm:p-8"
+        >
+          <h2 id="delete-drop-title" className="mb-1 text-[22px] font-bold uppercase tracking-wide text-black">Excluir drop</h2>
+          <p className="mb-5 break-words text-[15px] text-shio-muted">
+            Tem certeza que deseja excluir <span className="font-semibold text-black">{currentDrop.name}</span>?
+          </p>
+          <p id="delete-drop-warning" className="mb-6 flex items-center gap-2 rounded-xl bg-amber-50 px-5 py-3 text-[13px] font-semibold text-shio-warning">
+            <span aria-hidden="true">⚠</span>
+            <span>Essa ação é permanente. Os produtos associados ficarão sem drop.</span>
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(false)}
+              className="min-h-12 w-full rounded-full border border-black/25 py-3 text-[15px] font-semibold uppercase text-black transition-colors hover:bg-black/5"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              aria-disabled={deleting || undefined}
+              className="min-h-12 w-full rounded-full bg-shio-danger py-3 text-[15px] font-semibold uppercase text-white transition-colors hover:bg-shio-danger-hover aria-disabled:opacity-60"
+            >
+              {deleting ? 'Excluindo...' : 'Excluir'}
+            </button>
+          </div>
+        </Dialog>
+      )}
 
     </div>
   );
