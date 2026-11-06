@@ -56,7 +56,7 @@ describe('CouponsPage', () => {
   it('editar cupom não pergunta', async () => {
     await saveForm([base]);
     fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Editar Cupom' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Editar Cupom' }));
     fireEvent.submit(document.getElementById('coupon-form'));
     await waitFor(() => expect(document.getElementById('coupon-form')).toBeNull());
     expect(screen.queryByText(/Quer enviar este cupom/)).not.toBeInTheDocument();
@@ -66,21 +66,21 @@ describe('CouponsPage', () => {
     state.coupons = [{ ...base, is_active: false }];
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    expect(screen.getByRole('button', { name: 'Enviar por e-mail' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Enviar por e-mail' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('desabilita para cupom esgotado ou vencido e habilita para válido', () => {
     state.coupons = [{ ...base, max_uses_total: 5, uses_count: 5 }];
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    expect(screen.getByRole('button', { name: 'Enviar por e-mail' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Enviar por e-mail' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('habilita para cupom válido e abre o modal', () => {
     state.coupons = [base];
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar por e-mail' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Enviar por e-mail' }));
     expect(screen.getByText('modal-email VERAO20')).toBeInTheDocument();
   });
 
@@ -110,7 +110,7 @@ describe('CouponsPage', () => {
     globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(coupon) }));
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Editar Cupom' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Editar Cupom' }));
   }
 
   const sentBody = () => JSON.parse(globalThis.fetch.mock.calls.at(-1)[1].body);

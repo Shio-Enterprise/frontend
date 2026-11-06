@@ -193,7 +193,8 @@ export default function AdminNavbar() {
         </div>
       </aside>
 
-      <div className="lg:hidden" onKeyDown={closeMenuWithEsc}>
+      {/* header: a barra do topo no celular entra num landmark (axe "region", #64 área 6). */}
+      <header className="lg:hidden" onKeyDown={closeMenuWithEsc}>
         <div className="flex h-[52px] items-center gap-2 border-b border-black/10 bg-white px-4">
           <button
             ref={menuButtonRef}
@@ -265,7 +266,7 @@ export default function AdminNavbar() {
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
       <header className="hidden border-b border-black/20 bg-white lg:ml-[240px] lg:block">
         <div className="flex h-[88px] items-center justify-between px-14">

@@ -36,3 +36,28 @@ it('submits cost, promotion and explicit variations without losing a manual SKU'
   expect(screen.getByLabelText('Cor 1')).toHaveValue('#FF0000');
   vi.unstubAllGlobals();
 });
+
+describe('NewProductPage — imagens e acessibilidade (#64)', () => {
+  it('cada imagem tem botão "Remover" com número; remover devolve o foco ao botão de adicionar', async () => {
+    const { fireEvent, waitFor } = await import('@testing-library/react');
+    let n = 0;
+    globalThis.URL.createObjectURL = vi.fn(() => `blob:img${n++}`);
+    globalThis.URL.revokeObjectURL = vi.fn();
+    const { container } = render(<MemoryRouter><NewProductPage /></MemoryRouter>);
+    const files = [new File(['a'], 'frente.png', { type: 'image/png' }), new File(['b'], 'costas.png', { type: 'image/png' })];
+    fireEvent.change(container.querySelector('input[type=file]'), { target: { files } });
+
+    expect(screen.getByRole('img', { name: 'Imagem 2: costas.png' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remover imagem 1' }));
+
+    expect(screen.queryByRole('img', { name: 'Imagem 1: frente.png' })).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Imagem 1: costas.png' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Adicionar imagens' })).toHaveFocus());
+  });
+
+  it('formulário sem violações de acessibilidade', async () => {
+    const { axe } = await import('vitest-axe');
+    const { container } = render(<MemoryRouter><NewProductPage /></MemoryRouter>);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
