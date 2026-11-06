@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import SignUpPage from './index';
 import { useAuth } from '../../../context/AuthContext';
+import { axe } from 'vitest-axe';
 
 vi.mock('../../../context/AuthContext');
 vi.mock('@react-oauth/google', () => ({
@@ -68,5 +69,24 @@ describe('SignUpPage', () => {
     fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'Senha123!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Criar Conta' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Este e-mail já está em uso.');
+  });
+});
+
+// Testes mínimos da #64: formulário de cadastro sem violações, vazio e com erro.
+describe('SignUpPage — acessibilidade (axe)', () => {
+  beforeEach(() => {
+    registerWithPassword = vi.fn().mockRejectedValue({ response: { data: { email: ['existe'] } } });
+    useAuth.mockReturnValue({ registerWithPassword });
+  });
+
+  it('sem violações vazio e com erro de cadastro', async () => {
+    const { container } = render(<MemoryRouter><SignUpPage /></MemoryRouter>);
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.change(screen.getByLabelText('Nome completo'), { target: { value: 'Ana' } });
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'ana@x.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'Senha123!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Criar Conta' }));
+    await screen.findByRole('alert');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

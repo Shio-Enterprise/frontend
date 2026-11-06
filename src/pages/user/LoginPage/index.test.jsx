@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import LoginPage from './index';
 import { useAuth } from '../../../context/AuthContext';
+import { axe } from 'vitest-axe';
 
 vi.mock('../../../context/AuthContext');
 vi.mock('@react-oauth/google', () => ({
@@ -121,5 +122,24 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Credenciais inválidas.');
+  });
+});
+
+// Testes mínimos da #64: formulário de login sem violações, vazio e com erro.
+describe('LoginPage — acessibilidade (axe)', () => {
+  beforeEach(() => {
+    useAuth.mockReturnValue({ loginWithPassword: vi.fn().mockRejectedValue(new Error('x')), login: vi.fn() });
+  });
+
+  it('sem violações, com a senha visível e com erro de login', async () => {
+    const { container } = render(<MemoryRouter><LoginPage /></MemoryRouter>);
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar senha' }));
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'errada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+    await screen.findByRole('alert');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
