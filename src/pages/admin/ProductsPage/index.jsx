@@ -8,73 +8,9 @@ import { getAccessToken } from '../../../lib/authToken';
 import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
 import Dialog from '../../../components/ui/Dialog';
-import { useMediaQuery } from '../../../hooks/useMediaQuery';
+import DrawerShell from '../../../components/admin/DrawerShell';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-// ─── Drawer shell ─────────────────────────────────────────────────────────────
-
-// No celular o drawer cobre a tela inteira: vira modal (<Dialog>) para o Tab não andar pela
-// página escondida atrás. No desktop é um painel lateral que deixa a lista usável ao lado:
-// recebe o foco ao abrir, fecha com Esc e devolve o foco a quem abriu.
-function DesktopDrawer({ titleId, onClose, className, children }) {
-  const panelRef = useRef(null);
-  const onCloseRef = useRef(onClose);
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
-
-  useEffect(() => {
-    const opener = document.activeElement;
-    panelRef.current?.focus();
-    return () => {
-      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus();
-    };
-  }, []);
-
-  return (
-    <aside
-      ref={panelRef}
-      tabIndex={-1}
-      aria-labelledby={titleId}
-      className={className}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          event.stopPropagation();
-          onCloseRef.current();
-        }
-      }}
-    >
-      {children}
-    </aside>
-  );
-}
-
-function DrawerShell({ title, onClose, widthClass = 'lg:w-[360px]', children }) {
-  const isDesktop = useMediaQuery('(min-width: 1024px)');
-  const titleId = useId();
-  const className = `fixed inset-0 z-30 flex flex-col bg-white lg:inset-y-0 lg:left-auto lg:right-0 ${widthClass} lg:border-l lg:border-black/10 lg:shadow-2xl`;
-  const content = (
-    <>
-      <div className="flex shrink-0 items-center justify-between border-b border-black/10 py-3 pl-7 pr-4">
-        <h2 id={titleId} className="text-[18px] font-black uppercase tracking-wide">{title}</h2>
-        <button type="button" onClick={onClose} aria-label="Fechar" className="flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-black/5">
-          <Icon name="close" className="h-5 w-5" />
-        </button>
-      </div>
-      {children}
-    </>
-  );
-
-  if (isDesktop) {
-    return <DesktopDrawer titleId={titleId} onClose={onClose} className={className}>{content}</DesktopDrawer>;
-  }
-  return (
-    <Dialog labelledBy={titleId} onClose={onClose} overlayClassName="" className={className}>
-      {content}
-    </Dialog>
-  );
-}
 
 // ─── Product Detail Drawer ────────────────────────────────────────────────────
 
@@ -446,7 +382,7 @@ function StockManagementDrawer({ id, refetchList }) {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
 
   return (
-    <DrawerShell title="Gerenciar Estoque" widthClass="lg:w-[380px]" onClose={() => navigate('/admin/products')}>
+    <DrawerShell title="Gerenciar Estoque" width={380} onClose={() => navigate('/admin/products')}>
 
       {loading ? (
         <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>

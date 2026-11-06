@@ -146,7 +146,7 @@ describe('Dialog', () => {
     expect(document.body.style.overflow).toBe('auto');
   });
 
-  it('renderiza o painel como formulário quando as="form"', () => {
+  it('com as="form" o conteúdo fica num formulário dentro do diálogo', () => {
     const onSubmit = vi.fn((event) => event.preventDefault());
     render(
       <Dialog labelledBy="t" onClose={() => {}} as="form" onSubmit={onSubmit}>
@@ -156,12 +156,49 @@ describe('Dialog', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('dialog').tagName).toBe('FORM');
+    // role=dialog não vai no <form> (não permitido no ARIA): o form fica dentro do diálogo.
+    expect(screen.getByRole('dialog').tagName).toBe('DIV');
+    expect(screen.getByRole('dialog').querySelector('form')).toContainElement(screen.getByRole('button', { name: 'Enviar' }));
   });
 
   it('não tem violações de acessibilidade', async () => {
     const { container } = render(<Exemplo />);
     abrir();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('com um modal aberto por cima de outro, Esc e Tab valem só para o de cima', () => {
+    function Empilhados() {
+      const [inner, setInner] = useState(false);
+      const [outer, setOuter] = useState(true);
+      return outer && (
+        <Dialog labelledBy="fora" onClose={() => setOuter(false)}>
+          <h2 id="fora">Painel</h2>
+          <button type="button" onClick={() => setInner(true)}>Abrir de dentro</button>
+          {inner && (
+            <Dialog labelledBy="dentro" onClose={() => setInner(false)}>
+              <h2 id="dentro">Confirmação</h2>
+              <button type="button">Só item</button>
+            </Dialog>
+          )}
+        </Dialog>
+      );
+    }
+    render(<Empilhados />);
+    const abrirDentro = screen.getByRole('button', { name: 'Abrir de dentro' });
+    abrirDentro.focus();
+    fireEvent.click(abrirDentro);
+    const item = screen.getByRole('button', { name: 'Só item' });
+    item.focus();
+    fireEvent.keyDown(item, { key: 'Tab' });
+    expect(document.activeElement).toBe(item);
+
+    fireEvent.keyDown(item, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Confirmação' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Painel' })).toBeInTheDocument();
+    expect(document.activeElement).toBe(abrirDentro);
+
+    fireEvent.keyDown(abrirDentro, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Painel' })).not.toBeInTheDocument();
   });
 });
