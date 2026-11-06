@@ -81,6 +81,7 @@ function FavoritesList() {
           <Link to="/category/all" className="mt-6 inline-flex rounded-full bg-black px-6 py-3 text-sm font-semibold text-white">Explorar produtos</Link>
         </div>
       ) : null}
+      {items.length > 0 && <h2 className="sr-only">Produtos favoritos</h2>}
       <div className="mt-8 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3" aria-busy={state.loading}>
         {items.map((product) => <ProductCard key={product.id} product={product} />)}
       </div>

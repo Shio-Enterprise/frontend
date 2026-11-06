@@ -35,6 +35,8 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText('Clientes cadastrados')).toBeInTheDocument();
     expect(screen.getByText('Camiseta — M')).toBeInTheDocument();
+    expect(screen.getByRole('listitem')).toHaveTextContent('Camiseta — M2 un.');
+    expect(screen.getByRole('button', { name: 'Clientes cadastrados 3 +1 no período' }).tagName).toBe('BUTTON');
     expect(screen.getByText('Nenhuma venda no período.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Análise detalhada' })).toHaveAttribute('href', '/admin/dashboard/detail');
   });
@@ -52,6 +54,7 @@ describe('DashboardPage', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Receita líquida' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver pedidos' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Tabela de vendas por período' })).toHaveAttribute('tabindex', '0');
   });
 
   it('mostra receita e pedidos do período destacado sem recortar o hover do gráfico', async () => {

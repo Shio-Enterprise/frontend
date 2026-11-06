@@ -51,11 +51,42 @@ body {
   h3 {
     overflow-wrap: break-word;
   }
+
+  /* Alto contraste do Windows (cores forçadas): o sistema troca fundos e sombras pelas cores dele,
+     então botão sem borda vira texto solto e "selecionado" feito só com fundo preto some. */
+  @media (forced-colors: active) {
+    button {
+      border: 1px solid ButtonText;
+    }
+
+    [aria-pressed="true"],
+    [aria-current="page"],
+    [aria-current="true"] {
+      outline: 3px solid Highlight;
+      outline-offset: 2px;
+    }
+
+    /* Botões de texto selecionados ganham o fundo de destaque; foto e amostra de cor ficam só com o contorno. */
+    button[aria-pressed="true"]:not(:has(img)):not([data-swatch]),
+    button[aria-current="page"],
+    button[aria-current="true"] {
+      background-color: Highlight;
+      color: HighlightText;
+    }
+  }
 }
 
 /* Foco do teclado sempre visível, inclusive onde há outline-none. Fora de camada de propósito,
    para vencer os utilitários. O anel branco interno mantém o contorno visível em fundo escuro. */
 :focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+/* Campos de data/hora: no Chrome o foco fica nas partes internas (dia, mês, ano) e o campo não
+   casa com :focus-visible; sem isto o outline-none apagava o contorno (#64, área 6). */
+input:is([type='date'], [type='datetime-local'], [type='time'], [type='month'], [type='week']):focus {
   outline: 2px solid #000000;
   outline-offset: 2px;
   box-shadow: 0 0 0 2px #ffffff;
@@ -70,8 +101,9 @@ body {
   }
 }
 
-/* Alvos de foco programático (ex.: <main> do "Pular para o conteúdo") não ganham contorno. */
-[tabindex="-1"]:focus {
+/* Alvos de foco programático (ex.: <main> do "Pular para o conteúdo") não ganham contorno.
+   Itens de menu também usam tabindex="-1" (as setas movem o foco), mas precisam do contorno. */
+[tabindex="-1"]:not([role="menuitem"]):focus {
   outline: none;
   box-shadow: none;
 }

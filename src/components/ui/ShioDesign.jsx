@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import apiClient from '../../lib/axios';
@@ -112,15 +112,17 @@ export function ProductCard({ product }) {
   return (
     <article className="group">
       <div className="relative">
-        <Link to={`/product/${productId}`} className={`relative block overflow-hidden rounded-[16px] bg-[#f0efed] ${unavailable ? 'opacity-60' : ''}`}>
+        {/* O nome vem do link, e não da imagem: produto sem foto (ou com foto quebrada) também tem nome. */}
+        <Link to={`/product/${productId}`} aria-label={unavailable ? `${product.name} (indisponível)` : product.name} className="relative block overflow-hidden rounded-[16px] bg-[#f0efed]">
         {product.image ? (
-          <img src={product.image} alt={product.name}
-            className="aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+          <img src={product.image} alt=""
+            className={`aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.03] ${unavailable ? 'opacity-60' : ''}`}
             onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
         ) : null}
         <div className={`aspect-square w-full bg-[#f0efed] ${product.image ? 'hidden' : 'block'}`} />
+        {/* Só a foto fica apagada: o selo precisa manter o contraste. */}
         {unavailable && (
-          <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">
+          <span className="absolute left-3 top-3 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
             Indisponível
           </span>
         )}
@@ -307,12 +309,20 @@ export function BlackButton({ as: Component, children, to, className = '', type 
   return <button type={type} className={classes} {...props}>{children}</button>;
 }
 
+// Menu "⋯" das tabelas do admin (#64): abre com o foco no primeiro item, setas/Home/End
+// navegam, Esc fecha e devolve o foco ao botão, Tab fecha e segue a ordem normal da página.
 export function ActionMenu({ label, items }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
   const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const menuId = useId();
 
   const handleOpen = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
@@ -320,26 +330,72 @@ export function ActionMenu({ label, items }) {
     setOpen(true);
   };
 
-  const close = () => setOpen(false);
+  // Devolve o foco ao botão antes da ação: um modal aberto pela ação guarda o botão como
+  // origem e volta para ele ao fechar (o item do menu já não existe nessa hora).
+  const close = () => {
+    setOpen(false);
+    buttonRef.current?.focus();
+  };
+
+  // Sem espaço abaixo do botão (último item da lista, rodapé da tela), o menu abre para cima.
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current || !buttonRef.current) return;
+    const menuHeight = menuRef.current.offsetHeight;
+    const rect = buttonRef.current.getBoundingClientRect();
+    if (rect.bottom + 4 + menuHeight > window.innerHeight) {
+      const top = Math.max(8, rect.top - 4 - menuHeight);
+      setPos((current) => (current.top === top ? current : { ...current, top }));
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    menuRef.current?.querySelector('[role="menuitem"]:not([aria-disabled="true"])')?.focus({ preventScroll: true });
+  }, [open]);
+
+  const handleMenuKeyDown = (event) => {
+    const options = [...menuRef.current.querySelectorAll('[role="menuitem"]')];
+    const index = options.indexOf(document.activeElement);
+    const moveTo = (next) => {
+      event.preventDefault();
+      options[(next + options.length) % options.length]?.focus();
+    };
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    } else if (event.key === 'Tab') {
+      // Sem preventDefault: o Tab segue a partir do botão, como se o menu não existisse.
+      close();
+    } else if (event.key === 'ArrowDown') moveTo(index + 1);
+    else if (event.key === 'ArrowUp') moveTo(index - 1);
+    else if (event.key === 'Home') moveTo(0);
+    else if (event.key === 'End') moveTo(options.length - 1);
+  };
 
   const menu = open ? (
     <>
-      <div className="fixed inset-0 z-40" onClick={close} />
+      <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
       <div
-        className="fixed z-50 w-52 overflow-hidden rounded-[14px] border border-black/10 bg-white shadow-lg"
+        ref={menuRef}
+        id={menuId}
+        role="menu"
+        aria-label={label}
+        onKeyDown={handleMenuKeyDown}
+        className="fixed z-50 w-52 rounded-[14px] border border-black/10 bg-white p-1.5 shadow-lg"
         style={{ top: pos.top, right: pos.right }}
       >
         {items.map((item, i) => {
           if (item.separator) {
-            return <div key={item.key ?? `sep-${i}`} className="mx-4 border-t border-black/10" />;
+            return <div key={item.key ?? `sep-${i}`} role="separator" className="mx-3 my-1 border-t border-black/10" />;
           }
-          const cls = `flex w-full items-center gap-2.5 px-5 py-3 text-[15px] text-left ${item.danger
+          // Sem overflow-hidden na caixa (cortava o contorno de foco): o padding da caixa abriga o contorno.
+          const cls = `flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-4 py-3 text-[15px] text-left ${item.danger
               ? 'font-semibold text-shio-danger hover:bg-[#fff5f5]'
               : 'text-black hover:bg-[#f5f5f5]'
             }`;
           if (item.to) {
             return (
-              <Link key={item.label} to={item.to} className={cls} onClick={close}>
+              <Link key={item.label} role="menuitem" tabIndex={-1} to={item.to} className={cls} onClick={close}>
                 {item.icon && <Icon name={item.icon} className="h-4 w-4 shrink-0" />}
                 {item.label}
               </Link>
@@ -349,10 +405,16 @@ export function ActionMenu({ label, items }) {
             <button
               key={item.label}
               type="button"
+              role="menuitem"
+              tabIndex={-1}
               className={`${cls}${item.disabled ? ' cursor-not-allowed opacity-40 hover:bg-transparent' : ''}`}
-              disabled={item.disabled}
+              aria-disabled={item.disabled || undefined}
               title={item.title}
-              onClick={() => { close(); item.onClick?.(); }}
+              onClick={() => {
+                if (item.disabled) return;
+                close();
+                item.onClick?.();
+              }}
             >
               {item.icon && <Icon name={item.icon} className="h-4 w-4 shrink-0" />}
               {item.label}
@@ -369,8 +431,11 @@ export function ActionMenu({ label, items }) {
         ref={buttonRef}
         type="button"
         aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
         onClick={handleOpen}
-        className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-black/5"
+        className="flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-black/5"
       >
         <Icon name="more" className="h-6 w-6" />
       </button>

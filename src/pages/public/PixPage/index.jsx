@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { PageMarker } from '../../../components/ui/ShioDesign';
@@ -30,6 +30,7 @@ const PixPage = () => {
   const orderId = searchParams.get('order_nsu');
   const [result, setResult] = useState({ state: 'loading', order: null });
   const [attempt, setAttempt] = useState(0);
+  const headingRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -94,20 +95,23 @@ const PixPage = () => {
       <PageMarker name="PixPage" />
       <section className="mx-auto max-w-[480px] px-4 py-10">
         <div className="rounded-[20px] border border-black/10 px-6 py-8">
-          <h2 role="status" className={`text-center text-[20px] font-black ${paid ? 'text-shio-success' : 'text-black'}`}>
-            {title}
-          </h2>
-          {state === 'error' && (
-            <p className="mt-3 text-center text-[14px] text-shio-muted">
-              A consulta falhou. Isso não significa que o pagamento falhou. Consulte novamente antes de iniciar outra compra.
-            </p>
-          )}
-          {canRefresh && state === 'loaded' && (
-            <p className="mt-3 text-center text-[14px] text-shio-muted">Aguardamos a confirmação do pagamento. Você pode consultar o mesmo pedido novamente.</p>
-          )}
+          {/* Título + explicação numa região de status: o resultado da consulta é anunciado. */}
+          <div role="status">
+            <h1 ref={headingRef} tabIndex={-1} className={`text-center text-[20px] font-black ${paid ? 'text-shio-success' : 'text-black'}`}>
+              {title}
+            </h1>
+            {state === 'error' && (
+              <p className="mt-3 text-center text-[14px] text-shio-muted">
+                A consulta falhou. Isso não significa que o pagamento falhou. Consulte novamente antes de iniciar outra compra.
+              </p>
+            )}
+            {canRefresh && state === 'loaded' && (
+              <p className="mt-3 text-center text-[14px] text-shio-muted">Aguardamos a confirmação do pagamento. Você pode consultar o mesmo pedido novamente.</p>
+            )}
+          </div>
           {order && (
             <div className="mt-6 space-y-3 rounded-[12px] bg-[#f7f7f7] p-4 text-[13px]">
-              <p>Número do pedido: <span className="font-semibold">{order.id}</span></p>
+              <p>Número do pedido: <span className="break-all font-semibold">{order.id}</span></p>
               <p>Valor do pedido: <span className="font-semibold">{Number(order.total_amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
               <p>Forma de pagamento: <span className="font-semibold">{PAYMENT_METHOD_LABEL[payment.method] ?? PAYMENT_METHOD_LABEL.UNKNOWN}</span></p>
               {hasDiscount && <p>Desconto de boas-vindas: <span className="font-semibold">- {discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
@@ -116,7 +120,14 @@ const PixPage = () => {
           )}
           <div className="mt-6 space-y-3">
             {canRefresh && (
-              <button onClick={() => setAttempt((value) => value + 1)} className="h-12 w-full rounded-full bg-black text-[13px] font-bold text-white">
+              <button
+                type="button"
+                onClick={() => {
+                  // O botão some enquanto consulta: o foco vai para o título.
+                  headingRef.current?.focus();
+                  setAttempt((value) => value + 1);
+                }}
+                className="h-12 w-full rounded-full bg-black text-[13px] font-bold text-white">
                 Consultar novamente
               </button>
             )}

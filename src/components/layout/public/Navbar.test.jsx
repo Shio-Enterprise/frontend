@@ -3,16 +3,22 @@ import { BrowserRouter, createMemoryRouter, RouterProvider } from 'react-router-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Navbar from './Navbar';
 import { useAuth } from '../../../context/AuthContext';
+import { useCart } from '../../../context/CartContext';
 import { axe } from 'vitest-axe';
 
 vi.mock('../../../context/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock('../../../context/CartContext', () => ({
+  useCart: vi.fn(),
+}));
+
 describe('Navbar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuth.mockReturnValue({ isAdmin: false });
+    useCart.mockReturnValue({ cartCount: 0 });
   });
 
   it.each(['desktop', 'mobile'])('envia search codificado pela busca %s', async (viewport) => {
@@ -106,6 +112,21 @@ describe('Navbar', () => {
       </BrowserRouter>
     );
     expect(screen.getByText(/10% de desconto/i)).toBeInTheDocument();
+  });
+
+  it.each([
+    [0, 'Carrinho'],
+    [1, 'Carrinho 1 item'],
+    [3, 'Carrinho 3 itens'],
+    [120, 'Carrinho 99+ itens'],
+  ])('nome do carrinho inclui o número visível (%i)', (count, name) => {
+    useCart.mockReturnValue({ cartCount: count });
+    render(
+      <BrowserRouter>
+        <Navbar />
+      </BrowserRouter>
+    );
+    expect(screen.getByRole('link', { name })).toHaveAttribute('href', '/cart');
   });
 
   it('avisa se o menu do celular está aberto ou fechado', () => {

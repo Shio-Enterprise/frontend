@@ -5,22 +5,31 @@
 /**
  * Valida as mesmas regras aplicadas no backend (DropCampaignSerializer):
  * end_date deve ser posterior a launch_date, e max_quantity deve ser um
- * inteiro positivo ou vazio (sem limite). Retorna uma mensagem de erro ou
- * null quando está tudo certo.
+ * inteiro positivo ou vazio (sem limite). Retorna { field, message } do
+ * primeiro erro (field = 'endDate' | 'maxQuantity', para ligar a mensagem ao
+ * campo) ou null quando está tudo certo.
  */
-export function validateDropForm({ launchDate, endDate, maxQuantity }) {
+export function validateDropFields({ launchDate, endDate, maxQuantity }) {
   if (launchDate && endDate && new Date(endDate) <= new Date(launchDate)) {
-    return 'A data de encerramento deve ser posterior à data de lançamento.';
+    return { field: 'endDate', message: 'A data de encerramento deve ser posterior à data de lançamento.' };
   }
 
   if (maxQuantity !== '' && maxQuantity !== null && maxQuantity !== undefined) {
     const parsed = Number(maxQuantity);
     if (!Number.isInteger(parsed) || parsed <= 0) {
-      return 'O limite de unidades deve ser um número inteiro maior que zero (ou vazio, para sem limite).';
+      return {
+        field: 'maxQuantity',
+        message: 'O limite de unidades deve ser um número inteiro maior que zero (ou vazio, para sem limite).',
+      };
     }
   }
 
   return null;
+}
+
+/** Igual a validateDropFields, mas só a mensagem (ou null). */
+export function validateDropForm(values) {
+  return validateDropFields(values)?.message ?? null;
 }
 
 /** Monta o payload lógico do drop a partir do estado do formulário. */
