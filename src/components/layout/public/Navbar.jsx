@@ -110,10 +110,16 @@ export default function Navbar() {
           </button>
 
           {/* Cart */}
-          <Link to="/cart" className="relative flex h-11 w-11 items-center justify-center transition hover:text-black/60" aria-label="Carrinho" data-testid="cart-link">
+          {/* Nome = "Carrinho" + número visível do selo (WCAG 2.5.3) */}
+          <Link to="/cart" className="relative flex h-11 w-11 items-center justify-center transition hover:text-black/60" data-testid="cart-link">
             <Icon name="cart" className="h-6 w-6" />
+            <span className="sr-only">
+              {cartCount > 0
+                ? `Carrinho ${cartCount > 99 ? '99+' : cartCount} ${cartCount === 1 ? 'item' : 'itens'}`
+                : 'Carrinho'}
+            </span>
             {cartCount > 0 && (
-              <span className="absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-[12px] font-bold text-white">
+              <span aria-hidden="true" className="absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-[12px] font-bold text-white">
                 {cartCount > 99 ? '99+' : cartCount}
               </span>
             )}
