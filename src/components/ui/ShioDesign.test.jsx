@@ -31,6 +31,29 @@ describe('ProductCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /adicionar camiseta/i }));
     expect(screen.getByTestId('location')).toHaveTextContent('/login');
   });
+
+  it('o link do card tem o nome do produto, com ou sem foto (#64)', () => {
+    render(
+      <MemoryRouter>
+        <ProductCard product={{ id: 'a', name: 'Com foto', price: 'R$ 10,00', image: '/a.png' }} />
+        <ProductCard product={{ id: 'b', name: 'Sem foto', price: 'R$ 10,00', image: null }} />
+        <ProductCard product={{ id: 'c', name: 'Esgotada', price: 'R$ 10,00', unavailable: true }} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('link', { name: 'Com foto' })).toHaveAttribute('href', '/product/a');
+    expect(screen.getByRole('link', { name: 'Sem foto' })).toHaveAttribute('href', '/product/b');
+    expect(screen.getByRole('link', { name: 'Esgotada (indisponível)' })).toBeInTheDocument();
+  });
+
+  it('produto indisponível apaga só a foto, não o selo (contraste, #64)', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <ProductCard product={{ id: 'c', name: 'Esgotada', price: 'R$ 10,00', image: '/c.png', unavailable: true }} />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector('img')).toHaveClass('opacity-60');
+    expect(screen.getByText('Indisponível').closest('.opacity-60')).toBeNull();
+  });
 });
 
 const stars = (container, fill) => container.querySelectorAll(`[data-star="${fill}"]`).length;

@@ -112,15 +112,17 @@ export function ProductCard({ product }) {
   return (
     <article className="group">
       <div className="relative">
-        <Link to={`/product/${productId}`} className={`relative block overflow-hidden rounded-[16px] bg-[#f0efed] ${unavailable ? 'opacity-60' : ''}`}>
+        {/* O nome vem do link, e não da imagem: produto sem foto (ou com foto quebrada) também tem nome. */}
+        <Link to={`/product/${productId}`} aria-label={unavailable ? `${product.name} (indisponível)` : product.name} className="relative block overflow-hidden rounded-[16px] bg-[#f0efed]">
         {product.image ? (
-          <img src={product.image} alt={product.name}
-            className="aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+          <img src={product.image} alt=""
+            className={`aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.03] ${unavailable ? 'opacity-60' : ''}`}
             onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
         ) : null}
         <div className={`aspect-square w-full bg-[#f0efed] ${product.image ? 'hidden' : 'block'}`} />
+        {/* Só a foto fica apagada: o selo precisa manter o contraste. */}
         {unavailable && (
-          <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">
+          <span className="absolute left-3 top-3 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
             Indisponível
           </span>
         )}

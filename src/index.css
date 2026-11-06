@@ -51,6 +51,29 @@ body {
   h3 {
     overflow-wrap: break-word;
   }
+
+  /* Alto contraste do Windows (cores forçadas): o sistema troca fundos e sombras pelas cores dele,
+     então botão sem borda vira texto solto e "selecionado" feito só com fundo preto some. */
+  @media (forced-colors: active) {
+    button {
+      border: 1px solid ButtonText;
+    }
+
+    [aria-pressed="true"],
+    [aria-current="page"],
+    [aria-current="true"] {
+      outline: 3px solid Highlight;
+      outline-offset: 2px;
+    }
+
+    /* Botões de texto selecionados ganham o fundo de destaque; foto e amostra de cor ficam só com o contorno. */
+    button[aria-pressed="true"]:not(:has(img)):not([data-swatch]),
+    button[aria-current="page"],
+    button[aria-current="true"] {
+      background-color: Highlight;
+      color: HighlightText;
+    }
+  }
 }
 
 /* Foco do teclado sempre visível, inclusive onde há outline-none. Fora de camada de propósito,
