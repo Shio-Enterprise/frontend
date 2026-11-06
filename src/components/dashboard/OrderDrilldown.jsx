@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../lib/authToken';
-import { AdminPanel } from '../ui/ShioDesign';
+import Dialog from '../ui/Dialog';
 
 export default function OrderDrilldown({ selection, onClose, formatMoney }) {
   const navigate = useNavigate();
-  const dialogRef = useRef(null);
   const closeRef = useRef(null);
   const [url, setUrl] = useState(selection.url);
   const [page, setPage] = useState(null);
@@ -13,10 +12,11 @@ export default function OrderDrilldown({ selection, onClose, formatMoney }) {
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
 
+  // O <Dialog> prende o foco, fecha com Esc e devolve o foco a quem abriu; aqui o foco só começa
+  // no botão Fechar em vez do painel.
   useEffect(() => {
     closeRef.current?.focus();
-    return () => selection.returnFocus?.focus();
-  }, [selection.returnFocus]);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -46,30 +46,10 @@ export default function OrderDrilldown({ selection, onClose, formatMoney }) {
     return () => controller.abort();
   }, [url, retry, navigate]);
 
-  const handleKeyDown = (event) => {
-    if (event.key === 'Escape') {
-      onClose();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-    const focusable = dialogRef.current?.querySelectorAll('button:not(:disabled), a[href]');
-    if (!focusable?.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
-
   const pageNumber = Number(new URL(url, window.location.origin).searchParams.get('page') || 1);
 
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <AdminPanel ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="dashboard-orders-title"
-      onKeyDown={handleKeyDown} className="flex max-h-[88vh] w-full max-w-3xl min-w-0 flex-col overflow-hidden p-5 shadow-xl sm:p-7">
+  return <Dialog labelledBy="dashboard-orders-title" onClose={onClose} closeOnBackdrop overlayClassName="bg-black/50 p-3 sm:p-6"
+    className="flex max-h-[88vh] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-[18px] border border-black/20 bg-white p-5 shadow-xl sm:p-7">
       <div className="flex shrink-0 items-start justify-between gap-4 border-b border-black/10 pb-4">
         <div className="min-w-0">
           <h2 id="dashboard-orders-title" className="text-lg font-black uppercase [overflow-wrap:anywhere]">{selection.title}</h2>
@@ -80,7 +60,7 @@ export default function OrderDrilldown({ selection, onClose, formatMoney }) {
 
       <div className="min-h-0 flex-1 overflow-y-auto" aria-busy={loading}>
         {loading ? <p role="status" className="py-10 text-center text-black/60">Carregando pedidos...</p>
-          : error ? <div className="py-8"><p role="alert" className="text-[#b42318]">{error}</p><button type="button" onClick={() => setRetry((current) => current + 1)} className="mt-4 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white">Tentar novamente</button></div>
+          : error ? <div className="py-8"><p role="alert" className="text-[#b42318]">{error}</p><button type="button" onClick={() => { closeRef.current?.focus(); setRetry((current) => current + 1); }} className="mt-4 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white">Tentar novamente</button></div>
             : !page?.results?.length ? <p className="py-10 text-center text-shio-muted">Nenhum pedido compõe esta métrica.</p>
               : <div className="divide-y divide-black/10">{page.results.map((order) => <div key={order.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
                 <div className="min-w-0">
@@ -104,6 +84,5 @@ export default function OrderDrilldown({ selection, onClose, formatMoney }) {
           <button type="button" disabled={!page.next} onClick={() => { closeRef.current?.focus(); setUrl(page.next); }} className="rounded-lg border border-black/20 px-3 py-2 font-semibold disabled:opacity-40">Próxima</button>
         </div>
       </div>}
-    </AdminPanel>
-  </div>;
+  </Dialog>;
 }
