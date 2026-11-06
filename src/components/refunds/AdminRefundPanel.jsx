@@ -228,7 +228,7 @@ export default function AdminRefundPanel({ order, onChanged }) {
     setModal(null);
     onChanged();
   };
-  const buttonClass = 'h-10 rounded-lg border border-black/25 px-4 text-sm font-bold transition hover:border-black';
+  const buttonClass = 'h-11 rounded-lg border border-black/25 px-4 text-sm font-bold transition hover:border-black';
 
   return (
     <div className="border-b border-black/10 px-7 py-5">
