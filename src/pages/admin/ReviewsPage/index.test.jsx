@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { axe } from 'vitest-axe';
 import { clearReply, getAdminReviews, removeReview, restoreReview, setReply } from '../../../lib/reviewsApi';
 import ReviewsPage from './index';
 
@@ -43,10 +44,11 @@ describe('ReviewsPage', () => {
     await screen.findByText('Péssimo, compre na loja X');
     fireEvent.change(screen.getByLabelText('Filtrar por nota'), { target: { value: '1' } });
     await waitFor(() => expect(getAdminReviews).toHaveBeenLastCalledWith(expect.objectContaining({ rating: '1' })));
-    fireEvent.click(await screen.findByRole('button', { name: 'Ver só Camiseta Shio' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Camiseta Shio, ver só as avaliações deste produto' }));
     await waitFor(() => expect(getAdminReviews).toHaveBeenLastCalledWith(expect.objectContaining({ product: 'p1' })));
     expect(screen.getByText('Produto: Camiseta Shio')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Limpar filtro de produto' }));
+    expect(document.activeElement).toBe(screen.getByLabelText('Filtrar por nota'));
     await waitFor(() => expect(getAdminReviews).toHaveBeenLastCalledWith(expect.objectContaining({ product: undefined })));
   });
 
@@ -135,5 +137,50 @@ describe('ReviewsPage', () => {
     await waitFor(() => expect(getAdminReviews).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 })));
     expect(await screen.findByText('Comentário 0')).toBeInTheDocument();
     expect(screen.queryByText('Não foi possível carregar as avaliações.')).not.toBeInTheDocument();
+  });
+
+  describe('acessibilidade (#64)', () => {
+    it('abas trocam com as setas e só a ativa fica no Tab', async () => {
+      mount();
+      await screen.findByText('Péssimo, compre na loja X');
+      const published = screen.getByRole('tab', { name: 'Publicadas' });
+      const removed = screen.getByRole('tab', { name: 'Removidas' });
+      expect(published).toHaveAttribute('tabindex', '0');
+      expect(removed).toHaveAttribute('tabindex', '-1');
+      published.focus();
+      fireEvent.keyDown(published, { key: 'ArrowRight' });
+      expect(removed).toHaveAttribute('aria-selected', 'true');
+      expect(document.activeElement).toBe(removed);
+      await waitFor(() => expect(getAdminReviews).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'REMOVED' })));
+      fireEvent.keyDown(removed, { key: 'Home' });
+      expect(published).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('tabpanel', { name: 'Publicadas' })).toBeInTheDocument();
+    });
+
+    it('depois de restaurar, o foco vai para o aviso do resultado', async () => {
+      getAdminReviews.mockResolvedValue(page([adminReview({ status: 'REMOVED', removal_reason: 'SPAM', removal_reason_label: 'Spam ou propaganda' })]));
+      restoreReview.mockResolvedValue({});
+      mount();
+      fireEvent.click(await screen.findByRole('button', { name: 'Restaurar' }));
+      await waitFor(() => expect(document.activeElement).toHaveTextContent('Avaliação restaurada.'));
+      expect(document.activeElement).toHaveAttribute('role', 'status');
+    });
+
+    it('cancelar a resposta devolve o foco para Responder', async () => {
+      mount();
+      fireEvent.click(await screen.findByRole('button', { name: 'Responder' }));
+      expect(document.activeElement).toBe(screen.getByLabelText('Resposta da Shio'));
+      const cancel = screen.getByRole('button', { name: 'Cancelar' });
+      cancel.focus();
+      fireEvent.click(cancel);
+      cancel.remove();
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Responder' })));
+    });
+
+    it('não tem violações de acessibilidade', async () => {
+      const { container } = mount();
+      await screen.findByText('Péssimo, compre na loja X');
+      expect(await axe(container)).toHaveNoViolations();
+    });
   });
 });

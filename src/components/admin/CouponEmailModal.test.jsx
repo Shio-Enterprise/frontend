@@ -144,11 +144,11 @@ describe('CouponEmailModal', () => {
     setupFetch();
     render(<CouponEmailModal coupon={coupon} onClose={() => {}} />);
     await screen.findByText('87 pessoas');
-    expect(screen.getByText('0/500')).toBeInTheDocument();
+    expect(screen.getByText('0/500 caracteres')).toBeInTheDocument();
     const ta = screen.getByLabelText(/Mensagem/);
     expect(ta).toHaveAttribute('maxLength', '500');
     fireEvent.change(ta, { target: { value: 'a'.repeat(520) } });
-    expect(screen.getByText('500/500')).toBeInTheDocument();
+    expect(screen.getByText('500/500 caracteres')).toBeInTheDocument();
   });
 
   it('singular com 1 pessoa, 1 enviado e 1 falha', async () => {
@@ -197,5 +197,24 @@ describe('CouponEmailModal', () => {
     await screen.findByText('87 pessoas');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('depois de enviar, o foco vai para o resultado (#64)', async () => {
+    setupFetch();
+    render(<CouponEmailModal coupon={coupon} onClose={() => {}} />);
+    await screen.findByText('87 pessoas');
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 pessoas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+    await screen.findByText('87 enviados, 0 falhas');
+    await waitFor(() => expect(document.activeElement).toHaveTextContent('87 enviados, 0 falhas'));
+  });
+
+  it('erro no envio também recebe o foco (#64)', async () => {
+    setupFetch({ send: () => json({ error: 'Falhou.' }, 500) });
+    render(<CouponEmailModal coupon={coupon} onClose={() => {}} />);
+    await screen.findByText('87 pessoas');
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 pessoas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+    await waitFor(() => expect(document.activeElement).toHaveTextContent('Falhou.'));
   });
 });
