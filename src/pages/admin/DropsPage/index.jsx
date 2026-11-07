@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { getDropStatus } from '../../../lib/dropStatus';
-import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
 import Dialog from '../../../components/ui/Dialog';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -310,7 +310,6 @@ const DropsPage = () => {
 
   return (
     <div>
-      <PageMarker name="DropsPage" />
       <AdminTitle
         title="Drops"
         action={(

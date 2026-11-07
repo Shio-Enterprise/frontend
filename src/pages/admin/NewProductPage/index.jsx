@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
-import { AdminPanel, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { AdminPanel, Icon } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -51,6 +51,7 @@ const NewProductPage = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmitting) return;
     setIsSubmitting(true);
     setSubmitError(null);
     setShowSuccess(false);
@@ -107,7 +108,6 @@ const NewProductPage = () => {
 
   return (
     <div>
-      <PageMarker name="NewProductPage" />
       {showSuccess && (
         <div role="status" className="mb-4 flex h-12 items-center gap-3 rounded-[12px] bg-[#b6edc8] px-5 text-[14px] font-bold uppercase text-shio-success md:h-[72px] md:gap-4 md:px-8 md:text-[18px]">
           <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-shio-success text-shio-success md:h-8 md:w-8">✓</span>
@@ -230,8 +230,8 @@ const NewProductPage = () => {
             </Link>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/45 sm:h-11 sm:w-auto sm:min-w-[220px] sm:rounded-[8px] sm:gap-4 sm:px-7 sm:text-[15px]"
+              aria-disabled={isSubmitting || undefined}
+              className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85 aria-disabled:cursor-not-allowed aria-disabled:bg-black/45 sm:h-11 sm:w-auto sm:min-w-[220px] sm:rounded-[8px] sm:gap-4 sm:px-7 sm:text-[15px]"
             >
               <Icon name="save" className="h-5 w-5" />
               {isSubmitting ? 'Salvando...' : 'Salvar produto'}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
-import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { Icon } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 import { useCart } from '../../../context/CartContext';
 
@@ -89,7 +89,6 @@ const CartPage = () => {
 
   return (
     <PublicLayout>
-      <PageMarker name="CartPage" />
 
       <section className="mx-auto max-w-[1240px] px-6 py-16">
         <h1 ref={headingRef} tabIndex={-1} className="mb-8 text-[42px] font-black uppercase leading-tight text-black">Carrinho</h1>

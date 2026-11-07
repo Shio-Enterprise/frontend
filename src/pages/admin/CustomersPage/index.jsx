@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
-import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { ActionMenu, AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
 import DrawerShell from '../../../components/admin/DrawerShell';
 
@@ -215,7 +215,6 @@ const CustomersPage = () => {
 
   return (
     <div>
-      <PageMarker name="CustomersPage" />
       <AdminTitle title="Clientes" />
 
       <AdminPanel className="overflow-hidden">

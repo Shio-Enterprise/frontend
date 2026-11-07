@@ -9,14 +9,13 @@ vi.mock('../../../context/AuthContext', () => ({
 }));
 
 describe('NewAddressPage', () => {
-  it('renders headline', () => {
+  it('renders headline', async () => {
     render(
       <BrowserRouter>
         <NewAddressPage />
       </BrowserRouter>
     );
-    const headline = screen.getByText(/NewAddressPage/i);
-    expect(headline).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 });
 

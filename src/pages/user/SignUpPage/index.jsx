@@ -5,7 +5,6 @@ import { useGoogleAuth } from '../../../context/useGoogleAuth';
 import { GoogleLoginButton } from '../../../context/GoogleLoginButton';
 import logo from '../../../assets/logo/logo.svg';
 import PasswordInput from '../../../components/ui/PasswordInput';
-import { PageMarker } from '../../../components/ui/ShioDesign';
 
 const SignUpPage = () => {
   const navigate = useNavigate();
@@ -23,6 +22,7 @@ const SignUpPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -40,7 +40,6 @@ const SignUpPage = () => {
 
   return (
     <main className="grid min-h-screen place-items-center bg-white px-6 py-16 font-inter text-black">
-      <PageMarker name="SignUpPage" />
       <section className="w-full max-w-[380px] text-center">
         <img src={logo} alt="Shio Logo" className="mx-auto h-auto w-[190px]" />
         <p className="mt-1 text-[18px] text-shio-muted">Crie sua conta</p>
@@ -107,8 +106,9 @@ const SignUpPage = () => {
           </label>
           <button
             type="submit"
-            disabled={isLoading || isGoogleLoading}
-            className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 mt-2"
+            disabled={isGoogleLoading}
+            aria-disabled={isLoading || undefined}
+            className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 aria-disabled:opacity-50 mt-2"
           >
             {isLoading ? 'Cadastrando...' : 'Criar Conta'}
           </button>

@@ -25,6 +25,7 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -85,8 +86,9 @@ const LoginPage = () => {
           />
           <button
             type="submit"
-            disabled={isLoading || isGoogleLoading}
-            className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+            disabled={isGoogleLoading}
+            aria-disabled={isLoading || undefined}
+            className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 aria-disabled:opacity-50"
           >
             {isLoading ? 'Autenticando...' : 'Entrar'}
           </button>

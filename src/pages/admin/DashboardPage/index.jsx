@@ -6,7 +6,7 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
-import { AdminPanel, AdminTitle, PageMarker } from '../../../components/ui/ShioDesign';
+import { AdminPanel, AdminTitle } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
 import DashboardViewToggle from '../../../components/ui/DashboardViewToggle';
 import OrderDrilldown from '../../../components/dashboard/OrderDrilldown';
@@ -143,7 +143,6 @@ const DashboardPage = () => {
 
   const activeParams = new URLSearchParams(urlQuery);
   const header = <>
-    <PageMarker name="DashboardPage" />
     <AdminTitle title="Dashboard" action={(
       <Link to={`/admin/dashboard/detail${urlQuery ? `?${urlQuery}` : ''}`} className="inline-flex min-h-11 items-center rounded-lg bg-black px-5 text-sm font-bold uppercase text-white hover:bg-black/80">
         Análise detalhada

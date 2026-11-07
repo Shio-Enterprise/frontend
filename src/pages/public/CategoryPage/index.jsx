@@ -3,7 +3,6 @@ import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import PublicLayout from "../../../components/layout/public/PublicLayout";
 import {
   Icon,
-  PageMarker,
   ProductCard,
 } from "../../../components/ui/ShioDesign";
 import Dialog from "../../../components/ui/Dialog";
@@ -567,7 +566,6 @@ const CategoryCatalog = ({ category, search }) => {
 
   return (
     <PublicLayout>
-      <PageMarker name="CategoryPage" />
 
       <section className="mx-auto max-w-[1240px] px-6 py-16">
         <h1 className="sr-only">

@@ -39,7 +39,7 @@ afterEach(() => {
 describe('DropsPage', () => {
   it('renders headline', () => {
     render(<MemoryRouter><DropsPage /></MemoryRouter>);
-    expect(screen.getByText(/DropsPage/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('busca tem nome acessível', () => {

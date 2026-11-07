@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
-import { AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
 import DashboardViewToggle from '../../../components/ui/DashboardViewToggle';
 import { DonutChart, HorizontalBars } from './Visualizations';
@@ -367,7 +367,6 @@ export default function DetailedDashboardPage() {
   };
 
   const header = <>
-    <PageMarker name="DetailedDashboardPage" />
     <AdminTitle eyebrow="Análise comercial e operacional" title="Dashboard detalhado" action={(
       <Link to={`/admin/dashboard${urlQuery ? `?${urlQuery}` : ''}`} className="inline-flex min-h-11 items-center rounded-lg border border-black/20 px-5 text-sm font-bold uppercase hover:bg-black/5">
         Voltar ao resumo

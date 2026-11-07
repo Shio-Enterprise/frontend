@@ -1,7 +1,12 @@
 import { useEffect, useId, useRef } from 'react';
 import Dialog from '../ui/Dialog';
+import { focusTemporarily } from '../../lib/focus';
 import { Icon } from '../ui/ShioDesign';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+
+// Aberto por link direto (sem botão de origem): ao fechar, o foco vai para o título da página
+// da lista, e não para o topo (#64).
+const pageHeading = () => document.querySelector('main h1');
 
 // Painel lateral não modal (telas largas): deixa a lista usável ao lado, recebe o foco ao
 // abrir, fecha com Esc e devolve o foco a quem abriu.
@@ -22,7 +27,15 @@ function DesktopDrawer({ titleId, onClose, className, children }) {
     body.style.paddingRight = `${panelRef.current?.offsetWidth ?? 0}px`;
     return () => {
       body.style.paddingRight = previousPadding;
-      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus();
+      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) {
+        opener.focus();
+        if (document.activeElement === opener) return;
+      }
+      // Só tira o foco do painel que fechou; se o usuário já foi para outro lugar, fica lá.
+      if (document.activeElement === document.body || !document.activeElement) {
+        const heading = pageHeading();
+        if (heading) focusTemporarily(heading);
+      }
     };
   }, []);
 
@@ -87,6 +100,7 @@ export default function DrawerShell({ title, onClose, width = 360, titleRef, chi
     <Dialog
       labelledBy={titleId}
       onClose={onClose}
+      fallbackFocus={pageHeading}
       overlayClassName="bg-black/40"
       className={`ml-auto flex h-full w-full flex-col bg-white shadow-2xl ${size.sheet}`}
     >

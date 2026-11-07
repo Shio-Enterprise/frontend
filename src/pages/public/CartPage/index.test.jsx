@@ -31,14 +31,13 @@ describe('CartPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders headline', () => {
+  it('renders headline', async () => {
     render(
       <MemoryRouter>
         <CartPage />
       </MemoryRouter>
     );
-    const headline = screen.getByText(/CartPage/i);
-    expect(headline).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('should not show a dead promo code field', () => {

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { Icon } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -36,6 +36,7 @@ const NewAddressPage = () => {
   };
 
   const lookupCep = useCallback(async () => {
+    if (cepLoading) return;
     const clean = form.zip_code.replace(/\D/g, '');
     if (clean.length !== 8) return;
     setCepLoading(true);
@@ -56,10 +57,11 @@ const NewAddressPage = () => {
     } finally {
       setCepLoading(false);
     }
-  }, [form.zip_code]);
+  }, [form.zip_code, cepLoading]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -92,7 +94,6 @@ const NewAddressPage = () => {
 
   return (
     <AccountLayout>
-      <PageMarker name="NewAddressPage" />
 
       <div className="mb-9 flex items-center gap-5">
         <Link to={returnTo} aria-label="Voltar" className="text-black transition hover:text-black/60">
@@ -133,8 +134,8 @@ const NewAddressPage = () => {
           <button
             type="button"
             onClick={lookupCep}
-            disabled={cepLoading}
-            className="mt-auto h-12 rounded-full bg-black px-6 text-[14px] font-bold text-white disabled:bg-black/40"
+            aria-disabled={cepLoading || undefined}
+            className="mt-auto h-12 rounded-full bg-black px-6 text-[14px] font-bold text-white aria-disabled:bg-black/40"
           >
             {cepLoading ? 'Buscando...' : 'Buscar'}
           </button>
@@ -233,8 +234,8 @@ const NewAddressPage = () => {
           </Link>
           <button
             type="submit"
-            disabled={saving}
-            className="flex h-12 flex-1 items-center justify-center gap-3 rounded-full bg-black text-[14px] font-bold uppercase text-white transition hover:bg-black/85 disabled:bg-black/40">
+            aria-disabled={saving || undefined}
+            className="flex h-12 flex-1 items-center justify-center gap-3 rounded-full bg-black text-[14px] font-bold uppercase text-white transition hover:bg-black/85 aria-disabled:bg-black/40">
             <Icon name="save" className="h-5 w-5" />
             {saving ? 'Salvando...' : 'Salvar Endereço'}
           </button>

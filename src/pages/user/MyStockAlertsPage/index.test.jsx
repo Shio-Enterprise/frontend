@@ -9,7 +9,7 @@ vi.mock('../../../lib/stockAlertsApi', () => ({
   cancelStockAlert: vi.fn(),
   stockAlertErrorMessage: (error, fallback) => fallback ?? error.message,
 }));
-vi.mock('../../../components/ui/ShioDesign', () => ({ Icon: () => null, PageMarker: () => null }));
+vi.mock('../../../components/ui/ShioDesign', () => ({ Icon: () => null }));
 vi.mock('../../../components/layout/user/AccountLayout', () => ({ default: ({ children }) => <main>{children}</main> }));
 
 const alert = (id, overrides = {}) => ({

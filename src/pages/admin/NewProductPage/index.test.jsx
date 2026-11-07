@@ -10,7 +10,7 @@ vi.mock('../../../hooks/useApi', () => ({
 describe('NewProductPage', () => {
   it('renders headline', () => {
     render(<MemoryRouter><NewProductPage /></MemoryRouter>);
-    expect(screen.getByText(/NewProductPage/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 });
 

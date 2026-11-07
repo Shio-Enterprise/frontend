@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { focusTemporarily } from '../../lib/focus';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -12,6 +13,9 @@ export default function Dialog({
   labelledBy,
   onClose,
   closeOnBackdrop = false,
+  // Sem botão de origem (aberto por link direto), para onde o foco vai ao fechar. Sem ele, o
+  // foco volta ao início da página.
+  fallbackFocus,
   as: Panel = 'div',
   className = '',
   overlayClassName = 'bg-black/40 px-4',
@@ -20,6 +24,10 @@ export default function Dialog({
 }) {
   const panelRef = useRef(null);
   const tokenRef = useRef({});
+  const fallbackFocusRef = useRef(fallbackFocus);
+  useEffect(() => {
+    fallbackFocusRef.current = fallbackFocus;
+  });
 
   useEffect(() => {
     const opener = document.activeElement;
@@ -33,14 +41,18 @@ export default function Dialog({
       document.body.style.overflow = previousOverflow;
       if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) {
         opener.focus();
+        // A origem pode já não aceitar foco (ex.: o contêiner que a troca de rota focou só por
+        // um instante, ao abrir por link direto): aí segue para o plano B.
+        if (document.activeElement === opener) return;
+      }
+      const fallback = fallbackFocusRef.current?.();
+      if (fallback instanceof HTMLElement && fallback.isConnected) {
+        focusTemporarily(fallback);
         return;
       }
       // Modal aberto sozinho (sem botão de origem): o foco volta ao início da página, senão o
       // próximo Tab continua de onde o modal estava e pula o menu.
-      const { body } = document;
-      body.setAttribute('tabindex', '-1');
-      body.focus();
-      body.addEventListener('blur', () => body.removeAttribute('tabindex'), { once: true });
+      focusTemporarily(document.body);
     };
   }, []);
 

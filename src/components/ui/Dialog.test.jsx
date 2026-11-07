@@ -201,4 +201,27 @@ describe('Dialog', () => {
     fireEvent.keyDown(abrirDentro, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Painel' })).not.toBeInTheDocument();
   });
+
+  it('aberto sem botão de origem, ao fechar leva o foco para fallbackFocus', () => {
+    function PorLink() {
+      const [open, setOpen] = useState(true);
+      return (
+        <main>
+          <h1>Produtos</h1>
+          {open && (
+            <Dialog labelledBy="t" onClose={() => setOpen(false)} fallbackFocus={() => document.querySelector('main h1')}>
+              <h2 id="t">Detalhes</h2>
+            </Dialog>
+          )}
+        </main>
+      );
+    }
+    render(<PorLink />);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    const titulo = screen.getByRole('heading', { name: 'Produtos' });
+    expect(titulo).toHaveFocus();
+    // O título não entra na ordem do Tab: o tabindex sai quando o foco vai embora.
+    titulo.blur();
+    expect(titulo).not.toHaveAttribute('tabindex');
+  });
 });

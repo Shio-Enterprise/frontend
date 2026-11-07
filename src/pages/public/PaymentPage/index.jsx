@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import PublicLayout from "../../../components/layout/public/PublicLayout";
-import { Icon, PageMarker } from "../../../components/ui/ShioDesign";
+import { Icon } from "../../../components/ui/ShioDesign";
 import { getAccessToken } from "../../../lib/authToken";
 import { useCart } from "../../../context/CartContext";
 
@@ -165,6 +165,11 @@ const PaymentPage = () => {
   const checkoutErrorRef = useRef(null);
   const freightErrorRef = useRef(null);
   const couponErrorRef = useRef(null);
+  const couponInputRef = useRef(null);
+  const couponRemoveRef = useRef(null);
+  // Aplicar/remover cupom troca o botão e recalcula a cotação: o foco espera o resultado e vai
+  // para "Remover" (aplicado), para o erro (recusado) ou para o campo (removido) (#64).
+  const couponFocusPending = useRef(false);
   const retryTimer = useRef(null);
   const quoteRetryTimer = useRef(null);
   const quoteRetryReadyRef = useRef(true);
@@ -413,19 +418,22 @@ const PaymentPage = () => {
     if (
       !code ||
       code === appliedCoupon ||
+      couponDisabled ||
       cartUpdating ||
       submitting ||
       checkoutAttempt
     )
       return;
     setCouponError(null);
+    couponFocusPending.current = true;
     changeCoupon(code);
   };
 
   const handleRemoveCoupon = () => {
-    if (cartUpdating || submitting || checkoutAttempt) return;
+    if (couponDisabled || cartUpdating || submitting || checkoutAttempt) return;
     setCouponInput("");
     setCouponError(null);
+    couponFocusPending.current = true;
     if (appliedCoupon) changeCoupon("");
   };
 
@@ -722,6 +730,23 @@ const PaymentPage = () => {
     freightLoading ||
     Boolean(checkoutAttempt) ||
     !quoteRetryReady;
+  useEffect(() => {
+    if (!couponFocusPending.current) return;
+    if (couponError) {
+      couponFocusPending.current = false;
+      couponErrorRef.current?.focus();
+      return;
+    }
+    if (calculationError) {
+      couponFocusPending.current = false;
+      couponInputRef.current?.focus();
+      return;
+    }
+    if (!hasCalculation || couponDisabled) return;
+    couponFocusPending.current = false;
+    (appliedCoupon ? couponRemoveRef.current : couponInputRef.current)?.focus();
+  }, [couponError, calculationError, hasCalculation, couponDisabled, appliedCoupon]);
+
   const quoteMessage = hasCalculation
     ? `${discountCouponCode && discount > 0 ? `Cupom ${discountCouponCode} aplicado: desconto de ${brl(discount)}. ` : ""}Frete: ${FRETE === 0 ? "grátis" : brl(FRETE)}. Total: ${brl(total)}.`
     : "";
@@ -735,7 +760,6 @@ const PaymentPage = () => {
 
   return (
     <PublicLayout>
-      <PageMarker name="PaymentPage" />
 
       <section className="mx-auto max-w-[480px] px-4 py-10 lg:max-w-[1120px] lg:px-6 lg:py-16">
         <h1 className="mb-8 text-[28px] font-black uppercase tracking-wider text-black lg:text-[36px]">
@@ -1152,27 +1176,31 @@ const PaymentPage = () => {
                       placeholder="Digite o código"
                       autoComplete="off"
                       onChange={(event) => setCouponInput(event.target.value)}
-                      disabled={couponDisabled || Boolean(appliedCoupon)}
+                      ref={couponInputRef}
+                      readOnly={couponDisabled || Boolean(appliedCoupon)}
+                      aria-disabled={couponDisabled || Boolean(appliedCoupon) || undefined}
                       aria-invalid={Boolean(couponError)}
                       aria-describedby={
                         couponError ? "coupon-error" : undefined
                       }
-                      className="h-11 min-w-0 flex-1 rounded-full border border-black/20 px-4 text-[14px] uppercase text-black outline-none focus:border-black disabled:bg-black/5"
+                      className="h-11 min-w-0 flex-1 rounded-full border border-black/20 px-4 text-[14px] uppercase text-black outline-none focus:border-black aria-disabled:bg-black/5"
                     />
                     {appliedCoupon ? (
                       <button
                         type="button"
+                        ref={couponRemoveRef}
                         onClick={handleRemoveCoupon}
-                        disabled={couponDisabled}
-                        className="h-11 shrink-0 rounded-full border border-black/20 px-5 text-[13px] font-bold text-black transition hover:bg-black/5 disabled:opacity-50"
+                        aria-disabled={couponDisabled || undefined}
+                        className="h-11 shrink-0 rounded-full border border-black/20 px-5 text-[13px] font-bold text-black transition hover:bg-black/5 aria-disabled:opacity-50"
                       >
                         Remover
                       </button>
                     ) : (
                       <button
                         type="submit"
-                        disabled={couponDisabled || !couponInput.trim()}
-                        className="h-11 shrink-0 rounded-full bg-black px-5 text-[13px] font-bold text-white transition hover:bg-black/85 disabled:bg-black/35"
+                        disabled={!couponInput.trim()}
+                        aria-disabled={couponDisabled || undefined}
+                        className="h-11 shrink-0 rounded-full bg-black px-5 text-[13px] font-bold text-white transition hover:bg-black/85 disabled:bg-black/35 aria-disabled:bg-black/35"
                       >
                         Aplicar
                       </button>

@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { getAccessToken } from '../../../lib/authToken';
-import { AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -155,7 +155,6 @@ export default function AdminPermissionsPage() {
 
   return (
     <div>
-      <PageMarker name="AdminPermissionsPage" />
       <AdminTitle
         eyebrow="Controle de acesso"
         title="Permissões administrativas"

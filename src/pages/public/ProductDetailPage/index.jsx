@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
-import { PageMarker, ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
+import { ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
 import ProductReviews from '../../../components/reviews/ProductReviews';
 import SizeGuideTable from '../../../components/product/SizeGuideTable';
 import { getAccessToken } from '../../../lib/authToken';
@@ -194,7 +194,6 @@ const ProductDetailContent = ({ id }) => {
 
   return (
     <PublicLayout>
-      <PageMarker name="ProductDetailPage" />
 
       <section className="mx-auto max-w-[1240px] px-6 py-16">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[570px_minmax(0,1fr)]">

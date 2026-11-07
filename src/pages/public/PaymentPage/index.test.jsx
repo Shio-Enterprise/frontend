@@ -67,14 +67,13 @@ afterEach(() => {
 });
 
 describe('PaymentPage', () => {
-  it('renders headline', () => {
+  it('renders headline', async () => {
     render(
       <BrowserRouter>
         <PaymentPage />
       </BrowserRouter>
     );
-    const headline = screen.getByText(/PaymentPage/i);
-    expect(headline).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('exibe valores do servidor e não aplica desconto PIX local', async () => {

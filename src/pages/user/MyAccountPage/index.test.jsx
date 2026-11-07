@@ -27,10 +27,9 @@ describe('MyAccountPage', () => {
     apiClient.put.mockResolvedValue({ data: { receives: false } });
   });
 
-  it('renders headline', () => {
+  it('renders headline', async () => {
     renderPage();
-    const headline = screen.getByText(/MyAccountPage/i);
-    expect(headline).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('interruptor reflete receives do backend', async () => {

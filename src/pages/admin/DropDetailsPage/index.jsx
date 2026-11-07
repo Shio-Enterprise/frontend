@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { getDropStatus } from '../../../lib/dropStatus';
-import { AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
 import Dialog from '../../../components/ui/Dialog';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -205,7 +205,6 @@ const DropDetailsPage = () => {
 
   return (
     <div>
-      <PageMarker name="DropDetailsPage" />
 
       {/* ── MOBILE layout ─────────────────────────────── */}
       <div className="lg:hidden">

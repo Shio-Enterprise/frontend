@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import RemoveReviewModal from '../../../components/reviews/RemoveReviewModal';
-import { AdminPanel, AdminTitle, PageMarker, Rating } from '../../../components/ui/ShioDesign';
+import { AdminPanel, AdminTitle, Rating } from '../../../components/ui/ShioDesign';
 import { FIT_LABELS, REPLY_MAX, formatReviewDate, removalText } from '../../../lib/reviewLabels';
 import { clearReply, getAdminReviews, restoreReview, reviewErrorMessage, setReply } from '../../../lib/reviewsApi';
 
@@ -173,7 +173,6 @@ export default function ReviewsPage() {
 
   return (
     <div>
-      <PageMarker name="ReviewsPage" />
       <AdminTitle eyebrow="Moderação" title="Avaliações" />
 
       {/* Abas com setas/Home/End e só a aba ativa no Tab (padrão ARIA de abas, #64). */}

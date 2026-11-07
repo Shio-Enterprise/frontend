@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { Icon } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from '../../../lib/payment';
 import ReviewModal from '../../../components/reviews/ReviewModal';
@@ -129,7 +129,6 @@ const OrderDetailsPage = () => {
   if (loading) {
     return (
       <AccountLayout>
-        <PageMarker name="OrderDetailsPage" />
         <p className="text-shio-muted">Carregando pedido...</p>
       </AccountLayout>
     );
@@ -138,7 +137,6 @@ const OrderDetailsPage = () => {
   if (error || !order) {
     return (
       <AccountLayout>
-        <PageMarker name="OrderDetailsPage" />
         <div className="flex flex-col items-center justify-center rounded-[18px] border border-black/10 px-8 py-20 text-center">
           <Icon name="bag" className="h-16 w-16 text-black/20" />
           <p className="mt-6 text-[22px] font-bold text-black">Pedido não encontrado</p>
@@ -165,7 +163,6 @@ const OrderDetailsPage = () => {
 
   return (
     <AccountLayout>
-      <PageMarker name="OrderDetailsPage" />
 
       {/* Header */}
       <div className="mb-7 flex flex-wrap items-center justify-between gap-4">

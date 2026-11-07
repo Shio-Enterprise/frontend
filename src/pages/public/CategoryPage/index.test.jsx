@@ -15,7 +15,6 @@ vi.mock("../../../components/layout/public/PublicLayout", () => ({
 }));
 vi.mock("../../../components/ui/ShioDesign", () => ({
   Icon: () => null,
-  PageMarker: () => null,
   ProductCard: ({ product }) => <article>{product.name}</article>,
 }));
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
-import { PageMarker, ProductCard, SectionTitle, ViewAllButton } from '../../../components/ui/ShioDesign';
+import { ProductCard, SectionTitle, ViewAllButton } from '../../../components/ui/ShioDesign';
 import WelcomeModal from '../../../components/ui/WelcomeModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -163,7 +163,6 @@ const HomePage = () => {
 
   return (
     <PublicLayout>
-      <PageMarker name="HomePage" />
       <WelcomeModal />
 
       <HeroCarousel />

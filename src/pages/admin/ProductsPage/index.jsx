@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
-import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
 import Dialog from '../../../components/ui/Dialog';
 import DrawerShell from '../../../components/admin/DrawerShell';
@@ -784,7 +784,6 @@ const ProductsPage = () => {
 
   return (
     <div>
-      <PageMarker name="ProductsPage" />
       <AdminTitle
         title="Produtos"
         action={(

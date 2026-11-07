@@ -131,7 +131,7 @@ afterEach(() => {
 describe('OrderDetailsPage', () => {
   it('renders headline', async () => {
     mount([item()]);
-    expect(screen.getByText(/OrderDetailsPage/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
     await screen.findByText('Camiseta Shio');
   });
 

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { buildDropPayload, flattenApiError, submitDrop, validateDropFields } from '../../../lib/dropForm';
-import { AdminPanel, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { AdminPanel, Icon } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -60,6 +60,7 @@ const EditDropForm = ({ dropId, initialData }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setSubmitError(null);
 
     setErrorField(null);
@@ -105,7 +106,6 @@ const EditDropForm = ({ dropId, initialData }) => {
 
   return (
     <div>
-      <PageMarker name="EditDropPage" />
 
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -275,8 +275,8 @@ const EditDropForm = ({ dropId, initialData }) => {
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="flex h-12 w-full items-center justify-center gap-4 rounded-full bg-black text-[15px] font-bold uppercase text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/45"
+              aria-disabled={isSubmitting || undefined}
+              className="flex h-12 w-full items-center justify-center gap-4 rounded-full bg-black text-[15px] font-bold uppercase text-white transition hover:bg-black/85 aria-disabled:cursor-not-allowed aria-disabled:bg-black/45"
             >
               <Icon name="save" className="h-5 w-5" />
               {isSubmitting ? 'Salvando...' : 'Salvar alterações'}

@@ -26,12 +26,12 @@ function ReviewModal({ order, mode, onClose, onDone }) {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const canSubmit = (!rejecting || message.trim() !== '') && !submitting;
+  const canSubmit = (!rejecting || message.trim() !== '');
   const cancelsOrder = ['PAID', 'PREPARING'].includes(order.status);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -52,6 +52,7 @@ function ReviewModal({ order, mode, onClose, onDone }) {
       onSubmit={handleSubmit}
       error={error}
       canSubmit={canSubmit}
+      submitting={submitting}
       danger={rejecting}
       submitLabel={submitting ? 'Salvando...' : rejecting ? 'Recusar' : 'Aprovar'}
     >
@@ -97,12 +98,11 @@ function CompleteModal({ order, onClose, onDone }) {
     && refundedAt
     && (!direct || reason)
     && (!direct || reason !== 'OTHER' || note.trim() !== '')
-    && (!shipped || itemsReturned)
-    && !submitting;
+    && (!shipped || itemsReturned);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -128,6 +128,7 @@ function CompleteModal({ order, onClose, onDone }) {
       onSubmit={handleSubmit}
       error={error}
       canSubmit={canSubmit}
+      submitting={submitting}
       submitLabel={submitting ? 'Registrando...' : 'Registrar'}
     >
       <p className="mt-2 text-[14px] text-black/70">

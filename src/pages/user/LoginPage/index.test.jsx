@@ -123,6 +123,31 @@ describe('LoginPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Credenciais inválidas.');
   });
+
+  it('enviando pelo botão, o foco fica no botão durante o envio e depois do erro', async () => {
+    let falhar;
+    loginWithPasswordMock.mockReturnValueOnce(new Promise((_, reject) => { falhar = reject; }));
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'a@a.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'errada' } });
+    const botao = screen.getByRole('button', { name: 'Entrar' });
+    botao.focus();
+    fireEvent.click(botao);
+    const ocupado = await screen.findByRole('button', { name: 'Autenticando...' });
+    expect(ocupado).toHaveAttribute('aria-disabled', 'true');
+    expect(ocupado).not.toBeDisabled();
+    expect(ocupado).toHaveFocus();
+    // Segundo clique durante o envio não manda de novo.
+    fireEvent.click(ocupado);
+    expect(loginWithPasswordMock).toHaveBeenCalledTimes(1);
+    falhar({ response: { status: 401, data: {} } });
+    await screen.findByRole('alert');
+    expect(screen.getByRole('button', { name: 'Entrar' })).toHaveFocus();
+  });
 });
 
 // Testes mínimos da #64: formulário de login sem violações, vazio e com erro.

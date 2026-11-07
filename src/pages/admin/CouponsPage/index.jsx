@@ -100,6 +100,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
 
@@ -380,7 +381,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
           <button type="button" onClick={onClose} className="h-12 rounded-md border border-black/25 px-4 text-sm font-bold hover:bg-black/5">
             Cancelar
           </button>
-          <BlackButton type="submit" form="coupon-form" disabled={loading}>
+          <BlackButton type="submit" form="coupon-form" aria-disabled={loading || undefined}>
             {loading ? 'Salvando...' : 'Salvar Cupom'}
           </BlackButton>
         </div>

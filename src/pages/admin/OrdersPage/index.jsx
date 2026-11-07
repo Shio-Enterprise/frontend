@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
-import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { ActionMenu, AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
 import DrawerShell from '../../../components/admin/DrawerShell';
 import Dialog from '../../../components/ui/Dialog';
@@ -610,7 +610,6 @@ const OrdersPage = () => {
 
   return (
     <div>
-      <PageMarker name="OrdersPage" />
       <AdminTitle title="Pedidos" />
 
       {actionError && (

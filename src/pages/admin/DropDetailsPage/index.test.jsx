@@ -45,9 +45,10 @@ afterEach(() => {
 });
 
 describe('DropDetailsPage', () => {
-  it('renders headline', () => {
+  it('renders headline', async () => {
     renderPage();
-    expect(screen.getByText(/DropDetailsPage/i)).toBeInTheDocument();
+    // Layouts de celular e desktop ficam no DOM (um escondido por CSS, que o jsdom não aplica).
+    expect((await screen.findAllByRole('heading', { level: 1 }))[0]).toBeInTheDocument();
   });
 
   it('link de voltar do celular tem nome', () => {

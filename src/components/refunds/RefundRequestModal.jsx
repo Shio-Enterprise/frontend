@@ -14,7 +14,7 @@ export default function RefundRequestModal({ order, onClose, onRequested }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const commentRequired = reason === 'OTHER';
-  const canSubmit = Boolean(reason) && (!commentRequired || comment.trim() !== '') && !submitting;
+  const canSubmit = Boolean(reason) && (!commentRequired || comment.trim() !== '');
   const delivered = order.status === 'DELIVERED';
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export default function RefundRequestModal({ order, onClose, onRequested }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -102,7 +102,8 @@ export default function RefundRequestModal({ order, onClose, onRequested }) {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/80 disabled:opacity-40"
+            aria-disabled={submitting || undefined}
+            className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/80 disabled:opacity-40 aria-disabled:opacity-40"
           >
             {submitting ? 'Enviando...' : 'Solicitar reembolso'}
           </button>

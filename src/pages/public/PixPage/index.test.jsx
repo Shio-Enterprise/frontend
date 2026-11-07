@@ -100,15 +100,14 @@ describe('PixPage — pedido cancelado', () => {
 });
 
 describe('PixPage', () => {
-  it('renders headline', () => {
+  it('renders headline', async () => {
     render(
       <BrowserRouter>
         <PixPage />
       </BrowserRouter>,
     );
 
-    const headline = screen.getByText(/PixPage/i);
-    expect(headline).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('consulta o próprio pedido com autenticação e mantém pagamento em processamento', async () => {

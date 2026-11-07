@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../../../lib/axios';
 import logo from '../../../assets/logo/logo.svg';
@@ -14,9 +14,16 @@ const ResetPasswordPage = () => {
   const [error, setError] = useState(null);
   const [mismatchError, setMismatchError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const successRef = useRef(null);
+
+  // O formulário some ao dar certo: o foco vai para a mensagem, e não para o topo da página (#64).
+  useEffect(() => {
+    if (success) successRef.current?.focus();
+  }, [success]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
     setError(null);
     setMismatchError(null);
@@ -62,7 +69,7 @@ const ResetPasswordPage = () => {
 
         {success ? (
           <div className="w-full flex flex-col items-center">
-            <div role="status" className="rounded-md bg-green-50 w-full text-center border border-green-100 p-4 text-[14px] text-shio-success mb-6">
+            <div ref={successRef} tabIndex={-1} role="status" className="rounded-md bg-green-50 w-full text-center border border-green-100 p-4 text-[14px] text-shio-success mb-6">
               Senha redefinida com sucesso! Redirecionando para o login...
             </div>
           </div>
@@ -92,8 +99,8 @@ const ResetPasswordPage = () => {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+              aria-disabled={isLoading || undefined}
+              className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 aria-disabled:opacity-50"
             >
               {isLoading ? 'Salvando...' : 'Salvar nova senha'}
             </button>

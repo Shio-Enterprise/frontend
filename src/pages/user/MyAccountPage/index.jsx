@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { PageMarker } from '../../../components/ui/ShioDesign';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import apiClient from '../../../lib/axios';
@@ -56,6 +55,7 @@ const MyAccountPage = () => {
   }, []);
 
   const toggleMarketing = async () => {
+    if (savingMarketing) return;
     const previous = receives;
     setReceives(!previous);
     setSavingMarketing(true);
@@ -104,6 +104,7 @@ const MyAccountPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setSaveMsg(null);
     setFieldErrors({});
@@ -136,7 +137,6 @@ const MyAccountPage = () => {
 
   return (
     <AccountLayout>
-      <PageMarker name="MyAccountPage" />
       <h1 className="mb-7 text-[34px] font-black uppercase text-black">Meus Dados</h1>
 
       {loading ? (
@@ -215,8 +215,8 @@ const MyAccountPage = () => {
           <div className="mt-6 lg:mt-10">
             <button
               type="submit"
-              disabled={saving}
-              className="h-12 w-full rounded-full bg-black text-[13px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/40 lg:h-[62px] lg:rounded-[16px] lg:text-[18px]"
+              aria-disabled={saving || undefined}
+              className="h-12 w-full rounded-full bg-black text-[13px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 aria-disabled:bg-black/40 lg:h-[62px] lg:rounded-[16px] lg:text-[18px]"
             >
               {saving ? 'Salvando...' : 'Salvar Alterações'}
             </button>
@@ -236,9 +236,9 @@ const MyAccountPage = () => {
               role="switch"
               aria-checked={receives}
               aria-labelledby="marketing-switch-label"
-              disabled={savingMarketing}
+              aria-disabled={savingMarketing || undefined}
               onClick={toggleMarketing}
-              className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${receives ? 'bg-black' : 'bg-black/25'}`}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition aria-disabled:opacity-50 ${receives ? 'bg-black' : 'bg-black/25'}`}
             >
               <span
                 className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white transition-transform ${receives ? 'translate-x-5' : ''}`}

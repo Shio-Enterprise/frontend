@@ -19,7 +19,7 @@ afterEach(() => {
 describe('ProductsPage', () => {
   it('renders headline', () => {
     render(<MemoryRouter><ProductsPage /></MemoryRouter>);
-    expect(screen.getByText(/ProductsPage/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('mostra os motivos da troca no histórico de estoque', async () => {

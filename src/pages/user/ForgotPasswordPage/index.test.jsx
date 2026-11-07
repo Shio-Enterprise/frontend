@@ -30,6 +30,16 @@ describe('ForgotPasswordPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('você receberá as instruções');
   });
 
+  it('o formulário some no sucesso e o foco vai para a mensagem', async () => {
+    apiClient.post.mockResolvedValueOnce({});
+    renderPage();
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'a@x.com' } });
+    const botao = screen.getByRole('button', { name: 'Enviar link de recuperação' });
+    botao.focus();
+    fireEvent.click(botao);
+    expect(await screen.findByRole('status')).toHaveFocus();
+  });
+
   it('anuncia o erro do envio', async () => {
     apiClient.post.mockRejectedValueOnce({ response: { data: { error: 'Muitas tentativas.' } } });
     renderPage();

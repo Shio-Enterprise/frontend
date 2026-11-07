@@ -7,7 +7,7 @@ import NewDropPage from './index';
 describe('NewDropPage', () => {
   it('renders headline', () => {
     render(<MemoryRouter><NewDropPage /></MemoryRouter>);
-    expect(screen.getByText(/NewDropPage/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 });
 

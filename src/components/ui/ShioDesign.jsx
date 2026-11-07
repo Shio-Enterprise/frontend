@@ -4,10 +4,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import apiClient from '../../lib/axios';
 import { useWishlist } from '../../context/WishlistContext';
 
-export function PageMarker({ name }) {
-  return <span className="sr-only">{name}</span>;
-}
-
 export function Icon({ name, className = 'h-5 w-5' }) {
   const common = {
     className,
@@ -180,12 +176,13 @@ export function NewsletterBand() {
   const [status, setStatus] = useState(null); // 'success' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const emailRef = useRef(null);
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isEmailValid || !consent) return;
+    if (!isEmailValid || !consent || submitting) return;
 
     setSubmitting(true);
     setErrorMessage('');
@@ -197,6 +194,8 @@ export function NewsletterBand() {
       setStatus('success');
       setEmail('');
       setConsent(false);
+      // O botão dá lugar à mensagem: o foco fica no campo, que continua na tela (#64).
+      emailRef.current?.focus();
       setTimeout(() => setStatus(null), 4000);
     } catch (err) {
       setStatus('error');
@@ -222,6 +221,7 @@ export function NewsletterBand() {
             <label className="flex h-12 items-center gap-3 rounded-full bg-white px-5 text-shio-muted">
               <Icon name="mail" className="h-5 w-5 shrink-0" />
               <input
+                ref={emailRef}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -231,7 +231,7 @@ export function NewsletterBand() {
               />
             </label>
             {status === 'success' ? (
-              <p className="h-12 flex items-center justify-center rounded-full bg-shio-success text-sm font-medium text-white">
+              <p role="status" className="h-12 flex items-center justify-center rounded-full bg-shio-success text-sm font-medium text-white">
                 Inscrito com sucesso!
               </p>
             ) : (
@@ -247,13 +247,14 @@ export function NewsletterBand() {
                 </label>
                 <button
                   type="submit"
-                  disabled={!isEmailValid || !consent || submitting}
-                  className="h-12 rounded-full bg-white text-sm font-medium text-black transition hover:bg-[#f2f2f2] disabled:opacity-40"
+                  disabled={!isEmailValid || !consent}
+                  aria-disabled={submitting || undefined}
+                  className="h-12 rounded-full bg-white text-sm font-medium text-black transition hover:bg-[#f2f2f2] disabled:opacity-40 aria-disabled:opacity-40"
                 >
                   Inscrever-se
                 </button>
                 {status === 'error' && (
-                  <p className="text-center text-xs text-red-400">{errorMessage}</p>
+                  <p role="alert" className="text-center text-xs text-red-400">{errorMessage}</p>
                 )}
               </>
             )}
@@ -299,7 +300,7 @@ export function AdminTitle({ eyebrow, title, action }) {
 }
 
 export function BlackButton({ as: Component, children, to, className = '', type = 'button', ...props }) {
-  const classes = `inline-flex h-12 items-center justify-center gap-3 rounded-[10px] bg-black px-7 text-sm font-bold uppercase text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/45 ${className}`;
+  const classes = `inline-flex h-12 items-center justify-center gap-3 rounded-[10px] bg-black px-7 text-sm font-bold uppercase text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/45 aria-disabled:cursor-not-allowed aria-disabled:bg-black/45 ${className}`;
   if (Component) {
     return <Component to={to} className={classes} {...props}>{children}</Component>;
   }

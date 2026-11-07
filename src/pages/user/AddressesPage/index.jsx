@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { Icon } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -48,7 +48,6 @@ const AddressesPage = () => {
 
   return (
     <AccountLayout>
-      <PageMarker name="AddressesPage" />
 
       <div className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-[34px] font-black uppercase text-black">Meus Endereços</h1>

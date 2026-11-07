@@ -1,7 +1,7 @@
 import Dialog from './Dialog';
 
 // Diálogo dos painéis de pedido no admin (reembolso, troca).
-export default function AdminModal({ title, titleId, onClose, onSubmit, children, error, submitLabel, canSubmit, danger }) {
+export default function AdminModal({ title, titleId, onClose, onSubmit, children, error, submitLabel, canSubmit, submitting = false, danger }) {
   return (
     <Dialog
       as="form"
@@ -24,7 +24,8 @@ export default function AdminModal({ title, titleId, onClose, onSubmit, children
         <button
           type="submit"
           disabled={!canSubmit}
-          className={`h-11 whitespace-nowrap rounded-full px-6 text-sm font-medium text-white transition disabled:opacity-40 ${danger ? 'bg-shio-danger hover:bg-shio-danger-hover' : 'bg-black hover:bg-black/80'}`}
+          aria-disabled={submitting || undefined}
+          className={`h-11 whitespace-nowrap rounded-full px-6 text-sm font-medium text-white transition disabled:opacity-40 aria-disabled:opacity-40 ${danger ? 'bg-shio-danger hover:bg-shio-danger-hover' : 'bg-black hover:bg-black/80'}`}
         >
           {submitLabel}
         </button>

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
-import { PageMarker } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from '../../../lib/payment';
 
@@ -92,7 +91,6 @@ const PixPage = () => {
 
   return (
     <PublicLayout>
-      <PageMarker name="PixPage" />
       <section className="mx-auto max-w-[480px] px-4 py-10">
         <div className="rounded-[20px] border border-black/10 px-6 py-8">
           {/* Título + explicação numa região de status: o resultado da consulta é anunciado. */}

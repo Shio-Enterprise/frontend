@@ -49,11 +49,11 @@ function MessageModal({ order, mode, onClose, onDone }) {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const canSubmit = (!config.required || message.trim() !== '') && !submitting;
+  const canSubmit = (!config.required || message.trim() !== '');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -73,6 +73,7 @@ function MessageModal({ order, mode, onClose, onDone }) {
       onSubmit={handleSubmit}
       error={error}
       canSubmit={canSubmit}
+      submitting={submitting}
       danger={config.danger}
       submitLabel={submitting ? 'Salvando...' : config.submit}
     >
@@ -99,11 +100,11 @@ function ReceiveModal({ order, exchange, onClose, onDone }) {
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const canSubmit = exchange.items.every((item) => conditions[item.id]) && !submitting;
+  const canSubmit = exchange.items.every((item) => conditions[item.id]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -126,6 +127,7 @@ function ReceiveModal({ order, exchange, onClose, onDone }) {
       onSubmit={handleSubmit}
       error={error}
       canSubmit={canSubmit}
+      submitting={submitting}
       submitLabel={submitting ? 'Salvando...' : 'Confirmar'}
     >
       <p className="mt-2 text-[13px] text-shio-muted">
@@ -166,11 +168,11 @@ function CompleteModal({ order, onClose, onDone }) {
   const [tracking, setTracking] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const canSubmit = tracking.trim() !== '' && !submitting;
+  const canSubmit = tracking.trim() !== '';
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -190,6 +192,7 @@ function CompleteModal({ order, onClose, onDone }) {
       onSubmit={handleSubmit}
       error={error}
       canSubmit={canSubmit}
+      submitting={submitting}
       submitLabel={submitting ? 'Salvando...' : 'Registrar envio'}
     >
       <label htmlFor="exchange-tracking" className="mt-4 block text-[14px] font-semibold text-black">

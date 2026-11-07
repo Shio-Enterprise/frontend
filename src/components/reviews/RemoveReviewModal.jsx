@@ -9,11 +9,11 @@ export default function RemoveReviewModal({ review, onClose, onRemoved }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const noteRequired = reason === 'OTHER';
-  const canSubmit = Boolean(reason) && (!noteRequired || note.trim() !== '') && !submitting;
+  const canSubmit = Boolean(reason) && (!noteRequired || note.trim() !== '');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -78,7 +78,8 @@ export default function RemoveReviewModal({ review, onClose, onRemoved }) {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="h-11 whitespace-nowrap rounded-full bg-shio-danger px-6 text-sm font-medium text-white transition hover:bg-shio-danger-hover disabled:opacity-40"
+          aria-disabled={submitting || undefined}
+          className="h-11 whitespace-nowrap rounded-full bg-shio-danger px-6 text-sm font-medium text-white transition hover:bg-shio-danger-hover disabled:opacity-40 aria-disabled:opacity-40"
         >
           {submitting ? 'Removendo...' : 'Remover da loja'}
         </button>
