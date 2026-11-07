@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Footer from './Footer';
+import { axe } from 'vitest-axe';
 
 describe('Footer', () => {
   it('should not link to terms or privacy pages', () => {
@@ -34,5 +35,14 @@ describe('Footer', () => {
     );
     expect(screen.queryAllByRole('heading', { level: 3 })).toHaveLength(0);
     expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThan(0);
+  });
+});
+
+// Testes mínimos da #64: vitest-axe sem violações, com e sem a faixa da newsletter.
+describe('Footer — acessibilidade (axe)', () => {
+  it.each([true, false])('sem violações (newsletter: %s)', async (showNewsletter) => {
+    const { container } = render(<BrowserRouter><Footer showNewsletter={showNewsletter} /></BrowserRouter>);
+    if (showNewsletter) expect(screen.getByRole('textbox')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

@@ -67,7 +67,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop nav links */}
-          <nav className="hidden items-center gap-8 text-[16px] lg:flex">
+          <nav aria-label="Principal" className="hidden items-center gap-8 text-[16px] lg:flex">
             <Link to="/" className="transition hover:text-black/60">Início</Link>
             <Link to="/category/all" className="transition hover:text-black/60">Produtos</Link>
             <button onClick={() => document.getElementById('contato')?.scrollIntoView({ behavior: 'smooth' })} className="transition hover:text-black/60">Contato</button>
@@ -157,7 +157,8 @@ export default function Navbar() {
       {/* ── Mobile menu ── */}
       {isMenuOpen && (
         <div className="border-b border-black/10 bg-white lg:hidden">
-          <nav>
+          {/* Nomes diferentes: se o menu ficar aberto e a janela alargar, os dois aparecem juntos. */}
+          <nav aria-label="Menu">
             <Link
               to="/"
               onClick={closeMenu}

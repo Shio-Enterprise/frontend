@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Navbar from './Navbar';
 import { useAuth } from '../../../context/AuthContext';
 import { useCart } from '../../../context/CartContext';
+import { axe } from 'vitest-axe';
 
 vi.mock('../../../context/AuthContext', () => ({
   useAuth: vi.fn(),
@@ -138,5 +139,35 @@ describe('Navbar', () => {
     expect(button).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(button);
     expect(screen.getByRole('button', { name: 'Fechar menu' })).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
+// Testes mínimos da #64: vitest-axe sem violações.
+describe('Navbar — acessibilidade (axe)', () => {
+  beforeEach(() => {
+    useAuth.mockReturnValue({ isAdmin: false });
+  });
+
+  it('sem violações fechado, com o menu aberto e com a busca do celular aberta', async () => {
+    const { container } = render(<BrowserRouter><Navbar /></BrowserRouter>);
+    expect(await axe(container)).toHaveNoViolations();
+    expect(screen.getByRole('navigation', { name: 'Principal' })).toBeInTheDocument();
+
+    const menuButton = screen.getByRole('button', { name: 'Abrir menu' });
+    fireEvent.click(menuButton);
+    expect(screen.getByRole('button', { name: 'Fechar menu' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('navigation', { name: 'Menu' })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar menu' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('sem violações para admin (atalho do painel)', async () => {
+    useAuth.mockReturnValue({ isAdmin: true });
+    const { container } = render(<BrowserRouter><Navbar /></BrowserRouter>);
+    expect(screen.getByRole('link', { name: 'Painel administrativo' })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
