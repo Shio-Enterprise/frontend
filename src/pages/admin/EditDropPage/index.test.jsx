@@ -27,6 +27,6 @@ describe('EditDropPage', () => {
         </Routes>
       </MemoryRouter>
     );
-    expect(screen.getByText(/EditDropPage/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 });

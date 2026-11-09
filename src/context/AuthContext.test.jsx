@@ -65,4 +65,16 @@ describe('AuthProvider session lifecycle', () => {
     expect(result.current.isAdmin).toBe(false);
     expect(result.current.adminPermissions).toEqual([]);
   });
+
+  // O cookie da sessão leva o carrinho do visitante para a conta (backend junta ao entrar).
+  it.each([
+    ['login', (auth) => auth.loginWithPassword('a@b.com', 'x'), '/auth/login/'],
+    ['cadastro', (auth) => auth.registerWithPassword('A', 'a@b.com', 'x'), '/auth/register/'],
+  ])('%s envia o cookie da sessão (withCredentials)', async (_, call, url) => {
+    const access = makeToken(Math.floor(Date.now() / 1000) + 3600);
+    apiClient.post.mockResolvedValueOnce({ data: { access, refresh: access, user: { id: 'u1' } } });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await act(async () => { await call(result.current); });
+    expect(apiClient.post).toHaveBeenCalledWith(url, expect.any(Object), { withCredentials: true });
+  });
 });

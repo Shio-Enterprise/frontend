@@ -8,13 +8,12 @@ vi.mock('../../../context/AuthContext', () => ({
 }));
 
 describe('MyOrdersPage', () => {
-  it('renders headline', () => {
+  it('renders headline', async () => {
     render(
       <BrowserRouter>
         <MyOrdersPage />
       </BrowserRouter>
     );
-    const headline = screen.getByText(/MyOrdersPage/i);
-    expect(headline).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 });

@@ -182,6 +182,52 @@ describe('ProductDetailPage', () => {
     expect(screen.queryByRole('img', { name: /^Nota/ })).not.toBeInTheDocument();
   });
 
+  describe('Tabela de medidas', () => {
+    const sizeGuide = {
+      id: 'g1',
+      name: 'Parte de baixo',
+      columns: [{ key: 'waist', label: 'Cintura' }],
+      rows: [
+        { size: 'P', measures: { waist: [74, 80] } },
+        { size: 'M', measures: { waist: [80, 86] } },
+      ],
+    };
+    const withGuide = (extra = {}) => ({
+      ...product('1'),
+      is_sellable: true,
+      variations: [{ id: 'vM', size: 'M', color: '', stock_quantity: 2 }],
+      size_guide: sizeGuide,
+      ...extra,
+    });
+    const mountWith = (data) => {
+      fetch.mockImplementation((url) => Promise.resolve(
+        url.includes('/recommendations/') ? recommendations([]) : response(data),
+      ));
+      return mount();
+    };
+
+    it('mostra a tabela na página e sugere o tamanho', async () => {
+      mountWith(withGuide());
+      const table = within(await screen.findByRole('region', { name: 'Tabela de medidas' }));
+      expect(table.getByRole('rowheader', { name: 'M' })).toBeInTheDocument();
+      expect(table.getByRole('cell', { name: '80–86' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Tabela de medidas' })).toHaveAttribute('href', '#tabela-de-medidas');
+
+      fireEvent.change(table.getByLabelText('Sua medida (cm)'), { target: { value: '82' } });
+      expect(table.getByRole('status')).toHaveTextContent('Seu tamanho é M.');
+
+      fireEvent.change(table.getByLabelText('Sua medida (cm)'), { target: { value: '50' } });
+      expect(table.getByRole('status')).toHaveTextContent('menor que a do tamanho P');
+    });
+
+    it('sem guia na categoria não mostra a tabela', async () => {
+      mountWith(withGuide({ size_guide: null }));
+      await screen.findByRole('button', { name: /^M/ });
+      expect(screen.queryByRole('region', { name: 'Tabela de medidas' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Tabela de medidas' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('Avise-me quando chegar', () => {
     const withVariations = (extra = {}) => ({
       ...product('1'),
@@ -280,6 +326,63 @@ describe('ProductDetailPage', () => {
       fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
       expect(screen.getByRole('button', { name: 'Adicionar ao Carrinho' })).toBeEnabled();
       expect(screen.queryByRole('button', { name: 'Avise-me quando chegar' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('acessibilidade (#64)', () => {
+    const full = {
+      ...product('1'),
+      is_sellable: true,
+      images: [{ id: 'i1', image: '/1.png' }, { id: 'i2', image: '/2.png' }],
+      variations: [
+        { id: 'vM', size: 'M', color: 'Preto', stock_quantity: 0 },
+        { id: 'vG', size: 'G', color: 'Preto', stock_quantity: 2 },
+      ],
+    };
+    const mountFull = () => {
+      fetch.mockImplementation((url) => {
+        if (url.includes('/recommendations/')) return Promise.resolve(recommendations([]));
+        if (url.includes('/cart/items/')) return Promise.resolve(response({ items: [{ variation_id: 'vG', quantity: 1 }] }));
+        return Promise.resolve(response(full));
+      });
+      return mount();
+    };
+
+    it('miniaturas têm nome e marcam a foto mostrada', async () => {
+      mountFull();
+      const segunda = await screen.findByRole('button', { name: 'Ver foto 2 de 2' });
+      expect(screen.getByRole('button', { name: 'Ver foto 1 de 2' })).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(segunda);
+      expect(segunda).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('tamanho e cor ficam num grupo e anunciam o selecionado', async () => {
+      mountFull();
+      const group = await screen.findByRole('group', { name: 'Tamanho e cor' });
+      const m = within(group).getByRole('button', { name: /^M \/ Preto/ });
+      const g = within(group).getByRole('button', { name: /^G \/ Preto/ });
+      expect(m).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(g);
+      expect(g).toHaveAttribute('aria-pressed', 'true');
+      expect(m).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('botões de quantidade têm nome e o mínimo é 1', async () => {
+      mountFull();
+      fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
+      const menos = screen.getByRole('button', { name: 'Diminuir quantidade' });
+      expect(menos).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Aumentar quantidade' }));
+      expect(within(screen.getByRole('group', { name: 'Quantidade' })).getByText('2')).toBeInTheDocument();
+      expect(menos).not.toBeDisabled();
+    });
+
+    it('anuncia "Adicionado ao carrinho!" numa região que já existia', async () => {
+      mountFull();
+      fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
+      const status = screen.getAllByRole('status').find((el) => el.textContent === '');
+      fireEvent.click(screen.getByRole('button', { name: 'Adicionar ao Carrinho' }));
+      await waitFor(() => expect(status).toHaveTextContent('Adicionado ao carrinho!'));
     });
   });
 });

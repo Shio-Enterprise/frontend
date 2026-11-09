@@ -1,7 +1,7 @@
 import { REFUND_STATUS, formatMoney, formatRefundDate } from '../../lib/refunds';
 
 function RefundStatus({ refund }) {
-  const status = REFUND_STATUS[refund.status] ?? { label: refund.status, color: 'bg-black/5 text-black/50' };
+  const status = REFUND_STATUS[refund.status] ?? { label: refund.status, color: 'bg-black/5 text-shio-muted' };
   return (
     <div className="space-y-3 text-[14px] text-black/70">
       <span className={`inline-block rounded-full px-3 py-1 text-[12px] font-semibold ${status.color}`}>
@@ -22,20 +22,20 @@ function RefundStatus({ refund }) {
             Estorno de <strong className="text-black">{formatMoney(refund.amount)}</strong> feito em{' '}
             {formatRefundDate(refund.refunded_at)}.
           </p>
-          <p className="text-[13px] text-black/55">
+          <p className="text-[13px] text-shio-muted">
             O valor volta pelo mesmo meio de pagamento. O prazo para aparecer depende do seu banco ou da operadora do cartão.
           </p>
         </>
       )}
       {refund.review_message && (
         <div className="rounded-[12px] bg-[#f7f7f7] p-3">
-          <p className="text-[12px] font-semibold uppercase text-black/40">
+          <p className="text-[12px] font-semibold uppercase text-shio-muted">
             {refund.status === 'REJECTED' ? 'Justificativa da loja' : 'Mensagem da loja'}
           </p>
           <p className="mt-1 whitespace-pre-line text-black">{refund.review_message}</p>
         </div>
       )}
-      <p className="text-[13px] text-black/55">
+      <p className="text-[13px] text-shio-muted">
         Motivo informado: {refund.reason_label}
         {refund.customer_comment && ` — ${refund.customer_comment}`}
       </p>
@@ -65,5 +65,5 @@ export default function CustomerRefundPanel({ order, onRequest }) {
       </div>
     );
   }
-  return <p className="text-[14px] text-black/55">{eligibility.message}</p>;
+  return <p className="text-[14px] text-shio-muted">{eligibility.message}</p>;
 }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DropPage from './index';
@@ -6,6 +6,20 @@ import DropPage from './index';
 vi.mock('../../../components/layout/public/PublicLayout', () => ({
   default: ({ children }) => <main>{children}</main>,
 }));
+
+vi.mock('../../../lib/authToken', () => ({
+  getAccessToken: vi.fn(() => null),
+}));
+
+vi.mock('../../../lib/dropWaitlistApi', () => ({
+  getMyWaitlistEntries: vi.fn(() => Promise.resolve([])),
+  joinDropWaitlist: vi.fn(() => Promise.resolve({ alreadyJoined: false, entry: { id: 'new-entry' } })),
+  leaveDropWaitlist: vi.fn(() => Promise.resolve()),
+  waitlistErrorMessage: vi.fn((err) => err?.message ?? 'Erro'),
+}));
+
+import { getAccessToken } from '../../../lib/authToken';
+import { getMyWaitlistEntries, joinDropWaitlist, leaveDropWaitlist } from '../../../lib/dropWaitlistApi';
 
 const baseDrop = (overrides = {}) => ({
   id: 'drop-1',
@@ -149,5 +163,92 @@ describe('DropPage', () => {
     mount();
 
     expect(await screen.findByText('Nenhum produto publicado neste drop ainda.')).toBeInTheDocument();
+  });
+});
+
+describe('DropPage — botão de lista de espera', () => {
+  let fetchMock;
+  const futureDrop = () =>
+    baseDrop({
+      id: 'drop-futuro',
+      launch_date: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+    });
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    vi.clearAllMocks();
+    getAccessToken.mockReturnValue(null);
+    getMyWaitlistEntries.mockResolvedValue([]);
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('mostra botão "Entrar na lista de espera" em drop upcoming', async () => {
+    fetchMock.mockReturnValue(jsonResponse(futureDrop()));
+    mount();
+    expect(await screen.findByRole('button', { name: /Entrar na lista/i })).toBeInTheDocument();
+  });
+
+  it('não mostra botão de lista de espera em drop já aberto (phase live)', async () => {
+    fetchMock.mockReturnValue(jsonResponse(baseDrop({ launch_date: null })));
+    mount();
+    await screen.findByText('Coleção Inverno');
+    expect(screen.queryByRole('button', { name: /Entrar na lista/i })).not.toBeInTheDocument();
+  });
+
+  it('entrar na lista chama joinDropWaitlist e muda o botão', async () => {
+    getAccessToken.mockReturnValue('valid-token');
+    joinDropWaitlist.mockResolvedValue({ alreadyJoined: false, entry: { id: 'entry-novo' } });
+    fetchMock.mockReturnValue(jsonResponse(futureDrop()));
+    mount();
+
+    const btn = await screen.findByRole('button', { name: /Entrar na lista/i });
+    fireEvent.click(btn);
+
+    await waitFor(() =>
+      expect(screen.getByText(/Você está na lista/i)).toBeInTheDocument()
+    );
+    expect(joinDropWaitlist).toHaveBeenCalledWith('drop-futuro');
+  });
+
+  it('sair da lista chama leaveDropWaitlist e restaura o botão de entrada', async () => {
+    getAccessToken.mockReturnValue('valid-token');
+    // Já está na lista
+    getMyWaitlistEntries.mockResolvedValue([
+      { id: 'entry-x', drop: { id: 'drop-futuro' } },
+    ]);
+    leaveDropWaitlist.mockResolvedValue();
+    fetchMock.mockReturnValue(jsonResponse(futureDrop()));
+    mount();
+
+    // Espera carregar e reconhecer que já está na lista
+    await waitFor(() =>
+      expect(screen.getByText(/Você está na lista/i)).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Sair da lista/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Entrar na lista/i })).toBeInTheDocument()
+    );
+    expect(leaveDropWaitlist).toHaveBeenCalledWith('drop-futuro');
+  });
+
+  it('usuário não logado é redirecionado para /login ao clicar', async () => {
+    getAccessToken.mockReturnValue(null);
+    fetchMock.mockReturnValue(jsonResponse(futureDrop()));
+    const router = createMemoryRouter(
+      [{ path: '/drop/:slug', element: <DropPage /> }],
+      { initialEntries: ['/drop/colecao-inverno'] },
+    );
+    render(<RouterProvider router={router} />);
+
+    const btn = await screen.findByRole('button', { name: /Entrar na lista/i });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/login');
+    });
   });
 });

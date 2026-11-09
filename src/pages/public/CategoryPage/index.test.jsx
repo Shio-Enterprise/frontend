@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
@@ -14,7 +15,6 @@ vi.mock("../../../components/layout/public/PublicLayout", () => ({
 }));
 vi.mock("../../../components/ui/ShioDesign", () => ({
   Icon: () => null,
-  PageMarker: () => null,
   ProductCard: ({ product }) => <article>{product.name}</article>,
 }));
 
@@ -245,6 +245,15 @@ describe("CategoryPage server-side", () => {
     expect(screen.getByText("1 produto")).toBeInTheDocument();
   });
 
+  it("sem rede mostra a mensagem da loja, não a do navegador (#64)", async () => {
+    listHandler = () => Promise.reject(new TypeError("Failed to fetch"));
+    mount();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível carregar os produtos. Tente novamente.",
+    );
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+  });
+
   it("distingue erro da API de catálogo vazio", async () => {
     listHandler = () => Promise.resolve(response({}, false));
     mount();
@@ -295,5 +304,66 @@ describe("CategoryPage server-side", () => {
     expect(
       screen.getAllByRole("option", { name: "Mais bem avaliados" }).length,
     ).toBeGreaterThan(0);
+  });
+
+  describe("acessibilidade (#64)", () => {
+    it("filtros de cor e tamanho têm nome e estado selecionado", async () => {
+      mount();
+      await screen.findByText("25 produtos");
+      const azul = screen.getAllByRole("button", { name: "Azul" })[0];
+      expect(azul).toHaveAttribute("aria-pressed", "false");
+      fireEvent.click(azul);
+      expect(screen.getAllByRole("button", { name: "Azul" })[0]).toHaveAttribute("aria-pressed", "true");
+      const tamanhoG = screen.getAllByRole("button", { name: "G", exact: true })[0];
+      fireEvent.click(tamanhoG);
+      expect(screen.getAllByRole("button", { name: "G", exact: true })[0]).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("seções de filtro anunciam se estão abertas", async () => {
+      mount();
+      await screen.findByText("25 produtos");
+      const preco = screen.getByRole("button", { name: /^Preço/ });
+      expect(preco).toHaveAttribute("aria-expanded", "true");
+      fireEvent.click(preco);
+      expect(preco).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("ordenação tem rótulo e a página tem título", async () => {
+      mount();
+      await screen.findByText("25 produtos");
+      expect(screen.getAllByRole("combobox", { name: "Ordenar por:" })).toHaveLength(2);
+      expect(screen.getByRole("heading", { level: 1, name: "Produtos" })).toBeInTheDocument();
+    });
+
+    it("paginação marca a página atual", async () => {
+      mount("/category/all?page=2");
+      await screen.findByText("25 produtos");
+      const nav = screen.getAllByRole("navigation", { name: "Paginação" })[0];
+      expect(within(nav).getByRole("button", { name: "Página 2" })).toHaveAttribute("aria-current", "page");
+      expect(within(nav).getByRole("button", { name: "Página 1" })).not.toHaveAttribute("aria-current");
+    });
+
+    it("chips de filtro aplicado têm botão de remover com nome", async () => {
+      mount("/category/all?size=G&color=Azul&min_price=10&max_price=50");
+      await screen.findByText("25 produtos");
+      fireEvent.click(screen.getByRole("button", { name: "Remover filtro de tamanho" }));
+      await waitFor(() => expect(queries().at(-1).get("size")).toBeNull());
+      expect(screen.getByRole("button", { name: "Remover filtro de cor" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Remover filtro de preço" })).toBeInTheDocument();
+    });
+
+    it("gaveta de filtros do celular é um diálogo que fecha com Esc e devolve o foco", async () => {
+      mount();
+      await screen.findByText("25 produtos");
+      const abrir = screen.getByRole("button", { name: "Filtros", exact: true });
+      abrir.focus();
+      fireEvent.click(abrir);
+      const dialog = screen.getByRole("dialog", { name: "Filtros" });
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+      expect(within(dialog).getByRole("button", { name: "Fechar filtros" })).toBeInTheDocument();
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(abrir).toHaveFocus();
+    });
   });
 });

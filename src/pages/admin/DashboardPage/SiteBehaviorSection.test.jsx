@@ -166,6 +166,36 @@ describe('SiteBehaviorSection', () => {
     fireEvent.change(screen.getByLabelText('Buscar usuário'), { target: { value: '999' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
 
-    expect(await screen.findByText('Usuário não encontrado.')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Usuário não encontrado.');
+  });
+
+  it('no período anual o gráfico é por mês', async () => {
+    renderSection();
+    expect(await screen.findByText('Eventos por dia no período')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Anual' }));
+
+    expect(await screen.findByText('Eventos por mês no período')).toBeInTheDocument();
+  });
+
+  it('descreve a série do gráfico em texto para leitor de tela', async () => {
+    renderSection();
+    await screen.findByText('Visitantes cadastrados');
+
+    expect(screen.getByText('10/01: 5 evento(s)')).toBeInTheDocument();
+    expect(screen.getByText('11/01: 0 evento(s)')).toBeInTheDocument();
+  });
+
+  it('buscar de novo o mesmo ID recarrega a linha do tempo', async () => {
+    renderSection('/admin/dashboard?usuario=5');
+    await screen.findByText('Produto visualizado');
+    const chamadasTimeline = () =>
+      fetchMock.mock.calls.filter(([url]) => url.includes('/users/5/events/')).length;
+    expect(chamadasTimeline()).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+
+    await waitFor(() => expect(chamadasTimeline()).toBe(2));
+    expect(await screen.findByText('Produto visualizado')).toBeInTheDocument();
   });
 });

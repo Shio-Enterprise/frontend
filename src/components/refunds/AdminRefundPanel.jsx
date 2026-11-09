@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import AdminModal from '../ui/AdminModal';
 import {
   ADMIN_REFUND_REASONS,
   REFUND_STATUS,
@@ -20,63 +21,17 @@ const localDateTime = (date) => {
   return local.toISOString().slice(0, 16);
 };
 
-function Modal({ title, titleId, onClose, onSubmit, children, error, submitLabel, canSubmit, danger }) {
-  const dialogRef = useRef(null);
-  useEffect(() => {
-    dialogRef.current?.focus();
-  }, []);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
-      }}
-    >
-      <form
-        ref={dialogRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onSubmit={onSubmit}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[18px] bg-white p-6 outline-none"
-      >
-        <h2 id={titleId} className="text-[20px] font-bold text-black">{title}</h2>
-        {children}
-        {error && <p role="alert" className="mt-3 text-[13px] text-[#cc0000]">{error}</p>}
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-11 whitespace-nowrap rounded-full border border-black/15 px-6 text-sm font-medium text-black transition hover:border-black"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className={`h-11 whitespace-nowrap rounded-full px-6 text-sm font-medium text-white transition disabled:opacity-40 ${danger ? 'bg-[#ff3333] hover:bg-[#e02020]' : 'bg-black hover:bg-black/80'}`}
-          >
-            {submitLabel}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 function ReviewModal({ order, mode, onClose, onDone }) {
   const rejecting = mode === 'reject';
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const canSubmit = (!rejecting || message.trim() !== '') && !submitting;
+  const canSubmit = (!rejecting || message.trim() !== '');
   const cancelsOrder = ['PAID', 'PREPARING'].includes(order.status);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -90,18 +45,19 @@ function ReviewModal({ order, mode, onClose, onDone }) {
   };
 
   return (
-    <Modal
+    <AdminModal
       title={rejecting ? 'Recusar reembolso' : 'Aprovar reembolso'}
       titleId="refund-review-title"
       onClose={onClose}
       onSubmit={handleSubmit}
       error={error}
       canSubmit={canSubmit}
+      submitting={submitting}
       danger={rejecting}
       submitLabel={submitting ? 'Salvando...' : rejecting ? 'Recusar' : 'Aprovar'}
     >
       {!rejecting && cancelsOrder && (
-        <p className="mt-2 text-[13px] text-black/55">
+        <p className="mt-2 text-[13px] text-shio-muted">
           O pedido ainda não foi enviado: ao aprovar, ele é cancelado e o estoque volta. O estorno é registrado depois.
         </p>
       )}
@@ -117,8 +73,8 @@ function ReviewModal({ order, mode, onClose, onDone }) {
         placeholder={rejecting ? '' : 'Ex.: instruções para devolver o produto'}
         className={inputClass}
       />
-      <p className="mt-1 text-[12px] text-black/45">O cliente verá esta mensagem.</p>
-    </Modal>
+      <p className="mt-1 text-[12px] text-shio-muted">O cliente verá esta mensagem.</p>
+    </AdminModal>
   );
 }
 
@@ -142,12 +98,11 @@ function CompleteModal({ order, onClose, onDone }) {
     && refundedAt
     && (!direct || reason)
     && (!direct || reason !== 'OTHER' || note.trim() !== '')
-    && (!shipped || itemsReturned)
-    && !submitting;
+    && (!shipped || itemsReturned);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -166,13 +121,14 @@ function CompleteModal({ order, onClose, onDone }) {
   };
 
   return (
-    <Modal
+    <AdminModal
       title={direct ? 'Registrar reembolso' : 'Registrar estorno'}
       titleId="refund-complete-title"
       onClose={onClose}
       onSubmit={handleSubmit}
       error={error}
       canSubmit={canSubmit}
+      submitting={submitting}
       submitLabel={submitting ? 'Registrando...' : 'Registrar'}
     >
       <p className="mt-2 text-[14px] text-black/70">
@@ -227,7 +183,7 @@ function CompleteModal({ order, onClose, onDone }) {
         onChange={(event) => setNote(event.target.value)}
         className={inputClass}
       />
-      <p className="mt-1 text-[12px] text-black/45">Visível só para administradores.</p>
+      <p className="mt-1 text-[12px] text-shio-muted">Visível só para administradores.</p>
 
       {showReturn && (
         <label className="mt-4 flex gap-3 text-[14px] text-black">
@@ -244,14 +200,14 @@ function CompleteModal({ order, onClose, onDone }) {
         <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
         <span>Confirmo que o estorno já foi feito no painel da InfinitePay.</span>
       </label>
-    </Modal>
+    </AdminModal>
   );
 }
 
 function Row({ label, children }) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="shrink-0 text-black/55">{label}</span>
+      <span className="shrink-0 text-shio-muted">{label}</span>
       <span className="text-right font-medium">{children}</span>
     </div>
   );
@@ -261,7 +217,11 @@ export default function AdminRefundPanel({ order, onChanged }) {
   const [modal, setModal] = useState(null);
   const refund = order.refund;
   const active = ACTIVE.includes(refund?.status);
-  const canRegisterDirect = !active && order.payment?.status === 'PAID';
+  // Troca em andamento ou concluída impede o reembolso; o backend também recusa.
+  const exchangeBlocks = (order.exchanges ?? []).some(
+    (exchange) => !['REJECTED', 'CANCELED'].includes(exchange.status),
+  );
+  const canRegisterDirect = !active && !exchangeBlocks && order.payment?.status === 'PAID';
   if (!refund && !canRegisterDirect) return null;
 
   const status = refund ? REFUND_STATUS[refund.status] : null;
@@ -269,7 +229,7 @@ export default function AdminRefundPanel({ order, onChanged }) {
     setModal(null);
     onChanged();
   };
-  const buttonClass = 'h-10 rounded-lg border border-black/25 px-4 text-sm font-bold transition hover:border-black';
+  const buttonClass = 'h-11 rounded-lg border border-black/25 px-4 text-sm font-bold transition hover:border-black';
 
   return (
     <div className="border-b border-black/10 px-7 py-5">
@@ -314,7 +274,7 @@ export default function AdminRefundPanel({ order, onChanged }) {
         {refund?.status === 'REQUESTED' && (
           <>
             <button type="button" className={buttonClass} onClick={() => setModal('approve')}>Aprovar</button>
-            <button type="button" className={`${buttonClass} text-[#ff3333]`} onClick={() => setModal('reject')}>Recusar</button>
+            <button type="button" className={`${buttonClass} text-shio-danger`} onClick={() => setModal('reject')}>Recusar</button>
           </>
         )}
         {active && (

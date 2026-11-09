@@ -19,6 +19,9 @@ export const CONSENT_DENIED = 'denied';
 
 const MAX_PATH_LENGTH = 255;
 
+// Navegação no painel admin não é comportamento de cliente: fica fora das métricas.
+const isAdminPath = (path) => path === '/admin' || path.startsWith('/admin/');
+
 const readStorage = (key) => {
   try {
     return localStorage.getItem(key);
@@ -60,6 +63,10 @@ export const getAnonymousId = () => {
   return id;
 };
 
+// No logout o identificador é trocado: a navegação anônima seguinte, no mesmo navegador,
+// não pode ser vinculada à conta de quem entrar depois.
+export const resetAnonymousId = () => removeStorage(ANONYMOUS_ID_KEY);
+
 /**
  * Após o login, vincula à conta a navegação feita antes do login neste navegador.
  * Só age com consentimento e quando há identificador anônimo e token.
@@ -87,10 +94,13 @@ export const linkAnonymousEvents = () => {
 export const trackEvent = (eventType, { productId, variationId, path } = {}) => {
   if (getAnalyticsConsent() !== CONSENT_GRANTED) return;
 
+  const currentPath = path ?? window.location.pathname;
+  if (isAdminPath(currentPath)) return;
+
   const payload = {
     event_type: eventType,
     anonymous_id: getAnonymousId(),
-    path: (path ?? window.location.pathname).slice(0, MAX_PATH_LENGTH),
+    path: currentPath.slice(0, MAX_PATH_LENGTH),
   };
   if (productId) payload.product = productId;
   if (variationId) payload.variation = variationId;

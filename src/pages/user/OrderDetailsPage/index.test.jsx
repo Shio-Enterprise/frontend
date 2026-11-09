@@ -131,7 +131,7 @@ afterEach(() => {
 describe('OrderDetailsPage', () => {
   it('renders headline', async () => {
     mount([item()]);
-    expect(screen.getByText(/OrderDetailsPage/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
     await screen.findByText('Camiseta Shio');
   });
 
@@ -251,5 +251,84 @@ describe('OrderDetailsPage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(deleteReview).toHaveBeenCalledWith('r1');
     expect(screen.getByRole('button', { name: 'Avaliar' })).toBeInTheDocument();
+  });
+});
+
+describe('OrderDetailsPage — histórico acessível', () => {
+  const mountWithLogs = (status_logs) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({ ok: true, json: async () => ({ ...order([item()]), status_logs }) }),
+      ),
+    );
+    getAllMyReviews.mockResolvedValue([]);
+    return render(
+      <MemoryRouter initialEntries={['/my-orders/abcdef12']}>
+        <Routes>
+          <Route path="/my-orders/:id" element={<OrderDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  };
+
+  it('a área rolável do histórico recebe foco pelo teclado e tem nome', async () => {
+    mountWithLogs([
+      { id: 1, new_status: 'PAID', created_at: '2026-09-01T10:00:00Z' },
+      { id: 2, new_status: 'DELIVERED', created_at: '2026-09-03T10:00:00Z' },
+    ]);
+    const region = await screen.findByRole('region', { name: 'Histórico do Pedido' });
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
+
+  it('eventos do histórico em lista ordenada, com o atual marcado', async () => {
+    mountWithLogs([
+      { id: 1, new_status: 'PAID', created_at: '2026-09-01T10:00:00Z' },
+      { id: 2, new_status: 'DELIVERED', created_at: '2026-09-03T10:00:00Z' },
+    ]);
+    const region = await screen.findByRole('region', { name: 'Histórico do Pedido' });
+    const items = within(within(region).getByRole('list')).getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('Atual');
+  });
+});
+
+describe('OrderDetailsPage — previsão de entrega', () => {
+  beforeEach(() => {
+    // O CI roda em UTC, onde o erro não aparece: fixa o fuso de Brasília.
+    vi.stubEnv('TZ', 'America/Sao_Paulo');
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('mostra a previsão sem hora no dia certo, sem voltar um dia', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url) =>
+        Promise.resolve({
+          ok: true,
+          json: async () =>
+            url.includes('/tracking/')
+              ? {
+                  tracking_code: 'AA123456789BR',
+                  status_atual: 'Objeto postado',
+                  previsao_entrega: '2026-11-10',
+                  eventos: [],
+                }
+              : { ...order([item()]), status: 'SHIPPED', tracking_code: 'AA123456789BR' },
+        }),
+      ),
+    );
+    getAllMyReviews.mockResolvedValue([]);
+    render(
+      <MemoryRouter initialEntries={['/my-orders/abcdef12']}>
+        <Routes>
+          <Route path="/my-orders/:id" element={<OrderDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('10 de nov. de 2026')).toBeInTheDocument();
+    expect(screen.queryByText('09 de nov. de 2026')).not.toBeInTheDocument();
   });
 });

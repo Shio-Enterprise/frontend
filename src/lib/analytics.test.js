@@ -6,6 +6,7 @@ import {
   CONSENT_KEY,
   EVENT_TYPES,
   getAnonymousId,
+  resetAnonymousId,
   setAnalyticsConsent,
   trackEvent,
 } from './analytics';
@@ -88,6 +89,32 @@ describe('analytics', () => {
 
     expect(() => trackEvent(EVENT_TYPES.PAGE_VIEW, { path: '/' })).not.toThrow();
     await Promise.resolve();
+  });
+
+  it('não registra navegação no painel admin', () => {
+    setAnalyticsConsent(CONSENT_GRANTED);
+
+    trackEvent(EVENT_TYPES.PAGE_VIEW, { path: '/admin' });
+    trackEvent(EVENT_TYPES.PAGE_VIEW, { path: '/admin/dashboard' });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('registra rotas que só começam com "admin" no nome', () => {
+    setAnalyticsConsent(CONSENT_GRANTED);
+
+    trackEvent(EVENT_TYPES.PAGE_VIEW, { path: '/administracao-de-cookies' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('gera outro identificador anônimo depois do reset', () => {
+    const antes = getAnonymousId();
+
+    resetAnonymousId();
+
+    expect(localStorage.getItem(ANONYMOUS_ID_KEY)).toBeNull();
+    expect(getAnonymousId()).not.toBe(antes);
   });
 
   it('grava o consentimento na chave esperada', () => {

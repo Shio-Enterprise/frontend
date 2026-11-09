@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminNavbar from './AdminNavbar';
@@ -113,4 +113,46 @@ describe('AdminNavbar', () => {
     expect(screen.queryByRole('link', { name: 'Clientes' })).not.toBeInTheDocument();
   });
 
+  describe('menu do celular', () => {
+    const menuButton = () => screen.getByRole('button', { name: 'Menu administrativo' });
+    const mobileMenu = () => document.getElementById(menuButton().getAttribute('aria-controls'));
+
+    it('mostra a seção atual no topo', () => {
+      renderNavbar('/admin/products');
+      expect(screen.getByTestId('admin-mobile-section')).toHaveTextContent('Produtos');
+    });
+
+    it('avisa se o menu está aberto ou fechado', () => {
+      renderNavbar();
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(menuButton());
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('lista todas as seções permitidas dentro do menu', () => {
+      renderNavbar();
+      fireEvent.click(menuButton());
+      const menu = within(mobileMenu());
+      ['Dashboard', 'Drops', 'Produtos', 'Guias de medidas', 'Pedidos', 'Cupons', 'Clientes', 'Avaliações', 'Permissões']
+        .forEach((name) => expect(menu.getByRole('link', { name })).toBeInTheDocument());
+    });
+
+    it('fecha com Esc e devolve o foco ao botão do menu', () => {
+      renderNavbar();
+      fireEvent.click(menuButton());
+      const link = within(mobileMenu()).getByRole('link', { name: 'Pedidos' });
+      link.focus();
+      fireEvent.keyDown(link, { key: 'Escape' });
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+      expect(menuButton()).toHaveFocus();
+    });
+
+    it('fecha ao escolher uma seção', () => {
+      const router = renderNavbar();
+      fireEvent.click(menuButton());
+      fireEvent.click(within(mobileMenu()).getByRole('link', { name: 'Pedidos' }));
+      expect(router.state.location.pathname).toBe('/admin/orders');
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+    });
+  });
 });

@@ -56,6 +56,8 @@ const SiteBehaviorSection = () => {
   const [candidates, setCandidates] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(initialUserId);
+  // Muda a cada busca: buscar de novo o mesmo usuário recarrega a linha do tempo.
+  const [lookupNonce, setLookupNonce] = useState(0);
   const [timeline, setTimeline] = useState({ key: null, events: [], count: 0, error: null });
 
   useEffect(() => {
@@ -74,7 +76,7 @@ const SiteBehaviorSection = () => {
 
   useEffect(() => {
     if (!selectedUserId) return undefined;
-    const key = `${selectedUserId}-${period}`;
+    const key = `${selectedUserId}-${period}-${lookupNonce}`;
     let active = true;
     fetchJson(`/api/analytics/users/${selectedUserId}/events/?period=${period}`)
       .then((data) => {
@@ -91,7 +93,7 @@ const SiteBehaviorSection = () => {
     return () => {
       active = false;
     };
-  }, [selectedUserId, period]);
+  }, [selectedUserId, period, lookupNonce]);
 
   const handleLookup = async (event) => {
     event.preventDefault();
@@ -102,6 +104,7 @@ const SiteBehaviorSection = () => {
     // ID numérico abre a linha do tempo direto; qualquer outro texto é buscado por nome ou e-mail.
     if (/^\d+$/.test(term)) {
       setSelectedUserId(term);
+      setLookupNonce((n) => n + 1);
       return;
     }
     if (term.length < 2) {
@@ -125,18 +128,19 @@ const SiteBehaviorSection = () => {
     setUserQuery(user.email);
     setCandidates([]);
     setSelectedUserId(String(user.id));
+    setLookupNonce((n) => n + 1);
   };
 
   const overviewLoading = overview.period !== period;
-  const timelineKey = selectedUserId ? `${selectedUserId}-${period}` : null;
+  const timelineKey = selectedUserId ? `${selectedUserId}-${period}-${lookupNonce}` : null;
   const timelineLoading = Boolean(timelineKey) && timeline.key !== timelineKey;
 
   const renderOverview = () => {
     if (overviewLoading) {
-      return <p className="mt-6 text-[14px] text-black/60">Carregando métricas...</p>;
+      return <p role="status" className="mt-6 text-[14px] text-black/60">Carregando métricas...</p>;
     }
     if (overview.error || !overview.data) {
-      return <p className="mt-6 text-[14px] text-[#ff3333]">Não foi possível carregar as métricas.</p>;
+      return <p role="alert" className="mt-6 text-[14px] text-shio-danger">Não foi possível carregar as métricas.</p>;
     }
 
     const {
@@ -162,11 +166,19 @@ const SiteBehaviorSection = () => {
 
         <div className="mt-8">
           <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/60">
-            Eventos por dia no período
+            {groupBy === 'month' ? 'Eventos por mês no período' : 'Eventos por dia no período'}
           </h3>
           {hasEvents ? (
             <>
-              <div className="mt-4 flex h-[160px] items-end gap-1 border-l-[4px] border-black pl-3 md:h-[220px] md:gap-2 md:pl-6">
+              {/* O gráfico é só visual; a mesma série vai em texto para leitor de tela. */}
+              <ul className="sr-only">
+                {series.map((point) => (
+                  <li key={point.date}>
+                    {formatSeriesLabel(point.date, groupBy)}: {point.total} evento(s)
+                  </li>
+                ))}
+              </ul>
+              <div aria-hidden="true" className="mt-4 flex h-[160px] items-end gap-1 border-l-[4px] border-black pl-3 md:h-[220px] md:gap-2 md:pl-6">
                 {series.map((point) => (
                   <div
                     key={point.date}
@@ -179,11 +191,11 @@ const SiteBehaviorSection = () => {
                   />
                 ))}
               </div>
-              <div className="mt-2 flex gap-1 pl-3 md:gap-2 md:pl-6">
+              <div aria-hidden="true" className="mt-2 flex gap-1 pl-3 md:gap-2 md:pl-6">
                 {series.map((point, index) => (
                   <p
                     key={point.date}
-                    className="w-full overflow-hidden text-center text-[9px] text-black/40 md:text-[11px]"
+                    className="w-full overflow-hidden text-center text-[9px] text-shio-muted md:text-[11px]"
                   >
                     {index % (groupBy === 'day' ? 5 : 1) === 0 ? formatSeriesLabel(point.date, groupBy) : ''}
                   </p>
@@ -191,7 +203,7 @@ const SiteBehaviorSection = () => {
               </div>
             </>
           ) : (
-            <p className="mt-4 text-[14px] text-black/40">Nenhum evento registrado no período.</p>
+            <p className="mt-4 text-[14px] text-shio-muted">Nenhum evento registrado no período.</p>
           )}
         </div>
 
@@ -209,7 +221,7 @@ const SiteBehaviorSection = () => {
               ))}
             </ol>
           ) : (
-            <p className="mt-4 text-[14px] text-black/40">Nenhuma visualização de produto no período.</p>
+            <p className="mt-4 text-[14px] text-shio-muted">Nenhuma visualização de produto no período.</p>
           )}
         </div>
       </>
@@ -219,18 +231,18 @@ const SiteBehaviorSection = () => {
   const renderTimeline = () => {
     if (!timelineKey) return null;
     if (timelineLoading) {
-      return <p className="mt-4 text-[14px] text-black/60">Carregando linha do tempo...</p>;
+      return <p role="status" className="mt-4 text-[14px] text-black/60">Carregando linha do tempo...</p>;
     }
     if (timeline.error) {
-      return <p className="mt-4 text-[14px] text-[#ff3333]">{timeline.error}</p>;
+      return <p role="alert" className="mt-4 text-[14px] text-shio-danger">{timeline.error}</p>;
     }
     if (timeline.events.length === 0) {
-      return <p className="mt-4 text-[14px] text-black/40">Nenhum evento deste usuário no período.</p>;
+      return <p className="mt-4 text-[14px] text-shio-muted">Nenhum evento deste usuário no período.</p>;
     }
 
     return (
       <>
-        <p className="mt-4 text-[12px] text-black/50">
+        <p className="mt-4 text-[12px] text-shio-muted">
           Mostrando {timeline.events.length} de {timeline.count} evento(s), do mais recente ao mais antigo.
         </p>
         <ol className="mt-3 divide-y divide-black/10">
@@ -241,7 +253,7 @@ const SiteBehaviorSection = () => {
                 {item.product_name ? `${item.product_name} · ` : ''}
                 {item.path || '—'}
               </span>
-              <span className="text-black/50">{formatDateTime(item.occurred_at)}</span>
+              <span className="text-shio-muted">{formatDateTime(item.occurred_at)}</span>
             </li>
           ))}
         </ol>
@@ -297,7 +309,7 @@ const SiteBehaviorSection = () => {
             {searching ? 'Buscando...' : 'Buscar'}
           </button>
         </form>
-        {lookupError && <p className="mt-2 text-[13px] text-[#ff3333]">{lookupError}</p>}
+        {lookupError && <p role="alert" className="mt-2 text-[13px] text-shio-danger">{lookupError}</p>}
         {candidates.length > 0 && (
           <ul className="mt-3 divide-y divide-black/10 rounded-[12px] border border-black/10">
             {candidates.map((user) => (

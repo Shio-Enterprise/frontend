@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
-import { PageMarker, ProductCard, SectionTitle, ViewAllButton } from '../../../components/ui/ShioDesign';
+import { ProductCard, SectionTitle, ViewAllButton } from '../../../components/ui/ShioDesign';
 import WelcomeModal from '../../../components/ui/WelcomeModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -26,58 +26,91 @@ const toCardShape = (p) => {
   };
 };
 
+const prefersReducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+
 function HeroCarousel() {
   const [current, setCurrent] = useState(0);
+  // Quem pede menos movimento no sistema começa com o carrossel parado.
+  const [paused, setPaused] = useState(prefersReducedMotion);
+  // Mouse ou foco dentro do carrossel seguram a troca, sem mexer no botão de pausar.
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   const prev = useCallback(() => setCurrent((c) => (c - 1 + SLIDES.length) % SLIDES.length), []);
   const next = useCallback(() => setCurrent((c) => (c + 1) % SLIDES.length), []);
+  const rotating = !paused && !hovered && !focused;
 
   useEffect(() => {
+    if (!rotating) return undefined;
     const id = setInterval(next, 5000);
     return () => clearInterval(id);
-  }, [next]);
+  }, [next, rotating]);
+
+  const controlClass = 'absolute flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80';
 
   return (
-    <section className="relative overflow-hidden bg-black">
+    <section
+      aria-roledescription="carrossel"
+      aria-label="Destaques"
+      className="relative overflow-hidden bg-black"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
+      }}
+    >
       <div
         className="flex transition-transform duration-500 ease-in-out"
         style={{ transform: `translateX(-${current * 100}%)` }}
+        aria-live={rotating ? 'off' : 'polite'}
       >
-        {SLIDES.map((slide) => (
-          <img
+        {SLIDES.map((slide, i) => (
+          <div
             key={slide.src}
-            src={slide.src}
-            alt={slide.alt}
-            className="h-[300px] w-full shrink-0 object-cover md:h-[480px]"
-          />
+            role="group"
+            aria-roledescription="slide"
+            aria-label={`${i + 1} de ${SLIDES.length}`}
+            aria-hidden={i !== current}
+            className="w-full shrink-0"
+          >
+            <img
+              src={slide.src}
+              alt={slide.alt}
+              className="h-[300px] w-full object-cover md:h-[480px]"
+            />
+          </div>
         ))}
       </div>
 
-      {/* Prev / Next */}
-      <button
-        onClick={prev}
-        className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition hover:bg-black/60"
-        aria-label="Slide anterior"
-      >
-        ‹
+      <button type="button" onClick={prev} className={`${controlClass} left-4 top-1/2 -translate-y-1/2`} aria-label="Slide anterior">
+        <span aria-hidden="true">‹</span>
+      </button>
+      <button type="button" onClick={next} className={`${controlClass} right-4 top-1/2 -translate-y-1/2`} aria-label="Próximo slide">
+        <span aria-hidden="true">›</span>
       </button>
       <button
-        onClick={next}
-        className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition hover:bg-black/60"
-        aria-label="Próximo slide"
+        type="button"
+        onClick={() => setPaused((p) => !p)}
+        className={`${controlClass} bottom-2 right-4`}
+        aria-label={paused ? 'Retomar troca automática dos slides' : 'Pausar troca automática dos slides'}
       >
-        ›
+        <span aria-hidden="true" className="text-[14px] font-bold">{paused ? '▶' : '❚❚'}</span>
       </button>
 
-      {/* Dots */}
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
+      {/* Bolinhas: o desenho é pequeno, mas a área de toque tem 44px. */}
+      <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2">
         {SLIDES.map((_, i) => (
           <button
             key={i}
+            type="button"
             onClick={() => setCurrent(i)}
             aria-label={`Ir para slide ${i + 1}`}
-            className={`h-2 rounded-full transition-all duration-300 ${i === current ? 'w-6 bg-white' : 'w-2 bg-white/50'}`}
-          />
+            aria-current={i === current ? 'true' : undefined}
+            className="flex h-11 min-w-11 items-center justify-center px-1"
+          >
+            <span aria-hidden="true" className={`block h-2 rounded-full transition-all duration-300 ${i === current ? 'w-6 bg-white' : 'w-2 bg-white/50'}`} />
+          </button>
         ))}
       </div>
     </section>
@@ -118,9 +151,9 @@ const HomePage = () => {
   const bestSellers = useHomeProducts('-sales_count');
 
   const renderGrid = ({ items, loading, error }) => {
-    if (loading) return <div className="mt-10 text-center text-[18px] text-black/40">Carregando...</div>;
-    if (error) return <div role="alert" className="mt-10 text-center text-[18px] text-black/40">Não foi possível carregar os produtos.</div>;
-    if (items.length === 0) return <div className="mt-10 text-center text-[18px] text-black/40">Nenhum produto disponível.</div>;
+    if (loading) return <div role="status" className="mt-10 text-center text-[18px] text-shio-muted">Carregando...</div>;
+    if (error) return <div role="alert" className="mt-10 text-center text-[18px] text-shio-muted">Não foi possível carregar os produtos.</div>;
+    if (items.length === 0) return <div className="mt-10 text-center text-[18px] text-shio-muted">Nenhum produto disponível.</div>;
     return (
       <div className="mt-10 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((product) => <ProductCard key={product.id} product={product} />)}
@@ -130,15 +163,14 @@ const HomePage = () => {
 
   return (
     <PublicLayout>
-      <PageMarker name="HomePage" />
       <WelcomeModal />
 
       <HeroCarousel />
 
       <section className="bg-black py-8 text-center">
-        <p className="text-[26px] font-black uppercase leading-tight text-white md:text-[34px]">
+        <h1 className="text-[26px] font-black uppercase leading-tight text-white md:text-[34px]">
           Deus primeiro. Negócios depois.
-        </p>
+        </h1>
       </section>
 
       <section className="mx-auto max-w-[1240px] px-6 py-16 md:py-20">
