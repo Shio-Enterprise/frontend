@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 import ProductGallery from './ProductGallery';
 
@@ -15,12 +15,17 @@ const simularRolagem = ({ scrollHeight, clientHeight, scrollTop = 0 }) => {
   Object.defineProperty(faixa, 'scrollWidth', { configurable: true, value: 0 });
   Object.defineProperty(faixa, 'clientWidth', { configurable: true, value: 0 });
   faixa.scrollTop = scrollTop;
-  faixa.scrollBy = ({ top = 0, left = 0 }) => { faixa.scrollTop += top; faixa.scrollLeft += left; };
+  faixa.scrollTo = vi.fn(({ top, left }) => {
+    if (top !== undefined) faixa.scrollTop = top;
+    if (left !== undefined) faixa.scrollLeft = left;
+  });
   fireEvent.scroll(faixa);
   return faixa;
 };
 
 describe('ProductGallery', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it('sem fotos mostra só o quadro vazio, sem miniaturas', () => {
     render(<ProductGallery images={[]} productName="Camiseta" />);
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
@@ -86,5 +91,79 @@ describe('ProductGallery', () => {
     const { container } = render(<ProductGallery images={fotos(10)} productName="Camiseta" />);
     simularRolagem({ scrollHeight: 1500, clientHeight: 500 });
     expect(await axe(container)).toHaveNoViolations();
+  });
+  it('com duas fotos já mostra a coluna de miniaturas', () => {
+    render(<ProductGallery images={fotos(2)} productName="Camiseta" />);
+    expect(within(miniaturas()).getAllByRole('button')).toHaveLength(2);
+  });
+
+  it('rola com animação suave por padrão', () => {
+    render(<ProductGallery images={fotos(10)} productName="Camiseta" />);
+    const faixa = simularRolagem({ scrollHeight: 1500, clientHeight: 500 });
+    fireEvent.click(screen.getByRole('button', { name: 'Próximas fotos' }));
+    expect(faixa.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+  });
+
+  it('respeita o pedido do sistema de reduzir animações', () => {
+    vi.stubGlobal('matchMedia', (q) => ({ matches: q.includes('prefers-reduced-motion: reduce'), media: q }));
+    render(<ProductGallery images={fotos(10)} productName="Camiseta" />);
+    const faixa = simularRolagem({ scrollHeight: 1500, clientHeight: 500 });
+    fireEvent.click(screen.getByRole('button', { name: 'Próximas fotos' }));
+    expect(faixa.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'auto' }));
+  });
+
+  it('seta apagada no fim não rola e continua com o foco do teclado', () => {
+    render(<ProductGallery images={fotos(10)} productName="Camiseta" />);
+    const faixa = simularRolagem({ scrollHeight: 1500, clientHeight: 500, scrollTop: 1000 });
+    const proxima = screen.getByRole('button', { name: 'Próximas fotos' });
+    proxima.focus();
+    fireEvent.click(proxima);
+    expect(faixa.scrollTo).not.toHaveBeenCalled();
+    expect(proxima).not.toBeDisabled();
+    expect(proxima).toHaveFocus();
+  });
+
+  it('foto que não carrega vira o quadro cinza, sem ícone de imagem quebrada', () => {
+    render(<ProductGallery images={fotos(3)} productName="Camiseta" />);
+    fireEvent.error(fotoPrincipal());
+    expect(screen.queryByRole('img', { name: 'Camiseta' })).not.toBeInTheDocument();
+    // é o mesmo arquivo: a miniatura dele também vira quadro cinza
+    expect(screen.getByRole('button', { name: 'Ver foto 1 de 3' }).querySelector('img')).toBeNull();
+    const terceira = screen.getByRole('button', { name: 'Ver foto 3 de 3' });
+    fireEvent.error(terceira.querySelector('img'));
+    expect(terceira.querySelector('img')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver foto 2 de 3' }));
+    expect(fotoPrincipal()).toHaveAttribute('src', '/2.png');
+  });
+
+  it('cliques rápidos somam mesmo com a rolagem anterior ainda em andamento', () => {
+    render(<ProductGallery images={fotos(10)} productName="Camiseta" />);
+    const faixa = simularRolagem({ scrollHeight: 1500, clientHeight: 500 });
+    faixa.scrollTo = vi.fn(); // animação em andamento: a posição ainda não mudou
+    const proxima = screen.getByRole('button', { name: 'Próximas fotos' });
+    fireEvent.click(proxima);
+    fireEvent.click(proxima);
+    const [primeiro, segundo] = faixa.scrollTo.mock.calls.map(([arg]) => arg.top);
+    expect(segundo).toBe(primeiro * 2);
+  });
+
+  it('não passa do fim da faixa', () => {
+    render(<ProductGallery images={fotos(10)} productName="Camiseta" />);
+    const faixa = simularRolagem({ scrollHeight: 1500, clientHeight: 500, scrollTop: 950 });
+    fireEvent.click(screen.getByRole('button', { name: 'Próximas fotos' }));
+    expect(faixa.scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ top: 1000 }));
+  });
+
+  it.each(['scrollend', 'wheel', 'touchstart'])('depois de %s a próxima seta parte da posição real', (evento) => {
+    render(<ProductGallery images={fotos(10)} productName="Camiseta" />);
+    const faixa = simularRolagem({ scrollHeight: 1500, clientHeight: 500 });
+    faixa.scrollTo = vi.fn();
+    const proxima = screen.getByRole('button', { name: 'Próximas fotos' });
+    fireEvent.click(proxima);
+    const passo = faixa.scrollTo.mock.calls[0][0].top;
+    faixa.scrollTop = 400;
+    faixa.dispatchEvent(new Event(evento));
+    fireEvent.click(proxima);
+    expect(faixa.scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ top: 400 + passo }));
   });
 });

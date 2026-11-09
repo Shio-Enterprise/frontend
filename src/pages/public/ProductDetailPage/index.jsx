@@ -195,7 +195,7 @@ const ProductDetailContent = ({ id }) => {
       <section className="mx-auto max-w-[1240px] px-6 py-16">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[570px_minmax(0,1fr)]">
           {/* Image gallery */}
-          <ProductGallery key={product.id} images={product.images ?? []} productName={product.name} />
+          <ProductGallery images={product.images ?? []} productName={product.name} />
 
           {/* Product info */}
           <div>

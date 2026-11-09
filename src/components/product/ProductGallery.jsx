@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const GAP = 16; // gap-4 entre miniaturas
 
+const prefersReducedMotion = () => typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 // Seta da galeria. aria-disabled em vez de disabled: botão desabilitado perde o foco do teclado
 // quando a faixa chega ao fim.
 const Arrow = ({ label, disabled, onClick, children }) => (
@@ -22,9 +25,16 @@ const Arrow = ({ label, disabled, onClick, children }) => (
 const ProductGallery = ({ images, productName }) => {
   const [active, setActive] = useState(0);
   const [scroll, setScroll] = useState({ overflow: false, atStart: true, atEnd: true });
+  const [broken, setBroken] = useState(() => new Set());
   const stripRef = useRef(null);
+  // Destino da rolagem em andamento: cliques seguidos somam a partir dele, não da posição atual
+  // (que ainda está no meio da animação).
+  const targetRef = useRef(null);
 
-  const current = images[active]?.image ?? null;
+  // Foto que não carrega vira o quadro cinza em vez do ícone de imagem quebrada.
+  const markBroken = (id) => setBroken((prev) => new Set(prev).add(id));
+  const ok = (img) => img?.image && !broken.has(img.id);
+  const current = images[active];
   const hasThumbs = images.length > 1;
 
   // A faixa rola na vertical no computador e na horizontal no celular (decidido pelo CSS);
@@ -37,6 +47,7 @@ const ProductGallery = ({ images, productName }) => {
     const vertical = extraY >= extraX;
     const extra = vertical ? extraY : extraX;
     const pos = vertical ? el.scrollTop : el.scrollLeft;
+    if (targetRef.current !== null && Math.abs(pos - targetRef.current) <= 1) targetRef.current = null;
     const next = { overflow: extra > 1, atStart: pos <= 1, atEnd: pos >= extra - 1 };
     setScroll((prev) => (
       prev.overflow === next.overflow && prev.atStart === next.atStart && prev.atEnd === next.atEnd ? prev : next
@@ -51,19 +62,37 @@ const ProductGallery = ({ images, productName }) => {
     return () => ro.disconnect();
   }, [measure, images.length]);
 
+  // Rolagem terminou, ou a pessoa rolou por conta própria: esquece o destino guardado.
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return undefined;
+    const forget = () => { targetRef.current = null; };
+    const events = ['scrollend', 'wheel', 'touchstart'];
+    events.forEach((e) => el.addEventListener(e, forget, { passive: true }));
+    return () => events.forEach((e) => el.removeEventListener(e, forget));
+  }, [images.length]);
+
   const step = (dir) => {
     const el = stripRef.current;
     if (!el) return;
     const vertical = el.scrollHeight - el.clientHeight >= el.scrollWidth - el.clientWidth;
     const thumb = el.firstElementChild;
     const size = (vertical ? thumb?.offsetHeight : thumb?.offsetWidth) || 100;
-    const delta = dir * (size + GAP);
-    el.scrollBy(vertical ? { top: delta, behavior: 'smooth' } : { left: delta, behavior: 'smooth' });
+    const pos = vertical ? el.scrollTop : el.scrollLeft;
+    const max = vertical ? el.scrollHeight - el.clientHeight : el.scrollWidth - el.clientWidth;
+    const from = targetRef.current ?? pos;
+    const target = Math.min(max, Math.max(0, from + dir * (size + GAP)));
+    targetRef.current = target;
+    const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
+    el.scrollTo(vertical ? { top: target, behavior } : { left: target, behavior });
   };
 
   const mainPhoto = (
     <div className="aspect-square w-full overflow-hidden rounded-[8px] bg-[#f0efed]">
-      {current && <img src={current} alt={productName} className="h-full w-full object-contain" />}
+      {ok(current) && (
+        <img src={current.image} alt={productName} onError={() => markBroken(current.id)}
+          className="h-full w-full object-contain" />
+      )}
     </div>
   );
 
@@ -93,7 +122,10 @@ const ProductGallery = ({ images, productName }) => {
                 aria-label={`Ver foto ${i + 1} de ${images.length}`}
                 aria-pressed={i === active}
                 className={`aspect-square w-20 shrink-0 overflow-hidden rounded-[2px] bg-[#f0efed] ring-2 transition sm:w-full ${i === active ? 'ring-black' : 'ring-transparent hover:ring-black/30'}`}>
-                <img src={img.image} alt="" onLoad={measure} className="h-full w-full object-contain" />
+                {ok(img) && (
+                  <img src={img.image} alt="" onLoad={measure} onError={() => markBroken(img.id)}
+                    className="h-full w-full object-contain" />
+                )}
               </button>
             ))}
           </div>
