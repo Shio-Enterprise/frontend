@@ -7,13 +7,13 @@
 // que o drop está oculto), nunca para decidir a disponibilidade em si.
 
 const STATUS = {
-  draft: { label: 'Rascunho', color: 'text-[#c8970a]', badgeColor: '#c8970a' },
-  private: { label: 'Privado', color: 'text-black/50', badgeColor: '#888888' },
+  draft: { label: 'Rascunho', color: 'text-shio-warning', badgeColor: 'var(--color-shio-warning)' },
+  private: { label: 'Privado', color: 'text-shio-muted', badgeColor: 'var(--color-shio-muted)' },
   scheduled: { label: 'Programado', color: 'text-[#1d4ed8]', badgeColor: '#1d4ed8' },
-  ended: { label: 'Encerrado', color: 'text-black/45', badgeColor: '#888888' },
-  sold_out: { label: 'Esgotado', color: 'text-black/45', badgeColor: '#888888' },
-  active: { label: 'Ativo', color: 'text-[#00a651]', badgeColor: '#00a651' },
-  unknown: { label: 'Desconhecido', color: 'text-black/40', badgeColor: '#999999' },
+  ended: { label: 'Encerrado', color: 'text-shio-muted', badgeColor: 'var(--color-shio-muted)' },
+  sold_out: { label: 'Esgotado', color: 'text-shio-muted', badgeColor: 'var(--color-shio-muted)' },
+  active: { label: 'Ativo', color: 'text-shio-success', badgeColor: 'var(--color-shio-success)' },
+  unknown: { label: 'Desconhecido', color: 'text-shio-muted', badgeColor: 'var(--color-shio-muted)' },
 };
 
 export function getDropStatus(drop) {

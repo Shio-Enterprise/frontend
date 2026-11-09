@@ -53,7 +53,8 @@ describe('ReviewForm', () => {
     expect(screen.getByRole('button', { name: 'Pequeno' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('alert')).toHaveTextContent('Algo deu errado.');
     rerender(<ReviewForm initialReview={{ rating: 3 }} submitting onSubmit={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'Enviando...' })).toBeDisabled();
+    // Ocupado, mas focável: disabled tirava o foco de quem enviou pelo teclado (#64).
+    expect(screen.getByRole('button', { name: 'Enviando...' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('chama onCancel', () => {

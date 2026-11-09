@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { axe } from 'vitest-axe';
 import CouponsPage from './index';
 
 const state = vi.hoisted(() => ({ coupons: null }));
@@ -32,7 +33,7 @@ describe('CouponsPage', () => {
 
   it('renders headline', () => {
     renderPage();
-    expect(screen.getByText(/Cupons de Desconto/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Cupons de Desconto' })).toBeInTheDocument();
   });
 
   async function saveForm(coupons = []) {
@@ -55,8 +56,8 @@ describe('CouponsPage', () => {
 
   it('editar cupom não pergunta', async () => {
     await saveForm([base]);
-    fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Editar Cupom' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ações para o cupom/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Editar Cupom' }));
     fireEvent.submit(document.getElementById('coupon-form'));
     await waitFor(() => expect(document.getElementById('coupon-form')).toBeNull());
     expect(screen.queryByText(/Quer enviar este cupom/)).not.toBeInTheDocument();
@@ -65,22 +66,22 @@ describe('CouponsPage', () => {
   it('menu Ações tem Enviar por e-mail desabilitado para cupom inativo', () => {
     state.coupons = [{ ...base, is_active: false }];
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    expect(screen.getByRole('button', { name: 'Enviar por e-mail' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /^Ações para o cupom/ }));
+    expect(screen.getByRole('menuitem', { name: 'Enviar por e-mail' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('desabilita para cupom esgotado ou vencido e habilita para válido', () => {
     state.coupons = [{ ...base, max_uses_total: 5, uses_count: 5 }];
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    expect(screen.getByRole('button', { name: 'Enviar por e-mail' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /^Ações para o cupom/ }));
+    expect(screen.getByRole('menuitem', { name: 'Enviar por e-mail' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('habilita para cupom válido e abre o modal', () => {
     state.coupons = [base];
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar por e-mail' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ações para o cupom/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Enviar por e-mail' }));
     expect(screen.getByText('modal-email VERAO20')).toBeInTheDocument();
   });
 
@@ -109,8 +110,8 @@ describe('CouponsPage', () => {
     state.coupons = [coupon];
     globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(coupon) }));
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Editar Cupom' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ações para o cupom/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Editar Cupom' }));
   }
 
   const sentBody = () => JSON.parse(globalThis.fetch.mock.calls.at(-1)[1].body);
@@ -168,5 +169,67 @@ describe('CouponsPage', () => {
     renderPage();
     expect(screen.getByText('0 restantes')).toBeInTheDocument();
     expect(screen.queryByText('Ilimitado')).not.toBeInTheDocument();
+  });
+
+  describe('acessibilidade (#64)', () => {
+    it('cupom novo abre como modal com campos rotulados e fecha com Esc', async () => {
+      renderPage();
+      const opener = screen.getByRole('button', { name: '+ Novo Cupom' });
+      opener.focus();
+      fireEvent.click(opener);
+      const dialog = screen.getByRole('dialog', { name: 'Novo Cupom' });
+      for (const name of ['Código', 'Descrição', 'Tipo de Desconto', 'Valor', 'Início', 'Fim', 'Usos Totais', 'Usos por Usuário', 'Drops Válidos (opcional)', 'Parceiro (Méliuz, Influenciador)']) {
+        expect(within(dialog).getByLabelText(name)).toBeInTheDocument();
+      }
+      expect(within(dialog).getByLabelText('Drops Válidos (opcional)')).toHaveAccessibleDescription(/segure Ctrl/);
+      fireEvent.keyDown(dialog, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(opener);
+    });
+
+    it('apagar pede confirmação num modal (sem window.confirm) e anuncia o resultado', async () => {
+      state.coupons = [base];
+      const confirmSpy = vi.spyOn(window, 'confirm');
+      globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }));
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Ações para o cupom VERAO20' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Deletar' }));
+      expect(confirmSpy).not.toHaveBeenCalled();
+      const dialog = screen.getByRole('dialog', { name: 'Apagar o cupom VERAO20?' });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Apagar' }));
+      await waitFor(() => expect(document.activeElement).toHaveTextContent('Cupom VERAO20 apagado.'));
+      expect(globalThis.fetch.mock.calls[0][1].method).toBe('DELETE');
+    });
+
+    it('cupom com usos avisa que será desativado', () => {
+      state.coupons = [{ ...base, uses_count: 3 }];
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Ações para o cupom VERAO20' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Deletar' }));
+      expect(screen.getByRole('dialog', { name: 'Desativar o cupom VERAO20?' })).toHaveTextContent('será desativado em vez de apagado');
+    });
+
+    it('falha ao desativar aparece como alerta', async () => {
+      state.coupons = [base];
+      globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, json: () => Promise.resolve({}) }));
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Ações para o cupom VERAO20' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Desativar' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Desativar' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível concluir a ação no cupom.');
+    });
+
+    it('tabela rola por dentro pelo teclado e a página não tem violações', async () => {
+      state.coupons = [base];
+      const { container } = render(<MemoryRouter><CouponsPage /></MemoryRouter>);
+      expect(screen.getByRole('region', { name: 'Tabela de cupons' })).toHaveAttribute('tabindex', '0');
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it('modal do cupom não tem violações', async () => {
+      const { container } = render(<MemoryRouter><CouponsPage /></MemoryRouter>);
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      expect(await axe(container)).toHaveNoViolations();
+    });
   });
 });

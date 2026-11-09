@@ -15,6 +15,7 @@ import {
 } from "../lib/authToken";
 import apiClient from "../lib/axios";
 import { firstAllowedAdminRoute, resolveAdminPermissions } from '../lib/adminPermissions';
+import { linkAnonymousEvents, resetAnonymousId } from '../lib/analytics';
 
 const AuthContext = createContext(null);
 const getStoredUser = () => {
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }) => {
     const refresh = getRefreshToken();
     const access = getAccessToken();
     clearSession();
+    resetAnonymousId();
     if (refresh && access) {
       try {
         await apiClient.post(
@@ -115,6 +117,7 @@ export const AuthProvider = ({ children }) => {
     setIsAdmin(
       userData.is_admin || userData.is_staff || userData.is_superuser || false,
     );
+    linkAnonymousEvents();
   };
 
   const refreshUser = async () => {
@@ -129,7 +132,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginWithPassword = async (email, password) => {
-    const response = await apiClient.post("/auth/login/", { email, password });
+    // withCredentials: manda o cookie da sessão para o backend juntar o carrinho do visitante.
+    const response = await apiClient.post(
+      "/auth/login/",
+      { email, password },
+      { withCredentials: true },
+    );
     login(response.data);
     return response.data;
   };
@@ -140,7 +148,7 @@ export const AuthProvider = ({ children }) => {
       email,
       password,
       marketing_opt_in: marketingOptIn,
-    });
+    }, { withCredentials: true });
     login(response.data);
     return response.data;
   };

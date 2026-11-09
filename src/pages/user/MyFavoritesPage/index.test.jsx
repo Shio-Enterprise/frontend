@@ -11,7 +11,6 @@ vi.mock('../../../context/WishlistContext', () => ({
 }));
 vi.mock('../../../components/ui/ShioDesign', () => ({
   Icon: () => null,
-  PageMarker: () => null,
   ProductCard: ({ product }) => <button>{product.name}</button>,
 }));
 vi.mock('../../../components/layout/user/AccountLayout', () => ({ default: ({ children }) => <main>{children}</main> }));

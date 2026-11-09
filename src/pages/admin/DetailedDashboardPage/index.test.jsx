@@ -65,7 +65,7 @@ describe('DetailedDashboardPage', () => {
     render(<MemoryRouter><DetailedDashboardPage /></MemoryRouter>);
     await screen.findByRole('heading', { name: 'Dashboard detalhado' });
 
-    expect(screen.getByRole('button', { name: /Ver pedidos de receita líquida de 06\/10\/2026/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /06\/10\/2026.*Ver pedidos de receita líquida$/ })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('group', { name: 'Visualização de Receita e vendas ao longo do tempo' })).getByRole('button', { name: 'Lista' }));
     expect(screen.getByRole('columnheader', { name: 'Reembolsos' })).toBeInTheDocument();
 
@@ -76,7 +76,7 @@ describe('DetailedDashboardPage', () => {
     expect(donutButton.textContent).toBe('');
     fireEvent.click(donutButton);
     expect(donutButton).toHaveAttribute('aria-pressed', 'true');
-    expect(within(dropSection).getByRole('img', { name: 'Gráfico de rosca: receita de itens por drop' })).toBeInTheDocument();
+    expect(within(dropSection).getByRole('img', { name: 'Gráfico de rosca: receita de itens por drop. Valores e porcentagens na legenda a seguir.' })).toBeInTheDocument();
     expect(within(dropSection).getByText('R$ 120,00')).toBeInTheDocument();
     expect(within(dropSection).getByText('(60%)')).toBeInTheDocument();
     expect(within(dropSection).getByText('(40%)')).toBeInTheDocument();
@@ -119,7 +119,9 @@ describe('DetailedDashboardPage', () => {
     fireEvent.click(within(section).getByRole('button', { name: 'Vendas válidas' }));
     expect(chartButtons()[0]).toHaveTextContent('2 vendas válidas');
     expect(chartButtons()[0]).toHaveTextContent('R$ 200,00');
-    expect(chartButtons()[0]).toHaveAttribute('aria-label', expect.stringContaining('Ver pedidos de vendas válidas'));
+    // Nome = texto visível + complemento (2.5.3): sem aria-label que esconda o que aparece na tela.
+    expect(chartButtons()[0]).not.toHaveAttribute('aria-label');
+    expect(chartButtons()[0]).toHaveAccessibleName('2 vendas válidas 02/2026 R$ 200,00. Ver pedidos de vendas válidas');
 
     fireEvent.change(within(section).getByRole('combobox', { name: 'Ordenar períodos' }), { target: { value: 'oldest' } });
     expect(chartButtons()[0]).toHaveTextContent('12/2025');
@@ -129,7 +131,7 @@ describe('DetailedDashboardPage', () => {
     fireEvent.change(within(section).getByRole('combobox', { name: 'Ordenar períodos' }), { target: { value: 'newest' } });
     expect(within(section).getAllByRole('row')[1]).toHaveTextContent('02/2026');
     fireEvent.click(within(section).getByRole('button', { name: 'Barras' }));
-    fireEvent.click(within(section).getByRole('button', { name: /Ver pedidos de vendas válidas de 02\/2026/ }));
+    fireEvent.click(within(section).getByRole('button', { name: /02\/2026.*Ver pedidos de vendas válidas$/ }));
     await screen.findByRole('dialog');
     const ordersUrl = fetchMock.mock.calls.find(([url]) => String(url).includes('/dashboard/orders/'))[0];
     expect(Object.fromEntries(new URL(String(ordersUrl), 'http://localhost').searchParams)).toMatchObject({ metric: 'valid_sales', start_date: '2026-02-01', end_date: '2026-02-28' });
@@ -168,6 +170,66 @@ describe('DetailedDashboardPage', () => {
     expect(screen.getByRole('link', { name: 'Voltar ao resumo' }).getAttribute('href')).toContain('drop=drop-2');
   });
 
+  it('liga o erro do intervalo de datas aos dois campos', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => (String(url).includes('/catalog/') ? catalogResponse([]) : { ok: true, status: 200, json: async () => detail })));
+    render(<MemoryRouter><DetailedDashboardPage /></MemoryRouter>);
+    await screen.findByText('Receita bruta');
+    const start = screen.getByLabelText('Data inicial');
+    const end = screen.getByLabelText('Data final');
+    expect(start).not.toHaveAttribute('aria-invalid', 'true');
+    fireEvent.change(start, { target: { value: '2026-09-10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar datas' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Informe as duas datas');
+    for (const field of [start, end]) {
+      expect(field).toHaveAttribute('aria-invalid', 'true');
+      expect(field).toHaveAccessibleDescription('Informe as duas datas para definir o intervalo.');
+    }
+    expect(screen.getByRole('combobox', { name: 'Período e agrupamento' })).toBeInTheDocument();
+  });
+
+  it('não perde o foco quando o botão clicado some da tela', async () => {
+    let ordersFail = true;
+    let catalogFail = true;
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const address = String(url);
+      if (address.includes('/catalog/')) return catalogFail ? { ok: false, status: 500, json: async () => ({}) } : catalogResponse([{ id: 'drop-1', name: 'Drop Aurora' }]);
+      if (address.includes('/dashboard/orders/')) return ordersFail ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, status: 200, json: async () => ({ count: 0, next: null, previous: null, results: [] }) };
+      return { ok: true, status: 200, json: async () => detail };
+    }));
+    render(<MemoryRouter initialEntries={['/admin/dashboard/detail?period=annual&start_date=2026-01-01&end_date=2026-01-31']}><DetailedDashboardPage /></MemoryRouter>);
+    await screen.findByText('Receita bruta');
+
+    // "Tentar novamente" das opções de drop/categoria → foco no select de drop
+    const catalogRetry = await screen.findByRole('button', { name: 'Tentar novamente' });
+    catalogFail = false;
+    fireEvent.click(catalogRetry);
+    expect(screen.getByRole('combobox', { name: 'Drop' })).toHaveFocus();
+    await within(screen.getByRole('combobox', { name: 'Drop' })).findByRole('option', { name: 'Drop Aurora' });
+
+    // "Tentar novamente" dentro do modal → foco no Fechar
+    fireEvent.click(screen.getByRole('button', { name: /^Vendas válidas \d/ }));
+    const dialog = await screen.findByRole('dialog');
+    const retry = await within(dialog).findByRole('button', { name: 'Tentar novamente' });
+    ordersFail = false;
+    fireEvent.click(retry);
+    expect(within(dialog).getByRole('button', { name: 'Fechar detalhamento' })).toHaveFocus();
+    await within(dialog).findByText('Nenhum pedido compõe esta métrica.');
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar datas' }));
+    await waitFor(() => expect(screen.getByLabelText('Data inicial')).toHaveFocus());
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Período e agrupamento' })).toHaveFocus());
+  });
+
+  it('leva o foco ao estoque quando chega por #estoque', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => (String(url).includes('/catalog/') ? catalogResponse([]) : { ok: true, status: 200, json: async () => detail })));
+    Element.prototype.scrollIntoView = vi.fn();
+    render(<MemoryRouter initialEntries={['/admin/dashboard/detail#estoque']}><DetailedDashboardPage /></MemoryRouter>);
+    await screen.findByText('Receita bruta');
+    await waitFor(() => expect(document.getElementById('estoque')).toHaveFocus());
+  });
+
   it('abre os pedidos da métrica com filtros, paginação e competência correta', async () => {
     const order = (id) => ({ id, customer_name: 'Amanda', total_amount: '125.50', status: 'DELIVERED', payment_status: 'PAID', paid_at: '2026-10-06T12:00:00Z', created_at: '2026-10-05T12:00:00Z', revenue_value: '125.50', metric_units: null, metric_item_revenue: null, admin_path: `/admin/orders/${id}` });
     const fetchMock = vi.fn(async (url) => {
@@ -185,15 +247,21 @@ describe('DetailedDashboardPage', () => {
 
     render(<MemoryRouter initialEntries={['/admin/dashboard/detail?period=monthly&drop=drop-1&category=category-1']}><DetailedDashboardPage /></MemoryRouter>);
     await screen.findByText('Receita bruta');
-    fireEvent.click(screen.getByRole('button', { name: /Receita líquida R\$/ }));
+    const metricCard = screen.getByRole('button', { name: /Receita líquida R\$/ });
+    expect(metricCard.tagName).toBe('BUTTON');
+    metricCard.focus();
+    fireEvent.click(metricCard);
     const dialog = await screen.findByRole('dialog', { name: 'Pedidos da receita líquida' });
+    expect(within(dialog).getByRole('button', { name: 'Fechar detalhamento' })).toHaveFocus();
     expect(await within(dialog).findByRole('link', { name: 'SH-ORDER' })).toHaveAttribute('href', '/admin/orders/order-1');
     const firstOrderUrl = fetchMock.mock.calls.find(([url]) => String(url).includes('/dashboard/orders/'))[0];
     expect(Object.fromEntries(new URL(String(firstOrderUrl), 'http://localhost').searchParams)).toMatchObject({ metric: 'net_revenue', drop: 'drop-1', category: 'category-1', period: 'monthly' });
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Próxima' }));
     await waitFor(() => expect(within(dialog).getByText('21 pedido(s) · página 2')).toBeInTheDocument());
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar detalhamento' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(metricCard).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Ver pedidos de Entregue' }));
     await screen.findByRole('dialog', { name: 'Pedidos · Entregue' });
     const statusCall = fetchMock.mock.calls.filter(([url]) => String(url).includes('/dashboard/orders/')).at(-1)[0];
@@ -215,7 +283,7 @@ describe('DetailedDashboardPage', () => {
 
     render(<MemoryRouter initialEntries={['/admin/dashboard/detail?period=annual&category=category-1&start_date=2026-01-15&end_date=2026-12-31']}><DetailedDashboardPage /></MemoryRouter>);
     await screen.findByText('Receita bruta');
-    fireEvent.click(screen.getByRole('button', { name: /Ver pedidos de receita líquida de 01\/2026/ }));
+    fireEvent.click(screen.getByRole('button', { name: /01\/2026.*Ver pedidos de receita líquida$/ }));
     await screen.findByRole('dialog');
     const seriesUrl = fetchMock.mock.calls.filter(([url]) => String(url).includes('/dashboard/orders/')).at(-1)[0];
     expect(Object.fromEntries(new URL(String(seriesUrl), 'http://localhost').searchParams)).toMatchObject({ metric: 'net_revenue', start_date: '2026-01-15', end_date: '2026-01-31', category: 'category-1' });

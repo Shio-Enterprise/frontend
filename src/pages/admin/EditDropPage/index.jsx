@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
-import { buildDropPayload, flattenApiError, submitDrop, validateDropForm } from '../../../lib/dropForm';
-import { AdminPanel, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { buildDropPayload, flattenApiError, submitDrop, validateDropFields } from '../../../lib/dropForm';
+import { AdminPanel, Icon } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -25,6 +25,14 @@ const EditDropForm = ({ dropId, initialData }) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [errorField, setErrorField] = useState(null);
+  const errorId = useId();
+  const addBannerRef = useRef(null);
+  const endDateRef = useRef(null);
+  const maxQuantityRef = useRef(null);
+  const invalidProps = (field) => (errorField === field
+    ? { 'aria-invalid': true, 'aria-describedby': errorId }
+    : {});
   const bannerInputRef = useRef(null);
 
   const handleBannerSelect = (event) => {
@@ -43,6 +51,8 @@ const EditDropForm = ({ dropId, initialData }) => {
   const removeBanner = () => {
     if (banner) URL.revokeObjectURL(banner.preview);
     setBanner(null);
+    // O botão de remover some: o foco vai para "Adicionar banner", que aparece no lugar.
+    setTimeout(() => addBannerRef.current?.focus());
     setRemoveExistingBanner(true);
   };
 
@@ -50,11 +60,15 @@ const EditDropForm = ({ dropId, initialData }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setSubmitError(null);
 
-    const validationError = validateDropForm({ launchDate, endDate, maxQuantity });
+    setErrorField(null);
+    const validationError = validateDropFields({ launchDate, endDate, maxQuantity });
     if (validationError) {
-      setSubmitError(validationError);
+      setSubmitError(validationError.message);
+      setErrorField(validationError.field);
+      (validationError.field === 'endDate' ? endDateRef : maxQuantityRef).current?.focus();
       return;
     }
 
@@ -92,7 +106,6 @@ const EditDropForm = ({ dropId, initialData }) => {
 
   return (
     <div>
-      <PageMarker name="EditDropPage" />
 
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -100,7 +113,7 @@ const EditDropForm = ({ dropId, initialData }) => {
             type="button"
             onClick={() => navigate('/admin/drops')}
             aria-label="Voltar para drops"
-            className="text-black transition hover:text-black/60"
+            className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-black transition hover:bg-black/5"
           >
             <Icon name="arrowLeft" className="h-6 w-6 md:h-7 md:w-7" />
           </button>
@@ -110,7 +123,7 @@ const EditDropForm = ({ dropId, initialData }) => {
           type="button"
           onClick={() => navigate(`/admin/drops/${dropId}`)}
           aria-label="Fechar"
-          className="text-black transition hover:text-black/60"
+          className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-black transition hover:bg-black/5"
         >
           <Icon name="x" className="h-6 w-6 md:h-7 md:w-7" />
         </button>
@@ -119,7 +132,7 @@ const EditDropForm = ({ dropId, initialData }) => {
       <AdminPanel className="max-w-[900px] p-5 md:p-8">
         <form onSubmit={handleSubmit} className="grid gap-8">
           <label>
-            <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Nome do drop</span>
+            <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Nome do drop</span>
             <input
               type="text"
               value={name}
@@ -128,7 +141,7 @@ const EditDropForm = ({ dropId, initialData }) => {
             />
           </label>
           <label>
-            <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Descrição</span>
+            <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Descrição</span>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -137,7 +150,7 @@ const EditDropForm = ({ dropId, initialData }) => {
           </label>
           <div className="grid gap-8 md:grid-cols-2">
             <label>
-              <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Data de lançamento</span>
+              <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Data de lançamento</span>
               <input
                 type="date"
                 value={launchDate}
@@ -146,9 +159,11 @@ const EditDropForm = ({ dropId, initialData }) => {
               />
             </label>
             <label>
-              <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Data de encerramento</span>
+              <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Data de encerramento</span>
               <input
                 type="date"
+                ref={endDateRef}
+                {...invalidProps('endDate')}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="mt-4 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black md:h-12 md:text-[18px]"
@@ -157,7 +172,7 @@ const EditDropForm = ({ dropId, initialData }) => {
           </div>
           <div className="grid gap-8 md:grid-cols-2">
             <label>
-              <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Status</span>
+              <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Status</span>
               <select
                 value={isActive ? 'true' : 'false'}
                 onChange={(e) => setIsActive(e.target.value === 'true')}
@@ -168,7 +183,7 @@ const EditDropForm = ({ dropId, initialData }) => {
               </select>
             </label>
             <label>
-              <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Visibilidade</span>
+              <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Visibilidade</span>
               <select
                 value={isPublic ? 'true' : 'false'}
                 onChange={(e) => setIsPublic(e.target.value === 'true')}
@@ -181,25 +196,29 @@ const EditDropForm = ({ dropId, initialData }) => {
           </div>
 
           <label>
-            <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Limite de unidades (Opcional)</span>
+            <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Limite de unidades (Opcional)</span>
             <input
               type="number"
               min="1"
               step="1"
+              ref={maxQuantityRef}
+              {...invalidProps('maxQuantity')}
               value={maxQuantity}
               onChange={(e) => setMaxQuantity(e.target.value)}
               placeholder="Sem limite"
-              className="mt-4 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none placeholder:text-black/40 focus:border-black md:h-12 md:text-[18px]"
+              className="mt-4 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none placeholder:text-shio-placeholder focus:border-black md:h-12 md:text-[18px]"
             />
           </label>
 
           <div>
-            <span className="text-[13px] uppercase text-black/55 md:text-[20px]">Banner</span>
+            <span className="text-[13px] uppercase text-shio-muted md:text-[20px]">Banner</span>
             <input
               ref={bannerInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
+              // Escondido de verdade: o botão ao lado é quem abre o seletor (o input sr-only era uma
+              // parada de Tab invisível e sem rótulo).
+              hidden
               onChange={handleBannerSelect}
             />
             {currentBannerUrl ? (
@@ -209,7 +228,8 @@ const EditDropForm = ({ dropId, initialData }) => {
                   <button
                     type="button"
                     onClick={() => bannerInputRef.current?.click()}
-                    className="rounded-full bg-black/60 px-3 py-1 text-[12px] font-semibold text-white transition hover:bg-black"
+                    aria-label="Substituir banner"
+                    className="h-11 rounded-full bg-black/75 px-4 text-[13px] font-semibold text-white transition hover:bg-black"
                   >
                     Substituir
                   </button>
@@ -217,7 +237,7 @@ const EditDropForm = ({ dropId, initialData }) => {
                     type="button"
                     onClick={removeBanner}
                     aria-label="Remover banner"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black"
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-black/75 text-white transition hover:bg-black"
                   >
                     <Icon name="close" className="h-4 w-4" />
                   </button>
@@ -225,9 +245,10 @@ const EditDropForm = ({ dropId, initialData }) => {
               </div>
             ) : (
               <button
+                ref={addBannerRef}
                 type="button"
                 onClick={() => bannerInputRef.current?.click()}
-                className="mt-4 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-black/45 transition hover:border-black/50 hover:text-black/65"
+                className="mt-4 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-shio-muted transition hover:border-black/50 hover:text-black/65"
               >
                 <Icon name="plus" className="h-5 w-5" />
                 Adicionar banner
@@ -235,11 +256,11 @@ const EditDropForm = ({ dropId, initialData }) => {
             )}
           </div>
 
-          {submitError && <p className="text-center text-red-500">{submitError}</p>}
+          {submitError && <p id={errorId} role="alert" className="text-center text-shio-danger">{submitError}</p>}
           <button
             type="button"
             onClick={() => navigate(`/admin/drops/${dropId}`)}
-            className="flex h-20 items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[18px] font-semibold text-black/55 transition hover:border-black hover:text-black"
+            className="flex h-20 items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[18px] font-semibold text-shio-muted transition hover:border-black hover:text-black"
           >
             <Icon name="plus" className="h-5 w-5" />
             Gerenciar produtos do drop
@@ -248,14 +269,14 @@ const EditDropForm = ({ dropId, initialData }) => {
             <button
               type="button"
               onClick={() => navigate(`/admin/drops/${dropId}`)}
-              className="flex h-12 w-full items-center justify-center rounded-full border border-black/25 text-[15px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black"
+              className="flex h-12 w-full items-center justify-center rounded-full border border-black/25 text-[15px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="flex h-12 w-full items-center justify-center gap-4 rounded-full bg-black text-[15px] font-bold uppercase text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/45"
+              aria-disabled={isSubmitting || undefined}
+              className="flex h-12 w-full items-center justify-center gap-4 rounded-full bg-black text-[15px] font-bold uppercase text-white transition hover:bg-black/85 aria-disabled:cursor-not-allowed aria-disabled:bg-black/45"
             >
               <Icon name="save" className="h-5 w-5" />
               {isSubmitting ? 'Salvando...' : 'Salvar alterações'}
@@ -272,7 +293,7 @@ const EditDropPage = () => {
   const { data: initialData, loading: isLoadingData, error: fetchError } = useApi(`/api/catalog/drops/${dropId}/`);
 
   if (isLoadingData) return <div className="p-8 text-center">Carregando dados do drop...</div>;
-  if (fetchError) return <div className="p-8 text-center text-red-500">Erro ao carregar os dados. Verifique o ID e tente novamente.</div>;
+  if (fetchError) return <div className="p-8 text-center text-shio-danger">Erro ao carregar os dados. Verifique o ID e tente novamente.</div>;
   if (!initialData) return <div className="p-8 text-center">Drop não encontrado.</div>;
 
   return <EditDropForm dropId={dropId} initialData={initialData} />;

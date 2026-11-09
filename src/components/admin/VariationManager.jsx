@@ -7,6 +7,7 @@ function VariationRow({ productId, variation, onSaved }) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const submit = async (remove = false) => {
+    if (saving) return;
     setSaving(true); setError('');
     try {
       const url = variation ? `/api/catalog/variations/${variation.id}/` : `/api/catalog/products/${productId}/variations/`;
@@ -21,16 +22,18 @@ function VariationRow({ productId, variation, onSaved }) {
       onSaved();
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
+  const name = `${variation?.size ?? ''}${variation?.color ? ` / ${variation.color}` : ''}`;
   return <div className="space-y-2 rounded-lg border p-3 text-sm">
-    <label className="block">Tamanho<select className="w-full rounded border p-2" value={row.size} onChange={(e) => setRow({ ...row, size: e.target.value })}>
+    <label className="block">Tamanho<select className="w-full rounded border p-3" value={row.size} onChange={(e) => setRow({ ...row, size: e.target.value })}>
       {sizeOptionsFor(row.size).map((size) => <option key={size} value={size}>{size}</option>)}
     </select></label>
-    <label className="block">Cor<input className="w-full rounded border p-2" value={row.color} onChange={(e) => setRow({ ...row, color: e.target.value })} /></label>
-    <label className="block">SKU<input className="w-full rounded border p-2" readOnly={!!variation} placeholder="Automático se vazio" value={row.sku} onChange={(e) => setRow({ ...row, sku: e.target.value.toUpperCase() })} /></label>
-    {!variation && <label className="block">Estoque inicial<input className="w-full rounded border p-2" type="number" min="0" step="1" value={row.stock_quantity} onChange={(e) => setRow({ ...row, stock_quantity: e.target.value })} /></label>}
-    <button type="button" disabled={saving} className="mr-3 underline" onClick={() => submit()}>{variation ? 'Salvar combinação' : 'Adicionar combinação'}</button>
-    {variation && <button type="button" disabled={saving} className="text-red-600 underline" onClick={() => submit(true)}>Excluir</button>}
-    {error && <p role="alert" className="text-red-600">{error}</p>}
+    <label className="block">Cor<input className="w-full rounded border p-3" value={row.color} onChange={(e) => setRow({ ...row, color: e.target.value })} /></label>
+    <label className="block">SKU<input className="w-full rounded border p-3" readOnly={!!variation} placeholder="Automático se vazio" value={row.sku} onChange={(e) => setRow({ ...row, sku: e.target.value.toUpperCase() })} /></label>
+    {!variation && <label className="block">Estoque inicial<input className="w-full rounded border p-3" type="number" min="0" step="1" value={row.stock_quantity} onChange={(e) => setRow({ ...row, stock_quantity: e.target.value })} /></label>}
+    {/* aria-disabled em vez de disabled: disabled tira o foco de quem está no teclado. */}
+    <button type="button" aria-disabled={saving || undefined} aria-label={variation ? `Salvar combinação ${name}` : undefined} className="mr-4 min-h-11 font-semibold underline aria-disabled:opacity-60" onClick={() => submit()}>{variation ? 'Salvar combinação' : 'Adicionar combinação'}</button>
+    {variation && <button type="button" aria-disabled={saving || undefined} aria-label={`Excluir combinação ${name}`} className="min-h-11 font-semibold text-shio-danger underline aria-disabled:opacity-60" onClick={() => submit(true)}>Excluir</button>}
+    {error && <p role="alert" className="text-shio-danger">{error}</p>}
   </div>;
 }
 export default function VariationManager({ product, onSaved }) {
