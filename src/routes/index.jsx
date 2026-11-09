@@ -40,6 +40,7 @@ const AdminPermissionsPage = lazy(() => import("../pages/admin/AdminPermissionsP
 const ReviewsPage = lazy(() => import("../pages/admin/ReviewsPage"));
 const CouponsPage = lazy(() => import("../pages/admin/CouponsPage"));
 const SizeGuidesPage = lazy(() => import("../pages/admin/SizeGuidesPage"));
+const NewsletterPage = lazy(() => import("../pages/admin/NewsletterPage"));
 
 const routes = [
   // Public routes
@@ -248,6 +249,12 @@ const routes = [
     component: <AdminLayout><AdminPermissionsPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.ADMIN_PERMISSIONS,
+  },
+  {
+    path: "/admin/newsletter",
+    component: <AdminLayout><NewsletterPage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CUSTOMERS,
   },
 ];
 

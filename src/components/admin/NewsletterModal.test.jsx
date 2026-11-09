@@ -1,0 +1,207 @@
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import NewsletterModal from './NewsletterModal';
+
+vi.mock('../../lib/authToken', () => ({ getAccessToken: () => 'tok' }));
+
+function json(body, status = 200) {
+  return Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
+}
+
+function setupFetch({ info, send, test, preview } = {}) {
+  const calls = [];
+  globalThis.fetch = vi.fn((url, opts = {}) => {
+    calls.push({ url, opts });
+    if (url.endsWith('/newsletter/preview/')) {
+      return preview ? preview() : json({ html: '<p>Prévia Newsletter</p>' });
+    }
+    if (url.endsWith('/newsletter/test/')) {
+      return test ? test() : json({ sent: true });
+    }
+    if (url.endsWith('/newsletter/send/')) {
+      return send
+        ? send()
+        : json({ sent_count: 87, failed_count: 0, sent_at: '2026-10-20T10:00:00Z' }, 201);
+    }
+    return json(info || { total_subscribers: 87, history: [] });
+  });
+  return calls;
+}
+
+describe('NewsletterModal', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_API_URL', 'http://api');
+    window.confirm = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  it('mostra total de inscritos elegíveis', async () => {
+    setupFetch();
+    render(<NewsletterModal onClose={() => {}} />);
+    expect(await screen.findByText('87 inscritos')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Apenas inscritos que aceitaram receber a newsletter e não cancelaram/),
+    ).toBeInTheDocument();
+  });
+
+  it('assunto e mensagem atualizam a pré-visualização', async () => {
+    const calls = setupFetch();
+    render(<NewsletterModal onClose={() => {}} />);
+    await screen.findByText('87 inscritos');
+
+    fireEvent.change(screen.getByLabelText(/Assunto/), { target: { value: 'Drop Outono' } });
+    fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'Novos produtos' } });
+
+    await waitFor(() => {
+      const c = calls.find(
+        (x) =>
+          x.url.endsWith('/newsletter/preview/') &&
+          x.opts.body.includes('Drop Outono') &&
+          x.opts.body.includes('Novos produtos'),
+      );
+      expect(c).toBeTruthy();
+    });
+
+    const frame = await waitFor(() => {
+      const f = screen.getByTitle('Pré-visualização da newsletter');
+      expect(f.getAttribute('srcdoc')).toBe('<p>Prévia Newsletter</p>');
+      return f;
+    });
+    expect(frame.tagName).toBe('IFRAME');
+  });
+
+  it('envia teste para o próprio admin', async () => {
+    const calls = setupFetch();
+    render(<NewsletterModal onClose={() => {}} />);
+    await screen.findByText('87 inscritos');
+
+    fireEvent.change(screen.getByLabelText(/Assunto/), { target: { value: 'Assunto Teste' } });
+    fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'Corpo do teste' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar teste para mim' }));
+    expect(await screen.findByText(/Teste enviado para o seu e-mail com sucesso/)).toBeInTheDocument();
+
+    const c = calls.find((x) => x.url.endsWith('/newsletter/test/'));
+    expect(c.opts.method).toBe('POST');
+    expect(c.opts.headers.Authorization).toBe('Bearer tok');
+    expect(JSON.parse(c.opts.body)).toEqual({
+      subject: 'Assunto Teste',
+      message: 'Corpo do teste',
+    });
+  });
+
+  it('alerta se tentar enviar teste com assunto ou mensagem em branco', async () => {
+    setupFetch();
+    render(<NewsletterModal onClose={() => {}} />);
+    await screen.findByText('87 inscritos');
+
+    // Botão desabilitado quando vazio
+    expect(screen.getByRole('button', { name: 'Enviar teste para mim' })).toBeDisabled();
+  });
+
+  it('confirma antes de enviar e mostra resultado', async () => {
+    const calls = setupFetch();
+    const onSent = vi.fn();
+    render(<NewsletterModal onClose={() => {}} onSent={onSent} />);
+    await screen.findByText('87 inscritos');
+
+    fireEvent.change(screen.getByLabelText(/Assunto/), { target: { value: 'Assunto Real' } });
+    fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'Mensagem Real' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 inscritos' }));
+    expect(screen.getByText('Enviar para 87 inscritos? Não dá para desfazer.')).toBeInTheDocument();
+    expect(calls.some((x) => x.url.endsWith('/newsletter/send/'))).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+    expect(await screen.findByText('87 enviados, 0 falhas')).toBeInTheDocument();
+    expect(onSent).toHaveBeenCalledWith(expect.objectContaining({ sent_count: 87 }));
+  });
+
+  it('desabilita botão de envio se não houver público', async () => {
+    setupFetch({ info: { total_subscribers: 0, history: [] } });
+    render(<NewsletterModal onClose={() => {}} />);
+    expect(await screen.findByText(/Nenhum inscrito elegível/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enviar para 0 inscritos' })).toBeDisabled();
+  });
+
+  it('mostra erro retornado pelo backend ao enviar', async () => {
+    setupFetch({ send: () => json({ error: 'Erro no servidor de e-mail.' }, 500) });
+    render(<NewsletterModal onClose={() => {}} />);
+    await screen.findByText('87 inscritos');
+
+    fireEvent.change(screen.getByLabelText(/Assunto/), { target: { value: 'Assunto' } });
+    fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'Mensagem' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 inscritos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+    expect(await screen.findByText('Erro no servidor de e-mail.')).toBeInTheDocument();
+  });
+
+  it('trata singular corretamente para 1 inscrito, 1 enviado e 1 falha', async () => {
+    setupFetch({
+      info: { total_subscribers: 1, history: [] },
+      send: () => json({ sent_count: 1, failed_count: 1 }, 201),
+    });
+    render(<NewsletterModal onClose={() => {}} />);
+    expect(await screen.findByText('1 inscrito')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Assunto/), { target: { value: 'Aviso' } });
+    fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'Texto' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 1 inscrito' }));
+    expect(screen.getByText('Enviar para 1 inscrito? Não dá para desfazer.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+    expect(await screen.findByText('1 enviado, 1 falha')).toBeInTheDocument();
+  });
+
+  it('não fecha por Esc enquanto envia', async () => {
+    let resolveSend;
+    setupFetch({
+      send: () =>
+        new Promise((r) => {
+          resolveSend = () =>
+            r({ ok: true, status: 201, json: () => Promise.resolve({ sent_count: 87, failed_count: 0 }) });
+        }),
+    });
+    const onClose = vi.fn();
+    render(<NewsletterModal onClose={onClose} />);
+    await screen.findByText('87 inscritos');
+
+    fireEvent.change(screen.getByLabelText(/Assunto/), { target: { value: 'A' } });
+    fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'M' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 inscritos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveSend();
+    });
+    expect(await screen.findByText('87 enviados, 0 falhas')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('após enviar, o foco vai para o resultado (#64)', async () => {
+    setupFetch();
+    render(<NewsletterModal onClose={() => {}} />);
+    await screen.findByText('87 inscritos');
+
+    fireEvent.change(screen.getByLabelText(/Assunto/), { target: { value: 'A' } });
+    fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'M' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 inscritos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+
+    await screen.findByText('87 enviados, 0 falhas');
+    await waitFor(() => expect(document.activeElement).toHaveTextContent('Newsletter enviada com sucesso!'));
+  });
+});

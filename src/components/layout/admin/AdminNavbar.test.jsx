@@ -55,6 +55,7 @@ describe('AdminNavbar', () => {
     ['/admin/edit-drop/9', 'Drops'],
     ['/admin/orders/42', 'Pedidos'],
     ['/admin/customers/7', 'Clientes'],
+    ['/admin/newsletter', 'Newsletter'],
   ])('mantém a seção correta ativa em %s', (path, section) => {
     renderNavbar(path);
 
