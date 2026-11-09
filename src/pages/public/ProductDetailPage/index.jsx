@@ -5,6 +5,7 @@ import { ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDe
 import ProductReviews from '../../../components/reviews/ProductReviews';
 import SizeGuideTable from '../../../components/product/SizeGuideTable';
 import { getAccessToken } from '../../../lib/authToken';
+import { EVENT_TYPES, trackEvent } from '../../../lib/analytics';
 import { useCart } from '../../../context/CartContext';
 import {
   createStockAlert, getPendingStockAlertVariationIds, stockAlertErrorMessage,
@@ -69,6 +70,7 @@ const ProductDetailContent = ({ id }) => {
         setProduct(data);
         setActiveImage(0);
         if (data.variations?.length > 0) setSelectedVarId(data.variations[0].id);
+        trackEvent(EVENT_TYPES.PRODUCT_VIEW, { productId: data.id });
       })
       .catch(() => {
         if (!controller.signal.aborted) setNotFound(true);
@@ -94,6 +96,8 @@ const ProductDetailContent = ({ id }) => {
 
     return () => controller.abort();
   }, [id]);
+
+  const productId = product?.id;
 
   const handleAddToCart = useCallback(async () => {
     if (!selectedVarId) return;
@@ -127,13 +131,14 @@ const ProductDetailContent = ({ id }) => {
         setCartData(cartData);
       }
       setCartMsg({ type: 'success', text: 'Adicionado ao carrinho!' });
+      trackEvent(EVENT_TYPES.ADD_TO_CART, { productId, variationId: selectedVarId });
     } catch (e) {
       setCartMsg({ type: 'error', text: e.message });
     } finally {
       setAddingToCart(false);
       setTimeout(() => setCartMsg(null), 3000);
     }
-  }, [selectedVarId, quantity, cartItems, setCartData]);
+  }, [selectedVarId, quantity, cartItems, setCartData, productId]);
 
   const handleStockAlert = async () => {
     if (!selectedVarId) return;
