@@ -39,12 +39,11 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
   const canSubmit = Boolean(reason)
     && chosen.length > 0
     && chosen.every(([, row]) => row.replacement)
-    && (!commentRequired || comment.trim() !== '')
-    && !submitting;
+    && (!commentRequired || comment.trim() !== '');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -195,7 +194,8 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/80 disabled:opacity-40"
+            aria-disabled={submitting || undefined}
+            className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/80 disabled:opacity-40 aria-disabled:opacity-40"
           >
             {submitting ? 'Enviando...' : 'Solicitar troca'}
           </button>

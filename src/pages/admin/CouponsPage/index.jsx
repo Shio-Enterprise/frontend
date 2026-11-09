@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useId, useRef, useState } from 'react';
+import Dialog from '../../../components/ui/Dialog';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import CouponEmailModal from '../../../components/admin/CouponEmailModal';
@@ -91,8 +91,16 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
   const [selectedDrops, setSelectedDrops] = useState(coupon?.drops || []);
   const [selectedCategories, setSelectedCategories] = useState(coupon?.categories || []);
 
+  const baseId = useId();
+  const ids = Object.fromEntries(
+    ['title', 'error', 'code', 'codeHint', 'description', 'discountType', 'discountValue', 'maxDiscount', 'minOrder',
+      'startsAt', 'expiration', 'maxUses', 'maxPerUser', 'multiHint', 'drops', 'categories', 'partner']
+      .map((name) => [name, `${baseId}-${name}`]),
+  );
+
   const handleSave = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
 
@@ -145,67 +153,81 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
     }
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-white shadow-xl h-full flex flex-col overflow-hidden animate-slide-in-right">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-xl font-bold uppercase tracking-tight">{isEditing ? 'Editar Cupom' : 'Novo Cupom'}</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+  const fieldClass = 'min-h-11 w-full rounded-md border border-black/25 px-3 py-2 text-[16px] md:text-sm';
+  const labelClass = 'mb-1 block text-sm font-semibold';
+  const codeLocked = isEditing && coupon.uses_count > 0;
+
+  return (
+    // Painel lateral como modal (#64): foco preso, Esc fecha, foco volta ao botão de origem.
+    <Dialog
+      labelledBy={ids.title}
+      onClose={onClose}
+      overlayClassName="bg-black/40"
+      className="ml-auto flex h-full w-full max-w-md flex-col overflow-hidden bg-white shadow-xl animate-slide-in-right"
+    >
+        <div className="flex items-center justify-between border-b px-6 py-3">
+          <h2 id={ids.title} className="text-xl font-bold uppercase tracking-tight">{isEditing ? 'Editar Cupom' : 'Novo Cupom'}</h2>
+          <button type="button" onClick={onClose} aria-label="Fechar" className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-black/5">
             <Icon name="close" />
           </button>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-6">
-          <form id="coupon-form" onSubmit={handleSave} className="space-y-5">
-            {error && <div className="p-3 bg-red-100 text-red-700 text-sm rounded-md whitespace-pre-line">{error}</div>}
-            
+          <form id="coupon-form" onSubmit={handleSave} aria-describedby={error ? ids.error : undefined} className="space-y-5">
+            {error && <div id={ids.error} role="alert" className="whitespace-pre-line rounded-md bg-red-50 p-3 text-sm text-shio-danger">{error}</div>}
+
             <div>
-              <label className="block text-sm font-semibold mb-1">Código</label>
+              <label htmlFor={ids.code} className={labelClass}>Código</label>
               <input
+                id={ids.code}
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                disabled={isEditing && coupon.uses_count > 0}
-                className="w-full border rounded-md px-3 py-2 uppercase"
+                disabled={codeLocked}
+                aria-describedby={codeLocked ? ids.codeHint : undefined}
+                className={`${fieldClass} uppercase`}
                 required
                 placeholder="Ex: VERAO20"
               />
-              {isEditing && coupon.uses_count > 0 && (
-                <p className="text-xs text-gray-500 mt-1">O código não pode ser alterado pois já possui usos.</p>
+              {codeLocked && (
+                <p id={ids.codeHint} className="mt-1 text-xs text-shio-muted">O código não pode ser alterado pois já possui usos.</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">Descrição</label>
+              <label htmlFor={ids.description} className={labelClass}>Descrição</label>
               <input
+                id={ids.description}
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full border rounded-md px-3 py-2"
+                className={fieldClass}
                 placeholder="Ex: Campanha Dia dos Namorados"
               />
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold mb-1">Tipo de Desconto</label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor={ids.discountType} className={labelClass}>Tipo de Desconto</label>
                 <select
+                  id={ids.discountType}
                   value={discountType}
                   onChange={(e) => setDiscountType(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2"
+                  className={fieldClass}
                 >
                   <option value="PERCENTAGE">Porcentagem (%)</option>
                   <option value="FIXED_VALUE">Valor Fixo (R$)</option>
                 </select>
               </div>
-              <div className="flex-1">
-                <label className="block text-sm font-semibold mb-1">Valor</label>
+              <div>
+                <label htmlFor={ids.discountValue} className={labelClass}>Valor</label>
                 <input
+                  id={ids.discountValue}
                   type="number"
                   step="0.01"
                   value={discountValue}
                   onChange={(e) => setDiscountValue(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2"
+                  className={fieldClass}
                   required
                 />
               </div>
@@ -213,83 +235,95 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
 
             {discountType === 'PERCENTAGE' && (
               <div>
-                <label className="block text-sm font-semibold mb-1">Teto de Desconto (R$)</label>
+                <label htmlFor={ids.maxDiscount} className={labelClass}>Teto de Desconto (R$)</label>
                 <input
+                  id={ids.maxDiscount}
                   type="number"
                   step="0.01"
                   value={maxDiscountAmount}
                   onChange={(e) => setMaxDiscountAmount(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2"
+                  className={fieldClass}
                   placeholder="Valor máximo descontado"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-semibold mb-1">Valor Mínimo do Pedido (R$)</label>
+              <label htmlFor={ids.minOrder} className={labelClass}>Valor Mínimo do Pedido (R$)</label>
               <input
+                id={ids.minOrder}
                 type="number"
                 step="0.01"
                 value={minOrderValue}
                 onChange={(e) => setMinOrderValue(e.target.value)}
-                className="w-full border rounded-md px-3 py-2"
+                className={fieldClass}
                 placeholder="Aplicado ao subtotal"
               />
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold mb-1">Início</label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor={ids.startsAt} className={labelClass}>Início</label>
                 <input
+                  id={ids.startsAt}
                   type="datetime-local"
                   value={startsAt}
                   onChange={(e) => setStartsAt(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2"
+                  className={fieldClass}
                 />
               </div>
-              <div className="flex-1">
-                <label className="block text-sm font-semibold mb-1">Fim</label>
+              <div>
+                <label htmlFor={ids.expiration} className={labelClass}>Fim</label>
                 <input
+                  id={ids.expiration}
                   type="datetime-local"
                   value={expirationDate}
                   onChange={(e) => setExpirationDate(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2"
+                  className={fieldClass}
                 />
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold mb-1">Usos Totais</label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor={ids.maxUses} className={labelClass}>Usos Totais</label>
                 <input
+                  id={ids.maxUses}
                   type="number"
                   min="1"
                   value={maxUsesTotal}
                   onChange={(e) => setMaxUsesTotal(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2"
+                  className={fieldClass}
                   placeholder="Ilimitado"
                 />
               </div>
-              <div className="flex-1">
-                <label className="block text-sm font-semibold mb-1">Usos por Usuário</label>
+              <div>
+                <label htmlFor={ids.maxPerUser} className={labelClass}>Usos por Usuário</label>
                 <input
+                  id={ids.maxPerUser}
                   type="number"
                   min="1"
                   value={maxUsesPerUser}
                   onChange={(e) => setMaxUsesPerUser(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2"
+                  className={fieldClass}
                   placeholder="Normal: 1"
                 />
               </div>
             </div>
 
+            <p id={ids.multiHint} className="text-xs text-shio-muted">
+              Para escolher mais de um item nas listas abaixo, segure Ctrl (ou Cmd no Mac) ao clicar. Sem nada escolhido, vale para todos.
+            </p>
+
             <div>
-              <label className="block text-sm font-semibold mb-1">Drops Válidos (opcional)</label>
+              <label htmlFor={ids.drops} className={labelClass}>Drops Válidos (opcional)</label>
               <select
+                id={ids.drops}
                 multiple
+                aria-describedby={ids.multiHint}
                 value={selectedDrops}
                 onChange={(e) => setSelectedDrops(Array.from(e.target.selectedOptions, option => option.value))}
-                className="w-full border rounded-md px-3 py-2 text-sm"
+                className={fieldClass}
               >
                 {dropsList.map(drop => (
                   <option key={drop.id} value={drop.id}>{drop.name}</option>
@@ -298,12 +332,14 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">Categorias Válidas (opcional)</label>
+              <label htmlFor={ids.categories} className={labelClass}>Categorias Válidas (opcional)</label>
               <select
+                id={ids.categories}
                 multiple
+                aria-describedby={ids.multiHint}
                 value={selectedCategories}
                 onChange={(e) => setSelectedCategories(Array.from(e.target.selectedOptions, option => option.value))}
-                className="w-full border rounded-md px-3 py-2 text-sm"
+                className={fieldClass}
               >
                 {categoriesList.map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -311,45 +347,45 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
               </select>
             </div>
 
-            <div className="space-y-2 pt-2 border-t mt-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={firstPurchaseOnly} onChange={e => setFirstPurchaseOnly(e.target.checked)} className="w-4 h-4" />
+            <fieldset className="mt-4 border-t pt-2">
+              <legend className="sr-only">Opções do cupom</legend>
+              <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                <input type="checkbox" checked={firstPurchaseOnly} onChange={e => setFirstPurchaseOnly(e.target.checked)} className="h-5 w-5 accent-black" />
                 <span className="text-sm font-medium">Apenas Primeira Compra</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={autoApply} onChange={e => setAutoApply(e.target.checked)} className="w-4 h-4" />
+              <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                <input type="checkbox" checked={autoApply} onChange={e => setAutoApply(e.target.checked)} className="h-5 w-5 accent-black" />
                 <span className="text-sm font-medium">Aplicação Automática</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="w-4 h-4" />
+              <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="h-5 w-5 accent-black" />
                 <span className="text-sm font-medium">Cupom Ativo</span>
               </label>
-            </div>
-            
+            </fieldset>
+
             <div className="pt-2">
-              <label className="block text-sm font-semibold mb-1">Parceiro (Méliuz, Influenciador)</label>
+              <label htmlFor={ids.partner} className={labelClass}>Parceiro (Méliuz, Influenciador)</label>
               <input
+                id={ids.partner}
                 type="text"
                 value={partner}
                 onChange={(e) => setPartner(e.target.value)}
-                className="w-full border rounded-md px-3 py-2"
+                className={fieldClass}
                 placeholder="Ex: MELIUZ"
               />
             </div>
           </form>
         </div>
-        
-        <div className="p-4 border-t bg-gray-50 flex justify-end gap-3 shrink-0">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold border rounded-md hover:bg-gray-100">
+
+        <div className="flex shrink-0 justify-end gap-3 border-t bg-gray-50 p-4">
+          <button type="button" onClick={onClose} className="h-12 rounded-md border border-black/25 px-4 text-sm font-bold hover:bg-black/5">
             Cancelar
           </button>
-          <BlackButton type="submit" form="coupon-form" disabled={loading}>
+          <BlackButton type="submit" form="coupon-form" aria-disabled={loading || undefined}>
             {loading ? 'Salvando...' : 'Salvar Cupom'}
           </BlackButton>
         </div>
-      </div>
-    </div>,
-    document.body
+    </Dialog>
   );
 }
 
@@ -360,9 +396,22 @@ export default function CouponsPage() {
   const [editingCoupon, setEditingCoupon] = useState(null);
   const [emailCoupon, setEmailCoupon] = useState(null);
   const [justCreated, setJustCreated] = useState(null);
-  
-  const { data: responseData, loading, refetch } = useApi('/api/orders/admin/coupons/');
-  const coupons = responseData?.results || responseData || [];
+  // { kind: 'toggle' | 'delete', coupon }: confirmação em <Dialog> no lugar do window.confirm (#64).
+  const [confirm, setConfirm] = useState(null);
+  const [working, setWorking] = useState(false);
+  const [actionError, setActionError] = useState(null);
+  // Depois de salvar/desativar/apagar, o foco vai para o aviso do resultado (#64).
+  const [notice, setNotice] = useState(null);
+  const noticeRef = useRef(null);
+  const confirmTitleId = useId();
+  const createdTitleId = useId();
+
+  useEffect(() => {
+    if (notice) noticeRef.current?.focus();
+  }, [notice]);
+
+  const { data: responseData, loading, error: loadError, refetch } = useApi('/api/orders/admin/coupons/');
+  const coupons = loadError ? [] : responseData?.results || responseData || [];
 
   const handleCreate = () => {
     setEditingCoupon(null);
@@ -374,41 +423,46 @@ export default function CouponsPage() {
     setDrawerOpen(true);
   };
 
-  const handleToggleActive = async (coupon) => {
-    if (!window.confirm(`Tem certeza que deseja ${coupon.is_active ? 'desativar' : 'ativar'} o cupom ${coupon.code}?`)) return;
-    
+  const runConfirmed = async () => {
+    if (!confirm || working) return;
+    const { kind, coupon } = confirm;
+    setWorking(true);
+    setActionError(null);
     try {
       const token = getAccessToken();
-      const res = await fetch(`${API_BASE_URL}/api/orders/admin/coupons/${coupon.id}/`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ is_active: !coupon.is_active })
-      });
-      if (res.ok) refetch();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleDelete = async (coupon) => {
-    if (!window.confirm(coupon.uses_count > 0 ? `Este cupom já possui usos e será DESATIVADO em vez de apagado. Confirmar?` : `Deseja realmente apagar o cupom ${coupon.code}?`)) return;
-
-    try {
-      const token = getAccessToken();
-      const res = await fetch(`${API_BASE_URL}/api/orders/admin/coupons/${coupon.id}/`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
+      const res = await fetch(`${API_BASE_URL}/api/orders/admin/coupons/${coupon.id}/`, kind === 'toggle'
+        ? {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ is_active: !coupon.is_active }),
         }
-      });
-      if (res.ok) refetch();
-    } catch (e) {
-      console.error(e);
+        : { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Não foi possível concluir a ação no cupom.');
+      if (kind === 'toggle') setNotice({ text: `Cupom ${coupon.code} ${coupon.is_active ? 'desativado' : 'reativado'}.` });
+      else setNotice({ text: coupon.uses_count > 0 ? `Cupom ${coupon.code} desativado.` : `Cupom ${coupon.code} apagado.` });
+      refetch();
+    } catch (err) {
+      setActionError(err.message || 'Não foi possível concluir a ação no cupom.');
+    } finally {
+      setConfirm(null);
+      setWorking(false);
     }
   };
+
+  const confirmText = (() => {
+    if (!confirm) return null;
+    const { kind, coupon } = confirm;
+    if (kind === 'toggle') {
+      return {
+        title: `${coupon.is_active ? 'Desativar' : 'Reativar'} o cupom ${coupon.code}?`,
+        submit: coupon.is_active ? 'Desativar' : 'Reativar',
+        danger: coupon.is_active,
+      };
+    }
+    return coupon.uses_count > 0
+      ? { title: `Desativar o cupom ${coupon.code}?`, body: 'Este cupom já possui usos e será desativado em vez de apagado.', submit: 'Desativar', danger: true }
+      : { title: `Apagar o cupom ${coupon.code}?`, body: 'Esta ação não pode ser desfeita.', submit: 'Apagar', danger: true };
+  })();
 
   const emailDisabledReason = (coupon) => {
     const status = couponStatus(coupon);
@@ -416,36 +470,48 @@ export default function CouponsPage() {
   };
 
   return (
-    <AdminPanel className="p-6">
+    <AdminPanel className="p-4 md:p-6">
       <AdminTitle 
         eyebrow="Promoções" 
         title="Cupons de Desconto" 
         action={<BlackButton onClick={handleCreate}>+ Novo Cupom</BlackButton>} 
       />
 
-      <div className="mt-8 bg-white border border-black/10 shadow-sm rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+      {actionError && (
+        <div role="alert" className="mb-4 rounded-[10px] bg-red-50 px-5 py-3 text-sm font-semibold text-shio-danger">
+          {actionError}
+          <button type="button" className="ml-3 min-h-11 underline" onClick={() => setActionError(null)}>Fechar</button>
+        </div>
+      )}
+
+      <div className="mt-8 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
+        {/* No celular a tabela rola para o lado dentro da caixa; a página não rola (#64, decisão B). */}
+        <div role="region" aria-label="Tabela de cupons" tabIndex={0} className="overflow-x-auto focus-visible:outline-offset-[-2px]!">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-gray-500 uppercase font-semibold text-[12px] tracking-wider border-b">
+            <caption className="sr-only">Cupons de desconto</caption>
+            <thead className="border-b bg-gray-50 text-[12px] font-semibold uppercase tracking-wider text-shio-muted">
               <tr>
                 <th className="px-6 py-4">Código / Status</th>
                 <th className="px-6 py-4">Regras</th>
-                <th className="px-6 py-4">Usos (Restantes)</th>
+                <th className="whitespace-nowrap px-6 py-4">Usos (Restantes)</th>
                 <th className="px-6 py-4 text-right">Performance</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
-              {loading && <tr><td colSpan="5" className="p-6 text-center text-gray-500">Carregando...</td></tr>}
-              {!loading && coupons.length === 0 && (
-                <tr><td colSpan="5" className="p-6 text-center text-gray-500">Nenhum cupom cadastrado.</td></tr>
+              {loading && <tr><td colSpan="5" role="status" className="p-6 text-center text-shio-muted">Carregando...</td></tr>}
+              {!loading && loadError && (
+                <tr><td colSpan="5" role="alert" className="p-6 text-center text-shio-danger">Erro ao carregar cupons. Tente novamente.</td></tr>
+              )}
+              {!loading && !loadError && coupons.length === 0 && (
+                <tr><td colSpan="5" className="p-6 text-center text-shio-muted">Nenhum cupom cadastrado.</td></tr>
               )}
               {coupons.map((coupon) => (
-                <tr key={coupon.id} className="hover:bg-gray-50 transition">
+                <tr key={coupon.id} className="transition hover:bg-gray-50">
                   <td className="px-6 py-4">
-                    <div className="flex flex-col">
+                    <div className="flex min-w-40 flex-col">
                       <span className="font-bold text-gray-900">{coupon.code}</span>
-                      <span className="text-xs text-gray-500">{coupon.description || 'Sem descrição'}</span>
+                      <span className="text-xs text-shio-muted">{coupon.description || 'Sem descrição'}</span>
                       <div className="mt-2 flex gap-2">
                         <span data-testid="coupon-status" className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_STYLES[couponStatus(coupon)]}`}>
                           {couponStatus(coupon)}
@@ -457,31 +523,31 @@ export default function CouponsPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-col text-sm text-gray-700 space-y-1">
+                    <div className="flex min-w-36 flex-col space-y-1 text-sm text-gray-700">
                       <span>{coupon.discount_type === 'PERCENTAGE' ? `${coupon.discount_value}%` : formatMoney(coupon.discount_value)} de desconto</span>
-                      {coupon.min_order_value && <span className="text-xs text-gray-500">Min: {formatMoney(coupon.min_order_value)}</span>}
-                      {coupon.first_purchase_only && <span className="text-xs text-gray-500">Apenas 1ª Compra</span>}
+                      {coupon.min_order_value && <span className="text-xs text-shio-muted">Min: {formatMoney(coupon.min_order_value)}</span>}
+                      {coupon.first_purchase_only && <span className="text-xs text-shio-muted">Apenas 1ª Compra</span>}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col whitespace-nowrap">
                       <span className="font-semibold text-gray-900">{coupon.uses_count} usos</span>
                       {coupon.max_uses_total != null ? (
-                        <span className="text-xs text-gray-500">{coupon.remaining_uses} restantes</span>
+                        <span className="text-xs text-shio-muted">{coupon.remaining_uses} restantes</span>
                       ) : (
-                        <span className="text-xs text-gray-500">Ilimitado</span>
+                        <span className="text-xs text-shio-muted">Ilimitado</span>
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col whitespace-nowrap">
                       <span className="font-semibold text-green-700">{formatMoney(coupon.revenue)} gerado</span>
                       <span className="text-xs text-shio-danger">-{formatMoney(coupon.total_discount_given)} descontado</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <ActionMenu
-                      label="Ações"
+                      label={`Ações para o cupom ${coupon.code}`}
                       items={[
                         { label: 'Editar Cupom', onClick: () => handleEdit(coupon) },
                         {
@@ -490,8 +556,9 @@ export default function CouponsPage() {
                           title: emailDisabledReason(coupon) || undefined,
                           onClick: () => setEmailCoupon(coupon),
                         },
-                        { label: coupon.is_active ? 'Desativar' : 'Reativar', onClick: () => handleToggleActive(coupon) },
-                        { label: 'Deletar', onClick: () => handleDelete(coupon) },
+                        { label: coupon.is_active ? 'Desativar' : 'Reativar', onClick: () => setConfirm({ kind: 'toggle', coupon }) },
+                        { separator: true, key: 'sep' },
+                        { label: 'Deletar', danger: true, icon: 'trash', onClick: () => setConfirm({ kind: 'delete', coupon }) },
                       ]}
                     />
                   </td>
@@ -510,30 +577,63 @@ export default function CouponsPage() {
             setDrawerOpen(false);
             refetch();
             if (created && saved?.id) setJustCreated(saved);
+            else setNotice({ text: `Cupom ${saved?.code ?? ''} salvo.` });
           }} 
         />
       )}
 
-      {justCreated && !emailCoupon && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl space-y-4">
-            <p className="text-sm font-semibold">Cupom {justCreated.code} criado. Quer enviar este cupom por e-mail para os clientes agora?</p>
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setJustCreated(null)} className="px-4 py-2 text-sm font-bold border rounded-md hover:bg-gray-100">
-                Agora não
-              </button>
-              <BlackButton onClick={() => { setEmailCoupon(justCreated); setJustCreated(null); }}>
-                Enviar por e-mail
-              </BlackButton>
-            </div>
+      {justCreated && !emailCoupon && (
+        <Dialog
+          labelledBy={createdTitleId}
+          onClose={() => setJustCreated(null)}
+          className="w-full max-w-sm space-y-4 rounded-lg bg-white p-6 shadow-xl"
+        >
+          <p id={createdTitleId} className="text-sm font-semibold">Cupom {justCreated.code} criado. Quer enviar este cupom por e-mail para os clientes agora?</p>
+          <div className="flex flex-wrap justify-end gap-3">
+            <button type="button" onClick={() => setJustCreated(null)} className="h-12 rounded-md border border-black/25 px-4 text-sm font-bold hover:bg-black/5">
+              Agora não
+            </button>
+            <BlackButton onClick={() => { setEmailCoupon(justCreated); setJustCreated(null); }}>
+              Enviar por e-mail
+            </BlackButton>
           </div>
-        </div>,
-        document.body
+        </Dialog>
+      )}
+
+      {confirm && confirmText && (
+        <Dialog
+          labelledBy={confirmTitleId}
+          onClose={() => !working && setConfirm(null)}
+          className="w-full max-w-md rounded-[18px] bg-white p-6"
+        >
+          <h2 id={confirmTitleId} className="text-[20px] font-bold text-black">{confirmText.title}</h2>
+          {confirmText.body && <p className="mt-2 text-[14px] text-shio-muted">{confirmText.body}</p>}
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setConfirm(null)}
+              disabled={working}
+              className="h-11 rounded-full border border-black/15 px-6 text-sm font-medium text-black transition hover:border-black"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={runConfirmed}
+              disabled={working}
+              className={`h-11 rounded-full px-6 text-sm font-medium text-white transition disabled:opacity-40 ${confirmText.danger ? 'bg-shio-danger hover:bg-shio-danger-hover' : 'bg-black hover:bg-black/80'}`}
+            >
+              {working ? 'Salvando...' : confirmText.submit}
+            </button>
+          </div>
+        </Dialog>
       )}
 
       {emailCoupon && (
         <CouponEmailModal coupon={emailCoupon} onClose={() => setEmailCoupon(null)} />
       )}
+
+      <p ref={noticeRef} tabIndex={-1} role="status" className="sr-only">{notice?.text}</p>
     </AdminPanel>
   );
 }

@@ -78,8 +78,9 @@ export default function ReviewForm({
         )}
         <button
           type="submit"
-          disabled={!rating || submitting}
-          className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40"
+          disabled={!rating}
+          aria-disabled={submitting || undefined}
+          className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40 aria-disabled:bg-black/40"
         >
           {submitting ? 'Enviando...' : submitLabel}
         </button>

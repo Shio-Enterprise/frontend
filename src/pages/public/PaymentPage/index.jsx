@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import PublicLayout from "../../../components/layout/public/PublicLayout";
-import { Icon, PageMarker } from "../../../components/ui/ShioDesign";
+import { Icon } from "../../../components/ui/ShioDesign";
 import { getAccessToken } from "../../../lib/authToken";
 import { useCart } from "../../../context/CartContext";
 
@@ -26,7 +26,7 @@ const apiErrorMessage = (data, response, fallback) => {
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 const PixLogo = () => (
-  <svg viewBox="0 0 48 48" className="h-12 w-12" fill="none">
+  <svg viewBox="0 0 48 48" className="h-12 w-12" fill="none" aria-hidden="true">
     <path d="M17.5 6.5L24 0L30.5 6.5L24 13L17.5 6.5Z" fill="black" />
     <path d="M41.5 17.5L48 24L41.5 30.5L35 24L41.5 17.5Z" fill="black" />
     <path d="M30.5 41.5L24 48L17.5 41.5L24 35L30.5 41.5Z" fill="black" />
@@ -37,7 +37,7 @@ const PixLogo = () => (
 );
 
 const CreditCardIcon = () => (
-  <svg viewBox="0 0 56 40" className="h-11 w-14" fill="none">
+  <svg viewBox="0 0 56 40" className="h-11 w-14" fill="none" aria-hidden="true">
     <rect width="56" height="40" rx="5" fill="black" />
     <rect y="11" width="56" height="11" fill="#222" />
     <rect x="6" y="27" width="14" height="7" rx="2" fill="#444" />
@@ -48,31 +48,55 @@ const CreditCardIcon = () => (
 
 // ─── Step card ────────────────────────────────────────────────────────────────
 
-function StepCard({ number, title, active, onClick, children }) {
+// Cabeçalho da etapa = título com botão (padrão sanfona): aria-expanded diz se está aberta.
+function StepCard({ number, total, title, active, onClick, headerRef, children }) {
+  const panelId = `payment-step-${number}`;
   return (
     <div className="rounded-[16px] border border-black/10">
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex w-full items-center gap-4 px-5 py-4 text-left"
-      >
-        <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[14px] font-bold ${
-            active ? "bg-black text-white" : "bg-black/10 text-shio-muted"
-          }`}
+      <h2>
+        <button
+          ref={headerRef}
+          type="button"
+          onClick={onClick}
+          aria-expanded={active}
+          aria-controls={panelId}
+          className="flex w-full items-center gap-4 rounded-[16px] px-5 py-4 text-left"
         >
-          {number}
-        </span>
-        <h2
-          className={`text-[18px] font-black uppercase tracking-widest ${
-            active ? "text-black" : "text-shio-muted"
-          }`}
-        >
-          {title}
-        </h2>
-      </button>
+          <span
+            aria-hidden="true"
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[14px] font-bold ${
+              active ? "bg-black text-white" : "bg-black/10 text-shio-muted"
+            }`}
+          >
+            {number}
+          </span>
+          <span className="sr-only">{`Etapa ${number} de ${total}: ${title}`}</span>
+          <span
+            aria-hidden="true"
+            className={`text-[18px] font-black uppercase tracking-widest ${
+              active ? "text-black" : "text-shio-muted"
+            }`}
+          >
+            {title}
+          </span>
+          {/* Seta: pista de aberto/fechado que não depende de cor (alto contraste). */}
+          <svg
+            data-chevron
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`ml-auto h-5 w-5 shrink-0 transition-transform ${active ? "rotate-180" : ""}`}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+      </h2>
       {active && (
-        <div className="border-t border-black/10 px-5 pb-6 pt-4">
+        <div id={panelId} className="border-t border-black/10 px-5 pb-6 pt-4">
           {children}
         </div>
       )}
@@ -80,12 +104,25 @@ function StepCard({ number, title, active, onClick, children }) {
   );
 }
 
+const brl = (value) => `R$ ${Number(value).toFixed(2)}`;
+
 // ─── PaymentPage ──────────────────────────────────────────────────────────────
 
 const PaymentPage = () => {
   const { refreshCart } = useCart();
+  const location = useLocation();
+  // Sem login não há endereços nem checkout: mostra o aviso para entrar.
+  const [isGuest] = useState(() => !getAccessToken());
 
   const [activeStep, setActiveStep] = useState(0);
+  const stepHeaders = useRef([]);
+  // Foco só muda quando o usuário avança pelo botão (não no carregamento).
+  const goToStep = (step) => {
+    setActiveStep(step);
+    stepHeaders.current[step]?.focus();
+  };
+  // Anúncio para leitor de tela: ação do usuário + valores da cotação.
+  const [actionMessage, setActionMessage] = useState("");
 
   // Cart
   const [cart, setCart] = useState(null);
@@ -121,6 +158,18 @@ const PaymentPage = () => {
   const [retryReady, setRetryReady] = useState(true);
   const [quoteInvalidated, setQuoteInvalidated] = useState(false);
   const checkoutInFlight = useRef(false);
+  // "Finalizar" fica travado durante o envio e o foco cairia no início da página:
+  // ao terminar, o foco vai para a mensagem que explica o resultado.
+  const wasSubmitting = useRef(false);
+  const attemptMessageRef = useRef(null);
+  const checkoutErrorRef = useRef(null);
+  const freightErrorRef = useRef(null);
+  const couponErrorRef = useRef(null);
+  const couponInputRef = useRef(null);
+  const couponRemoveRef = useRef(null);
+  // Aplicar/remover cupom troca o botão e recalcula a cotação: o foco espera o resultado e vai
+  // para "Remover" (aplicado), para o erro (recusado) ou para o campo (removido) (#64).
+  const couponFocusPending = useRef(false);
   const retryTimer = useRef(null);
   const quoteRetryTimer = useRef(null);
   const quoteRetryReadyRef = useRef(true);
@@ -213,10 +262,11 @@ const PaymentPage = () => {
   }, []);
 
   useEffect(() => {
+    if (isGuest) return;
     fetchCart().finally(() => setCartLoading(false));
     fetchAddresses().finally(() => setAddressesLoading(false));
     fetchProfile();
-  }, [fetchCart, fetchAddresses, fetchProfile]);
+  }, [isGuest, fetchCart, fetchAddresses, fetchProfile]);
 
   useEffect(() => {
     if (
@@ -358,6 +408,7 @@ const PaymentPage = () => {
     setCalculationError((error) => (error?.retryable ? error : null));
     setConfirmedQuoteId(null);
     setQuoteInvalidated(false);
+    setActionMessage(code ? "" : "Cupom removido.");
     setAppliedCoupon(code);
   };
 
@@ -367,19 +418,22 @@ const PaymentPage = () => {
     if (
       !code ||
       code === appliedCoupon ||
+      couponDisabled ||
       cartUpdating ||
       submitting ||
       checkoutAttempt
     )
       return;
     setCouponError(null);
+    couponFocusPending.current = true;
     changeCoupon(code);
   };
 
   const handleRemoveCoupon = () => {
-    if (cartUpdating || submitting || checkoutAttempt) return;
+    if (couponDisabled || cartUpdating || submitting || checkoutAttempt) return;
     setCouponInput("");
     setCouponError(null);
+    couponFocusPending.current = true;
     if (appliedCoupon) changeCoupon("");
   };
 
@@ -389,10 +443,11 @@ const PaymentPage = () => {
     setQuoteInvalidated(false);
     setCalculationError((error) => (error?.retryable ? error : null));
     setConfirmedQuoteId(null);
+    setActionMessage("");
     setSelectedAddressId(id);
   };
 
-  const handleQtyChange = async (itemId, newQty) => {
+  const handleQtyChange = async (itemId, newQty, productName) => {
     if (
       cartUpdating ||
       submitting ||
@@ -401,7 +456,7 @@ const PaymentPage = () => {
     )
       return;
     if (newQty < 1) {
-      handleRemove(itemId);
+      handleRemove(itemId, productName);
       return;
     }
     const token = getAccessToken();
@@ -424,6 +479,7 @@ const PaymentPage = () => {
         throw new Error("Não foi possível atualizar a quantidade.");
       await fetchCart();
       refreshCart();
+      setActionMessage(`Quantidade de ${productName}: ${newQty}.`);
     } catch (error) {
       setCheckoutError(error.message);
     } finally {
@@ -431,7 +487,7 @@ const PaymentPage = () => {
     }
   };
 
-  const handleRemove = async (itemId) => {
+  const handleRemove = async (itemId, productName) => {
     if (
       cartUpdating ||
       submitting ||
@@ -454,6 +510,9 @@ const PaymentPage = () => {
       if (!response.ok) throw new Error("Não foi possível remover o produto.");
       await fetchCart();
       refreshCart();
+      setActionMessage(`${productName} removido do pedido.`);
+      // O botão some com o item: foco vai para o título da etapa.
+      stepHeaders.current[2]?.focus();
     } catch (error) {
       setCheckoutError(error.message);
     } finally {
@@ -611,6 +670,24 @@ const PaymentPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (submitting) {
+      wasSubmitting.current = true;
+      return;
+    }
+    if (!wasSubmitting.current) return;
+    wasSubmitting.current = false;
+    const active = document.activeElement;
+    if (active && active !== document.body && !active.disabled) return;
+    (
+      attemptMessageRef.current ??
+      checkoutErrorRef.current ??
+      freightErrorRef.current ??
+      couponErrorRef.current ??
+      stepHeaders.current[2]
+    )?.focus();
+  }, [submitting]);
+
   const quoteExpired =
     freightData?.shipping_quote_id &&
     expiredQuoteId === freightData.shipping_quote_id;
@@ -653,6 +730,27 @@ const PaymentPage = () => {
     freightLoading ||
     Boolean(checkoutAttempt) ||
     !quoteRetryReady;
+  useEffect(() => {
+    if (!couponFocusPending.current) return;
+    if (couponError) {
+      couponFocusPending.current = false;
+      couponErrorRef.current?.focus();
+      return;
+    }
+    if (calculationError) {
+      couponFocusPending.current = false;
+      couponInputRef.current?.focus();
+      return;
+    }
+    if (!hasCalculation || couponDisabled) return;
+    couponFocusPending.current = false;
+    (appliedCoupon ? couponRemoveRef.current : couponInputRef.current)?.focus();
+  }, [couponError, calculationError, hasCalculation, couponDisabled, appliedCoupon]);
+
+  const quoteMessage = hasCalculation
+    ? `${discountCouponCode && discount > 0 ? `Cupom ${discountCouponCode} aplicado: desconto de ${brl(discount)}. ` : ""}Frete: ${FRETE === 0 ? "grátis" : brl(FRETE)}. Total: ${brl(total)}.`
+    : "";
+  const liveMessage = [actionMessage, quoteMessage].filter(Boolean).join(" ");
   const selectedAddress = selectedAddressId
     ? {
         ...addresses.find((a) => a.id === selectedAddressId),
@@ -662,13 +760,52 @@ const PaymentPage = () => {
 
   return (
     <PublicLayout>
-      <PageMarker name="PaymentPage" />
 
       <section className="mx-auto max-w-[480px] px-4 py-10 lg:max-w-[1120px] lg:px-6 lg:py-16">
         <h1 className="mb-8 text-[28px] font-black uppercase tracking-wider text-black lg:text-[36px]">
           Pagamento
         </h1>
+        <p
+          role="status"
+          aria-atomic="true"
+          data-testid="payment-live"
+          className="sr-only"
+        >
+          {liveMessage}
+        </p>
 
+        {isGuest ? (
+          <div className="rounded-[16px] border border-black/10 px-5 py-8 text-center">
+            <h2 className="text-[18px] font-black uppercase tracking-widest text-black">
+              Entre para finalizar a compra
+            </h2>
+            <p className="mt-3 text-[14px] text-shio-muted">
+              Para escolher o endereço de entrega e pagar, entre na sua conta ou crie uma.
+            </p>
+            <div className="mx-auto mt-6 flex max-w-[360px] flex-col gap-3">
+              <Link
+                to="/login"
+                state={{ from: location }}
+                className="flex h-12 items-center justify-center rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85"
+              >
+                Entrar
+              </Link>
+              <Link
+                to="/signup"
+                className="flex h-12 items-center justify-center rounded-full border border-black/20 text-[14px] font-bold text-black transition hover:bg-black/5"
+              >
+                Criar conta
+              </Link>
+              <Link
+                to="/cart"
+                className="flex min-h-11 items-center justify-center text-[13px] font-semibold text-shio-muted underline underline-offset-2 hover:text-black"
+              >
+                Voltar ao carrinho
+              </Link>
+            </div>
+          </div>
+        ) : (
+        <>
         {userProfile && (!userProfile.phone_number || !userProfile.cpf) && (
           <Link
             to="/my-account"
@@ -701,9 +838,11 @@ const PaymentPage = () => {
           {/* ── Step 1: ENTREGA ── */}
           <StepCard
             number={1}
+            total={3}
             title="Entrega"
             active={activeStep === 0}
             onClick={() => setActiveStep(0)}
+            headerRef={(el) => { stepHeaders.current[0] = el; }}
           >
             <div className="space-y-4">
               {addressesLoading ? (
@@ -724,7 +863,8 @@ const PaymentPage = () => {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <fieldset className="space-y-3">
+                  <legend className="sr-only">Endereço de entrega</legend>
                   {addresses.map((addr) => (
                     <label
                       key={addr.id}
@@ -770,7 +910,7 @@ const PaymentPage = () => {
                     <Icon name="plus" className="h-4 w-4" />
                     Adicionar outro endereço
                   </Link>
-                </div>
+                </fieldset>
               )}
 
               {/* Freight info */}
@@ -783,7 +923,7 @@ const PaymentPage = () => {
                   ) : freightLoading ? (
                     <span className="text-shio-muted">Calculando frete...</span>
                   ) : freightError ? (
-                    <span className="text-[#cc0000]">{freightError}</span>
+                    <span role="alert" className="text-shio-danger">{freightError}</span>
                   ) : hasCalculation ? (
                     <div className="flex items-center justify-between">
                       <span className="text-shio-muted">
@@ -807,7 +947,7 @@ const PaymentPage = () => {
                   cartUpdating ||
                   submitting
                 }
-                onClick={() => setActiveStep(1)}
+                onClick={() => goToStep(1)}
                 className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/35"
               >
                 Continuar para Pagamento
@@ -818,9 +958,11 @@ const PaymentPage = () => {
           {/* ── Step 2: PAGAMENTO ── */}
           <StepCard
             number={2}
+            total={3}
             title="Pagamento"
             active={activeStep === 1}
             onClick={() => setActiveStep(1)}
+            headerRef={(el) => { stepHeaders.current[1] = el; }}
           >
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -841,9 +983,9 @@ const PaymentPage = () => {
               </p>
               <button
                 type="button"
-                onClick={() => setActiveStep(2)}
+                onClick={() => goToStep(2)}
                 disabled={!hasCalculation || cartUpdating || submitting}
-                className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85"
+                className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/35"
               >
                 Revisar Pedido
               </button>
@@ -853,9 +995,11 @@ const PaymentPage = () => {
           {/* ── Step 3: REVISÃO ── */}
           <StepCard
             number={3}
+            total={3}
             title="Revisão"
             active={activeStep === 2}
             onClick={() => setActiveStep(2)}
+            headerRef={(el) => { stepHeaders.current[2] = el; }}
           >
             {cartLoading ? (
               <p className="py-4 text-center text-[14px] text-shio-muted">
@@ -863,9 +1007,9 @@ const PaymentPage = () => {
               </p>
             ) : (
               <div className="space-y-5">
-                <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-shio-muted">
+                <h3 className="text-[12px] font-semibold uppercase tracking-[0.18em] text-shio-muted">
                   Resumo da compra
-                </p>
+                </h3>
 
                 {/* Address summary */}
                 {selectedAddress && (
@@ -888,7 +1032,7 @@ const PaymentPage = () => {
 
                 {/* Items */}
                 {hasUnavailableItems && (
-                  <p className="rounded-[10px] bg-[#fff5f5] px-4 py-3 text-[13px] font-semibold text-[#cc0000]">
+                  <p className="rounded-[10px] bg-[#fff5f5] px-4 py-3 text-[13px] font-semibold text-shio-danger">
                     {unavailableItems.length === 1
                       ? "Um item não está mais disponível para compra."
                       : `${unavailableItems.length} itens não estão mais disponíveis para compra.`}{" "}
@@ -896,15 +1040,17 @@ const PaymentPage = () => {
                     finalizar a compra.
                   </p>
                 )}
-                <div className="rounded-[12px] bg-[#f7f7f7] p-4 space-y-4">
+                <ul
+                  aria-label="Itens do pedido"
+                  className="rounded-[12px] bg-[#f7f7f7] p-4 space-y-4"
+                >
                   {items.map((item) => {
                     const unavailable = item.is_sellable === false;
+                    const itemId = item.variation_id ?? item.id;
                     return (
-                      <div
-                        key={item.variation_id ?? item.id}
-                        className={`flex gap-3 ${unavailable ? "opacity-60" : ""}`}
-                      >
-                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[8px] bg-[#e8e8e8]">
+                      <li key={itemId} className="flex gap-3">
+                        {/* Só a foto esmaece: o texto do item indisponível mantém o contraste. */}
+                        <div className={`h-16 w-16 shrink-0 overflow-hidden rounded-[8px] bg-[#e8e8e8] ${unavailable ? "opacity-60" : ""}`}>
                           {productImages[item.product_id] && (
                             <img
                               src={productImages[item.product_id]}
@@ -915,20 +1061,18 @@ const PaymentPage = () => {
                         </div>
                         <div className="flex flex-1 flex-col gap-0.5 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="truncate text-[14px] font-bold text-black">
+                            <p className="break-words text-[14px] font-bold text-black">
                               {item.product_name}
                             </p>
                             <button
+                              type="button"
                               onClick={() =>
-                                handleRemove(item.variation_id ?? item.id)
+                                handleRemove(itemId, item.product_name)
                               }
                               aria-label={`Remover ${item.product_name}`}
-                              disabled={
-                                submitting ||
-                                cartUpdating ||
-                                Boolean(checkoutAttempt)
-                              }
-                              className="shrink-0 text-[#cc0000] transition hover:text-[#990000]"
+                              disabled={Boolean(checkoutAttempt)}
+                              aria-disabled={submitting || cartUpdating || undefined}
+                              className="-m-3 flex h-11 w-11 shrink-0 items-center justify-center text-shio-danger transition hover:text-shio-danger-hover disabled:opacity-40 aria-disabled:opacity-40"
                             >
                               <Icon name="trash" className="h-4 w-4" />
                             </button>
@@ -939,14 +1083,18 @@ const PaymentPage = () => {
                             </p>
                           )}
                           {unavailable && (
-                            <p className="text-[12px] font-semibold text-[#cc0000]">
+                            <p className="text-[12px] font-semibold text-shio-danger">
                               Indisponível para compra
                             </p>
                           )}
-                          <div className="mt-1 flex items-center justify-between">
+                          <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3">
                             {item.is_promotion_active && (
                               <p className="text-sm text-shio-muted">
-                                <s>R$ {Number(item.base_price).toFixed(2)}</s> —{" "}
+                                <s>
+                                  <span className="sr-only">Preço original: </span>
+                                  R$ {Number(item.base_price).toFixed(2)}
+                                </s>{" "}
+                                —{" "}
                                 {Math.round(
                                   (1 -
                                     Number(item.unit_price) /
@@ -959,53 +1107,57 @@ const PaymentPage = () => {
                             <p className="text-[15px] font-bold text-black">
                               R$ {Number(item.unit_price).toFixed(2)}
                             </p>
-                            <div className="flex items-center gap-2">
+                            <div
+                              role="group"
+                              aria-label={`Quantidade de ${item.product_name}`}
+                              className="-mr-2 flex items-center"
+                            >
                               <button
+                                type="button"
                                 onClick={() =>
                                   handleQtyChange(
-                                    item.variation_id ?? item.id,
+                                    itemId,
                                     item.quantity - 1,
+                                    item.product_name,
                                   )
                                 }
                                 aria-label={`Diminuir quantidade de ${item.product_name}`}
-                                disabled={
-                                  unavailable ||
-                                  submitting ||
-                                  cartUpdating ||
-                                  Boolean(checkoutAttempt)
-                                }
-                                className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5 disabled:opacity-40"
+                                disabled={unavailable || Boolean(checkoutAttempt)}
+                                aria-disabled={submitting || cartUpdating || undefined}
+                                className="group flex h-11 w-11 items-center justify-center text-black disabled:opacity-40 aria-disabled:opacity-40"
                               >
-                                <Icon name="minus" className="h-3 w-3" />
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 group-hover:bg-black/5">
+                                  <Icon name="minus" className="h-3 w-3" />
+                                </span>
                               </button>
                               <span className="w-5 text-center text-[14px] font-medium text-black">
                                 {item.quantity}
                               </span>
                               <button
+                                type="button"
                                 onClick={() =>
                                   handleQtyChange(
-                                    item.variation_id ?? item.id,
+                                    itemId,
                                     item.quantity + 1,
+                                    item.product_name,
                                   )
                                 }
                                 aria-label={`Aumentar quantidade de ${item.product_name}`}
-                                disabled={
-                                  unavailable ||
-                                  submitting ||
-                                  cartUpdating ||
-                                  Boolean(checkoutAttempt)
-                                }
-                                className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 text-black hover:bg-black/5 disabled:opacity-40"
+                                disabled={unavailable || Boolean(checkoutAttempt)}
+                                aria-disabled={submitting || cartUpdating || undefined}
+                                className="group flex h-11 w-11 items-center justify-center text-black disabled:opacity-40 aria-disabled:opacity-40"
                               >
-                                <Icon name="plus" className="h-3 w-3" />
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-black/20 group-hover:bg-black/5">
+                                  <Icon name="plus" className="h-3 w-3" />
+                                </span>
                               </button>
                             </div>
                           </div>
                         </div>
-                      </div>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
 
                 {/* Coupon */}
                 <form onSubmit={handleApplyCoupon} className="space-y-2">
@@ -1024,27 +1176,31 @@ const PaymentPage = () => {
                       placeholder="Digite o código"
                       autoComplete="off"
                       onChange={(event) => setCouponInput(event.target.value)}
-                      disabled={couponDisabled || Boolean(appliedCoupon)}
+                      ref={couponInputRef}
+                      readOnly={couponDisabled || Boolean(appliedCoupon)}
+                      aria-disabled={couponDisabled || Boolean(appliedCoupon) || undefined}
                       aria-invalid={Boolean(couponError)}
                       aria-describedby={
                         couponError ? "coupon-error" : undefined
                       }
-                      className="h-11 min-w-0 flex-1 rounded-full border border-black/20 px-4 text-[14px] uppercase text-black outline-none focus:border-black disabled:bg-black/5"
+                      className="h-11 min-w-0 flex-1 rounded-full border border-black/20 px-4 text-[14px] uppercase text-black outline-none focus:border-black aria-disabled:bg-black/5"
                     />
                     {appliedCoupon ? (
                       <button
                         type="button"
+                        ref={couponRemoveRef}
                         onClick={handleRemoveCoupon}
-                        disabled={couponDisabled}
-                        className="h-11 shrink-0 rounded-full border border-black/20 px-5 text-[13px] font-bold text-black transition hover:bg-black/5 disabled:opacity-50"
+                        aria-disabled={couponDisabled || undefined}
+                        className="h-11 shrink-0 rounded-full border border-black/20 px-5 text-[13px] font-bold text-black transition hover:bg-black/5 aria-disabled:opacity-50"
                       >
                         Remover
                       </button>
                     ) : (
                       <button
                         type="submit"
-                        disabled={couponDisabled || !couponInput.trim()}
-                        className="h-11 shrink-0 rounded-full bg-black px-5 text-[13px] font-bold text-white transition hover:bg-black/85 disabled:bg-black/35"
+                        disabled={!couponInput.trim()}
+                        aria-disabled={couponDisabled || undefined}
+                        className="h-11 shrink-0 rounded-full bg-black px-5 text-[13px] font-bold text-white transition hover:bg-black/85 disabled:bg-black/35 aria-disabled:bg-black/35"
                       >
                         Aplicar
                       </button>
@@ -1053,8 +1209,10 @@ const PaymentPage = () => {
                   {couponError && (
                     <p
                       id="coupon-error"
+                      ref={couponErrorRef}
+                      tabIndex={-1}
                       role="alert"
-                      className="text-[13px] text-[#cc0000]"
+                      className="text-[13px] text-shio-danger"
                     >
                       {couponError}
                     </p>
@@ -1109,7 +1267,12 @@ const PaymentPage = () => {
                 </div>
 
                 {freightError && (
-                  <p role="alert" className="text-[13px] text-[#cc0000]">
+                  <p
+                    ref={freightErrorRef}
+                    tabIndex={-1}
+                    role="alert"
+                    className="text-[13px] text-shio-danger"
+                  >
                     {freightError}
                   </p>
                 )}
@@ -1122,9 +1285,10 @@ const PaymentPage = () => {
                       )}
                       .
                     </p>
-                    <label className="flex items-start gap-2">
+                    <label className="flex min-h-6 cursor-pointer items-start gap-3">
                       <input
                         type="checkbox"
+                        className="mt-0.5 h-5 w-5 shrink-0 accent-black"
                         checked={quoteConfirmed}
                         disabled={submitting}
                         onChange={(event) =>
@@ -1140,7 +1304,11 @@ const PaymentPage = () => {
                   </div>
                 )}
                 {checkoutError && !checkoutAttempt && (
-                  <p className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-[#cc0000]">
+                  <p
+                    ref={checkoutErrorRef}
+                    tabIndex={-1}
+                    role="alert"
+                    className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-shio-danger">
                     {checkoutError}
                   </p>
                 )}
@@ -1180,7 +1348,7 @@ const PaymentPage = () => {
         </div>
         {checkoutAttempt && (
           <div className="mt-4 space-y-3 rounded-[12px] border border-black/20 p-4 text-[14px]">
-            <p role="status">
+            <p ref={attemptMessageRef} tabIndex={-1} role="status">
               {checkoutError ||
                 "Há uma tentativa de checkout registrada. Consulte o resultado antes de iniciar outra compra."}
             </p>
@@ -1203,6 +1371,8 @@ const PaymentPage = () => {
           >
             Recalcular cotação
           </button>
+        )}
+        </>
         )}
       </section>
     </PublicLayout>

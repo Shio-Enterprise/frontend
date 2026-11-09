@@ -1,12 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import apiClient from '../../lib/axios';
 import { useWishlist } from '../../context/WishlistContext';
-
-export function PageMarker({ name }) {
-  return <span className="sr-only">{name}</span>;
-}
 
 export function Icon({ name, className = 'h-5 w-5' }) {
   const common = {
@@ -49,6 +45,8 @@ export function Icon({ name, className = 'h-5 w-5' }) {
     shield: <path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3Zm0 5v5m0 3h.01" />,
     star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
     download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5 5 5 5-5m-5 5V3" />,
+    eye: <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></>,
+    eyeOff: <><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.4 3.3M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" /></>,
   };
 
   return <svg {...common}>{paths[name]}</svg>;
@@ -110,15 +108,17 @@ export function ProductCard({ product }) {
   return (
     <article className="group">
       <div className="relative">
-        <Link to={`/product/${productId}`} className={`relative block overflow-hidden rounded-[16px] bg-[#f0efed] ${unavailable ? 'opacity-60' : ''}`}>
+        {/* O nome vem do link, e não da imagem: produto sem foto (ou com foto quebrada) também tem nome. */}
+        <Link to={`/product/${productId}`} aria-label={unavailable ? `${product.name} (indisponível)` : product.name} className="relative block overflow-hidden rounded-[16px] bg-[#f0efed]">
         {product.image ? (
-          <img src={product.image} alt={product.name}
-            className="aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+          <img src={product.image} alt=""
+            className={`aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.03] ${unavailable ? 'opacity-60' : ''}`}
             onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
         ) : null}
         <div className={`aspect-square w-full bg-[#f0efed] ${product.image ? 'hidden' : 'block'}`} />
+        {/* Só a foto fica apagada: o selo precisa manter o contraste. */}
         {unavailable && (
-          <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">
+          <span className="absolute left-3 top-3 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
             Indisponível
           </span>
         )}
@@ -154,7 +154,7 @@ export function ProductCard({ product }) {
 }
 
 export function SectionTitle({ children }) {
-  return <h2 className="text-center text-[32px] font-black uppercase leading-tight text-black md:text-[42px]">{children}</h2>;
+  return <h2 className="text-center text-[26px] font-black uppercase leading-tight text-black sm:text-[32px] md:text-[42px]">{children}</h2>;
 }
 
 export function ViewAllButton({ to = '/category/all' }) {
@@ -176,12 +176,13 @@ export function NewsletterBand() {
   const [status, setStatus] = useState(null); // 'success' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const emailRef = useRef(null);
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isEmailValid || !consent) return;
+    if (!isEmailValid || !consent || submitting) return;
 
     setSubmitting(true);
     setErrorMessage('');
@@ -193,6 +194,8 @@ export function NewsletterBand() {
       setStatus('success');
       setEmail('');
       setConsent(false);
+      // O botão dá lugar à mensagem: o foco fica no campo, que continua na tela (#64).
+      emailRef.current?.focus();
       setTimeout(() => setStatus(null), 4000);
     } catch (err) {
       setStatus('error');
@@ -218,15 +221,17 @@ export function NewsletterBand() {
             <label className="flex h-12 items-center gap-3 rounded-full bg-white px-5 text-shio-muted">
               <Icon name="mail" className="h-5 w-5 shrink-0" />
               <input
+                ref={emailRef}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Digite seu e-mail"
+                aria-label="E-mail para receber novidades"
                 className="w-full bg-transparent text-sm text-black outline-none placeholder:text-shio-placeholder"
               />
             </label>
             {status === 'success' ? (
-              <p className="h-12 flex items-center justify-center rounded-full bg-shio-success text-sm font-medium text-white">
+              <p role="status" className="h-12 flex items-center justify-center rounded-full bg-shio-success text-sm font-medium text-white">
                 Inscrito com sucesso!
               </p>
             ) : (
@@ -242,13 +247,14 @@ export function NewsletterBand() {
                 </label>
                 <button
                   type="submit"
-                  disabled={!isEmailValid || !consent || submitting}
-                  className="h-12 rounded-full bg-white text-sm font-medium text-black transition hover:bg-[#f2f2f2] disabled:opacity-40"
+                  disabled={!isEmailValid || !consent}
+                  aria-disabled={submitting || undefined}
+                  className="h-12 rounded-full bg-white text-sm font-medium text-black transition hover:bg-[#f2f2f2] disabled:opacity-40 aria-disabled:opacity-40"
                 >
                   Inscrever-se
                 </button>
                 {status === 'error' && (
-                  <p className="text-center text-xs text-red-400">{errorMessage}</p>
+                  <p role="alert" className="text-center text-xs text-red-400">{errorMessage}</p>
                 )}
               </>
             )}
@@ -286,7 +292,7 @@ export function AdminTitle({ eyebrow, title, action }) {
     <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
       <div>
         {eyebrow && <p className="text-[15px] text-shio-muted">{eyebrow}</p>}
-        <h1 className="mt-2 text-[34px] font-black uppercase leading-tight text-black md:text-[42px]">{title}</h1>
+        <h1 className="mt-2 text-[26px] font-black uppercase leading-tight text-black sm:text-[34px] md:text-[42px]">{title}</h1>
       </div>
       {action}
     </div>
@@ -294,7 +300,7 @@ export function AdminTitle({ eyebrow, title, action }) {
 }
 
 export function BlackButton({ as: Component, children, to, className = '', type = 'button', ...props }) {
-  const classes = `inline-flex h-12 items-center justify-center gap-3 rounded-[10px] bg-black px-7 text-sm font-bold uppercase text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/45 ${className}`;
+  const classes = `inline-flex h-12 items-center justify-center gap-3 rounded-[10px] bg-black px-7 text-sm font-bold uppercase text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/45 aria-disabled:cursor-not-allowed aria-disabled:bg-black/45 ${className}`;
   if (Component) {
     return <Component to={to} className={classes} {...props}>{children}</Component>;
   }
@@ -304,12 +310,20 @@ export function BlackButton({ as: Component, children, to, className = '', type 
   return <button type={type} className={classes} {...props}>{children}</button>;
 }
 
+// Menu "⋯" das tabelas do admin (#64): abre com o foco no primeiro item, setas/Home/End
+// navegam, Esc fecha e devolve o foco ao botão, Tab fecha e segue a ordem normal da página.
 export function ActionMenu({ label, items }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
   const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const menuId = useId();
 
   const handleOpen = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
@@ -317,26 +331,72 @@ export function ActionMenu({ label, items }) {
     setOpen(true);
   };
 
-  const close = () => setOpen(false);
+  // Devolve o foco ao botão antes da ação: um modal aberto pela ação guarda o botão como
+  // origem e volta para ele ao fechar (o item do menu já não existe nessa hora).
+  const close = () => {
+    setOpen(false);
+    buttonRef.current?.focus();
+  };
+
+  // Sem espaço abaixo do botão (último item da lista, rodapé da tela), o menu abre para cima.
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current || !buttonRef.current) return;
+    const menuHeight = menuRef.current.offsetHeight;
+    const rect = buttonRef.current.getBoundingClientRect();
+    if (rect.bottom + 4 + menuHeight > window.innerHeight) {
+      const top = Math.max(8, rect.top - 4 - menuHeight);
+      setPos((current) => (current.top === top ? current : { ...current, top }));
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    menuRef.current?.querySelector('[role="menuitem"]:not([aria-disabled="true"])')?.focus({ preventScroll: true });
+  }, [open]);
+
+  const handleMenuKeyDown = (event) => {
+    const options = [...menuRef.current.querySelectorAll('[role="menuitem"]')];
+    const index = options.indexOf(document.activeElement);
+    const moveTo = (next) => {
+      event.preventDefault();
+      options[(next + options.length) % options.length]?.focus();
+    };
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    } else if (event.key === 'Tab') {
+      // Sem preventDefault: o Tab segue a partir do botão, como se o menu não existisse.
+      close();
+    } else if (event.key === 'ArrowDown') moveTo(index + 1);
+    else if (event.key === 'ArrowUp') moveTo(index - 1);
+    else if (event.key === 'Home') moveTo(0);
+    else if (event.key === 'End') moveTo(options.length - 1);
+  };
 
   const menu = open ? (
     <>
-      <div className="fixed inset-0 z-40" onClick={close} />
+      <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
       <div
-        className="fixed z-50 w-52 overflow-hidden rounded-[14px] border border-black/10 bg-white shadow-lg"
+        ref={menuRef}
+        id={menuId}
+        role="menu"
+        aria-label={label}
+        onKeyDown={handleMenuKeyDown}
+        className="fixed z-50 w-52 rounded-[14px] border border-black/10 bg-white p-1.5 shadow-lg"
         style={{ top: pos.top, right: pos.right }}
       >
         {items.map((item, i) => {
           if (item.separator) {
-            return <div key={item.key ?? `sep-${i}`} className="mx-4 border-t border-black/10" />;
+            return <div key={item.key ?? `sep-${i}`} role="separator" className="mx-3 my-1 border-t border-black/10" />;
           }
-          const cls = `flex w-full items-center gap-2.5 px-5 py-3 text-[15px] text-left ${item.danger
+          // Sem overflow-hidden na caixa (cortava o contorno de foco): o padding da caixa abriga o contorno.
+          const cls = `flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-4 py-3 text-[15px] text-left ${item.danger
               ? 'font-semibold text-shio-danger hover:bg-[#fff5f5]'
               : 'text-black hover:bg-[#f5f5f5]'
             }`;
           if (item.to) {
             return (
-              <Link key={item.label} to={item.to} className={cls} onClick={close}>
+              <Link key={item.label} role="menuitem" tabIndex={-1} to={item.to} className={cls} onClick={close}>
                 {item.icon && <Icon name={item.icon} className="h-4 w-4 shrink-0" />}
                 {item.label}
               </Link>
@@ -346,10 +406,16 @@ export function ActionMenu({ label, items }) {
             <button
               key={item.label}
               type="button"
+              role="menuitem"
+              tabIndex={-1}
               className={`${cls}${item.disabled ? ' cursor-not-allowed opacity-40 hover:bg-transparent' : ''}`}
-              disabled={item.disabled}
+              aria-disabled={item.disabled || undefined}
               title={item.title}
-              onClick={() => { close(); item.onClick?.(); }}
+              onClick={() => {
+                if (item.disabled) return;
+                close();
+                item.onClick?.();
+              }}
             >
               {item.icon && <Icon name={item.icon} className="h-4 w-4 shrink-0" />}
               {item.label}
@@ -366,8 +432,11 @@ export function ActionMenu({ label, items }) {
         ref={buttonRef}
         type="button"
         aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
         onClick={handleOpen}
-        className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-black/5"
+        className="flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-black/5"
       >
         <Icon name="more" className="h-6 w-6" />
       </button>

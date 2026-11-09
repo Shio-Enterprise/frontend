@@ -1,7 +1,8 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import HomePage from './index';
+import { axe } from 'vitest-axe';
 
 vi.mock('../../../components/layout/public/PublicLayout', () => ({
   default: ({ children }) => <main>{children}</main>,
@@ -72,7 +73,7 @@ describe('HomePage', () => {
       : Promise.resolve(response([30])));
     const view = mount();
     await screen.findByText('Produto 30');
-    expect(section('Mais vendidos').getByText('Carregando...')).toBeInTheDocument();
+    expect(section('Mais vendidos').getByRole('status')).toHaveTextContent('Carregando...');
     const resolveOld = resolveRanking;
     view.unmount();
     fetch.mock.calls.forEach(([, options]) => expect(options.signal.aborted).toBe(true));
@@ -108,5 +109,62 @@ describe('HomePage — carrossel', () => {
     mount();
     act(() => vi.advanceTimersByTime(15000));
     expect(slideTrack().style.transform).toBe('translateX(-0%)');
+    expect(screen.getByRole('button', { name: 'Retomar troca automática dos slides' })).toBeInTheDocument();
+  });
+
+  it('o botão de pausar para e retoma a troca (#64)', () => {
+    stubReducedMotion(false);
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Pausar troca automática dos slides' }));
+    // O clique deixa o foco no botão; tira o foco para testar só a pausa.
+    act(() => document.activeElement.blur());
+    act(() => vi.advanceTimersByTime(15000));
+    expect(slideTrack().style.transform).toBe('translateX(-0%)');
+    fireEvent.click(screen.getByRole('button', { name: 'Retomar troca automática dos slides' }));
+    act(() => document.activeElement.blur());
+    act(() => vi.advanceTimersByTime(5000));
+    expect(slideTrack().style.transform).toBe('translateX(-100%)');
+  });
+
+  it('não troca com o mouse ou o foco em cima do carrossel (#64)', () => {
+    stubReducedMotion(false);
+    mount();
+    const carousel = screen.getByRole('region', { name: 'Destaques' });
+    fireEvent.mouseEnter(carousel);
+    act(() => vi.advanceTimersByTime(10000));
+    expect(slideTrack().style.transform).toBe('translateX(-0%)');
+    fireEvent.mouseLeave(carousel);
+    act(() => screen.getByRole('button', { name: 'Próximo slide' }).focus());
+    act(() => vi.advanceTimersByTime(10000));
+    expect(slideTrack().style.transform).toBe('translateX(-0%)');
+  });
+
+  it('só o slide visível fica para o leitor de tela e a bolinha atual é marcada (#64)', () => {
+    stubReducedMotion(true);
+    mount();
+    expect(screen.getByRole('img', { name: 'Pré-venda do Novo Drop — Shio' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Deus primeiro. Negócios depois.' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ir para slide 2' }));
+    expect(screen.getByRole('button', { name: 'Ir para slide 2' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('button', { name: 'Ir para slide 1' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('img', { name: 'Deus primeiro. Negócios depois.' })).toBeInTheDocument();
+  });
+});
+
+// Testes mínimos da #64: vitest-axe no carrossel e na Home com produtos carregados.
+describe('HomePage — acessibilidade (axe)', () => {
+  it('carrossel e vitrines sem violações, também depois de trocar de slide', async () => {
+    const { container } = mount();
+    await screen.findByText('Produto 25');
+    expect(await axe(container)).toHaveNoViolations();
+    act(() => { screen.getByRole('button', { name: 'Próximo slide' }).click(); });
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('sem violações com erro ao carregar os produtos', async () => {
+    fetch.mockResolvedValue({ ok: false, json: async () => ({}) });
+    const { container } = mount();
+    expect(await screen.findAllByRole('alert')).toHaveLength(2);
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

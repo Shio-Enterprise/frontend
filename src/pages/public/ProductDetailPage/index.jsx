@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
-import { PageMarker, ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
+import { ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
 import ProductReviews from '../../../components/reviews/ProductReviews';
 import SizeGuideTable from '../../../components/product/SizeGuideTable';
 import { getAccessToken } from '../../../lib/authToken';
@@ -160,7 +160,7 @@ const ProductDetailContent = ({ id }) => {
   if (loading) {
     return (
       <PublicLayout>
-        <div className="flex min-h-[400px] items-center justify-center text-shio-muted">Carregando produto...</div>
+        <div role="status" className="flex min-h-[400px] items-center justify-center text-shio-muted">Carregando produto...</div>
       </PublicLayout>
     );
   }
@@ -169,7 +169,7 @@ const ProductDetailContent = ({ id }) => {
     return (
       <PublicLayout>
         <div className="mx-auto max-w-[1240px] px-6 py-20 text-center">
-          <p className="text-[24px] font-bold text-black">Produto não encontrado.</p>
+          <h1 className="text-[24px] font-bold text-black">Produto não encontrado.</h1>
           <Link to="/" className="mt-6 inline-block text-black underline">Voltar à loja</Link>
         </div>
       </PublicLayout>
@@ -194,15 +194,16 @@ const ProductDetailContent = ({ id }) => {
 
   return (
     <PublicLayout>
-      <PageMarker name="ProductDetailPage" />
 
       <section className="mx-auto max-w-[1240px] px-6 py-16">
-        <div className="grid gap-8 lg:grid-cols-[570px_1fr]">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[570px_minmax(0,1fr)]">
           {/* Image gallery */}
-          <div className="grid gap-5 sm:grid-cols-[132px_1fr]">
-            <div className="grid grid-cols-3 gap-4 sm:grid-cols-1">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-[132px_minmax(0,1fr)]">
+            <div role={images.length > 0 ? 'group' : undefined} aria-label={images.length > 0 ? 'Fotos do produto' : undefined} className="grid grid-cols-3 gap-4 sm:grid-cols-1">
               {images.length > 0 ? images.map((img, i) => (
-                <button key={img.id} onClick={() => setActiveImage(i)}
+                <button key={img.id} type="button" onClick={() => setActiveImage(i)}
+                  aria-label={`Ver foto ${i + 1} de ${images.length}`}
+                  aria-pressed={i === activeImage}
                   className={`overflow-hidden rounded-[2px] bg-[#f0efed] ring-2 transition ${i === activeImage ? 'ring-black' : 'ring-transparent'}`}>
                   <img src={img.image} alt="" className="aspect-square w-full object-cover" />
                 </button>
@@ -261,24 +262,27 @@ const ProductDetailContent = ({ id }) => {
             {product.variations?.length > 0 && (
               <div className="border-b border-black/10 py-6">
                 <div className="mb-4 flex items-center justify-between gap-4">
-                  <p className="text-[15px] text-shio-muted">Tamanho e cor</p>
+                  <p id="variacoes-titulo" className="text-[15px] text-shio-muted">Tamanho e cor</p>
                   {product.size_guide && (
                     <a href="#tabela-de-medidas" className="text-[13px] font-semibold text-black underline">
                       Tabela de medidas
                     </a>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div role="group" aria-labelledby="variacoes-titulo" className="flex flex-wrap gap-3">
                   {product.variations.map((v) => (
-                    <button key={v.id} onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
-                      className={`min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-shio-muted hover:bg-black/10 ${v.stock_quantity === 0 ? 'opacity-40' : ''}`}`}>
+                    // Esgotado continua clicável (abre o "Avise-me"); a borda tracejada substitui a
+                    // transparência, que deixava o texto sem contraste.
+                    <button key={v.id} type="button" aria-pressed={v.id === selectedVarId}
+                      onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
+                      className={`min-h-11 min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-shio-muted hover:bg-black/10 ${v.stock_quantity === 0 ? 'border border-dashed border-shio-muted' : ''}`}`}>
                       {v.size}{v.color ? ` / ${v.color}` : ''}
                       {v.stock_quantity === 0 && ' (esgotado)'}
                     </button>
                   ))}
                 </div>
                 {selectedVariation && (
-                  <p className="mt-3 text-[13px] text-shio-muted">
+                  <p aria-live="polite" className="mt-3 text-[13px] text-shio-muted">
                     {selectedVariation.stock_quantity > 0
                       ? `${selectedVariation.stock_quantity} unidades em estoque`
                       : 'Sem estoque para este tamanho'}
@@ -296,7 +300,7 @@ const ProductDetailContent = ({ id }) => {
                     <Link to="/my-stock-alerts" className="text-sm text-black underline">Ver meus avisos</Link>
                   </div>
                 ) : (
-                  <button onClick={handleStockAlert} disabled={alertSaving}
+                  <button type="button" onClick={handleStockAlert} disabled={alertSaving}
                     className="inline-flex h-12 w-full items-center justify-center rounded-full bg-black text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40">
                     Avise-me quando chegar
                   </button>
@@ -306,12 +310,12 @@ const ProductDetailContent = ({ id }) => {
             ) : (
               <>
             <div className="mt-6 grid gap-4 sm:grid-cols-[160px_1fr]">
-              <div className="flex h-12 items-center justify-between rounded-full bg-[#f0f0f0] px-4">
-                <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10">−</button>
-                <span className="text-[16px] font-semibold">{quantity}</span>
-                <button onClick={() => setQuantity((q) => q + 1)} className="flex h-8 w-8 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10">+</button>
+              <div role="group" aria-label="Quantidade" className="flex h-12 items-center justify-between rounded-full bg-[#f0f0f0] px-1">
+                <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1} aria-label="Diminuir quantidade" className="flex h-11 w-11 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10 disabled:opacity-40"><span aria-hidden="true">−</span></button>
+                <span aria-live="polite" className="text-[16px] font-semibold">{quantity}</span>
+                <button type="button" onClick={() => setQuantity((q) => q + 1)} aria-label="Aumentar quantidade" className="flex h-11 w-11 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10"><span aria-hidden="true">+</span></button>
               </div>
-              <button onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || totalStock === 0 || notSellable}
+              <button type="button" onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || totalStock === 0 || notSellable}
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40">
                 {addingToCart ? 'Adicionando...' : notSellable ? 'Indisponível' : 'Adicionar ao Carrinho'}
               </button>
@@ -320,11 +324,14 @@ const ProductDetailContent = ({ id }) => {
               </>
             )}
 
-            {cartMsg && (
-              <p className={`mt-3 text-sm font-semibold ${cartMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
-                {cartMsg.text}
-              </p>
-            )}
+            {/* Região sempre montada: o leitor de tela só anuncia mudanças numa região que já existia. */}
+            <div role="status" className={cartMsg ? 'mt-3' : ''}>
+              {cartMsg && (
+                <p className={`text-sm font-semibold ${cartMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
+                  {cartMsg.text}
+                </p>
+              )}
+            </div>
 
             {product.drop?.name && (
               <Link to={`/drop/${product.drop.slug}`} className="mt-4 inline-block text-[14px] text-shio-muted underline hover:text-black/70">

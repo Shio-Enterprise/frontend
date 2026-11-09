@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { PageMarker, ProductCard } from '../../../components/ui/ShioDesign';
+import { ProductCard } from '../../../components/ui/ShioDesign';
 import apiClient from '../../../lib/axios';
 import { getAccessToken } from '../../../lib/authToken';
 import { useWishlist } from '../../../context/WishlistContext';
@@ -62,7 +62,6 @@ function FavoritesList() {
   const items = state.items;
   return (
     <AccountLayout>
-      <PageMarker name="MyFavoritesPage" />
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[28px] font-black uppercase text-black md:text-[34px]">Meus favoritos</h1>
         <span className="shrink-0 text-sm text-shio-muted">{state.count} {state.count === 1 ? 'item' : 'itens'}</span>
@@ -81,6 +80,7 @@ function FavoritesList() {
           <Link to="/category/all" className="mt-6 inline-flex rounded-full bg-black px-6 py-3 text-sm font-semibold text-white">Explorar produtos</Link>
         </div>
       ) : null}
+      {items.length > 0 && <h2 className="sr-only">Produtos favoritos</h2>}
       <div className="mt-8 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3" aria-busy={state.loading}>
         {items.map((product) => <ProductCard key={product.id} product={product} />)}
       </div>

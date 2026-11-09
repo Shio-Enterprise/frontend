@@ -26,12 +26,12 @@ function ReviewModal({ order, mode, onClose, onDone }) {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const canSubmit = (!rejecting || message.trim() !== '') && !submitting;
+  const canSubmit = (!rejecting || message.trim() !== '');
   const cancelsOrder = ['PAID', 'PREPARING'].includes(order.status);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -52,6 +52,7 @@ function ReviewModal({ order, mode, onClose, onDone }) {
       onSubmit={handleSubmit}
       error={error}
       canSubmit={canSubmit}
+      submitting={submitting}
       danger={rejecting}
       submitLabel={submitting ? 'Salvando...' : rejecting ? 'Recusar' : 'Aprovar'}
     >
@@ -97,12 +98,11 @@ function CompleteModal({ order, onClose, onDone }) {
     && refundedAt
     && (!direct || reason)
     && (!direct || reason !== 'OTHER' || note.trim() !== '')
-    && (!shipped || itemsReturned)
-    && !submitting;
+    && (!shipped || itemsReturned);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -128,6 +128,7 @@ function CompleteModal({ order, onClose, onDone }) {
       onSubmit={handleSubmit}
       error={error}
       canSubmit={canSubmit}
+      submitting={submitting}
       submitLabel={submitting ? 'Registrando...' : 'Registrar'}
     >
       <p className="mt-2 text-[14px] text-black/70">
@@ -228,7 +229,7 @@ export default function AdminRefundPanel({ order, onChanged }) {
     setModal(null);
     onChanged();
   };
-  const buttonClass = 'h-10 rounded-lg border border-black/25 px-4 text-sm font-bold transition hover:border-black';
+  const buttonClass = 'h-11 rounded-lg border border-black/25 px-4 text-sm font-bold transition hover:border-black';
 
   return (
     <div className="border-b border-black/10 px-7 py-5">

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { Icon } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -36,6 +36,7 @@ const NewAddressPage = () => {
   };
 
   const lookupCep = useCallback(async () => {
+    if (cepLoading) return;
     const clean = form.zip_code.replace(/\D/g, '');
     if (clean.length !== 8) return;
     setCepLoading(true);
@@ -56,10 +57,11 @@ const NewAddressPage = () => {
     } finally {
       setCepLoading(false);
     }
-  }, [form.zip_code]);
+  }, [form.zip_code, cepLoading]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -92,7 +94,6 @@ const NewAddressPage = () => {
 
   return (
     <AccountLayout>
-      <PageMarker name="NewAddressPage" />
 
       <div className="mb-9 flex items-center gap-5">
         <Link to={returnTo} aria-label="Voltar" className="text-black transition hover:text-black/60">
@@ -118,6 +119,10 @@ const NewAddressPage = () => {
           <label className="block">
             <span className="text-[15px] uppercase text-shio-muted">CEP</span>
             <input
+              autoComplete="postal-code"
+              inputMode="numeric"
+              aria-invalid={cepError ? true : undefined}
+              aria-describedby={cepError ? 'cep-error' : undefined}
               value={form.zip_code}
               onChange={handleCepChange}
               onBlur={lookupCep}
@@ -129,18 +134,19 @@ const NewAddressPage = () => {
           <button
             type="button"
             onClick={lookupCep}
-            disabled={cepLoading}
-            className="mt-auto h-12 rounded-full bg-black px-6 text-[14px] font-bold text-white disabled:bg-black/40"
+            aria-disabled={cepLoading || undefined}
+            className="mt-auto h-12 rounded-full bg-black px-6 text-[14px] font-bold text-white aria-disabled:bg-black/40"
           >
-            {cepLoading ? '...' : 'Buscar'}
+            {cepLoading ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
-        {cepError && <p className="text-[13px] text-shio-danger">{cepError}</p>}
+        {cepError && <p id="cep-error" role="alert" className="text-[13px] text-shio-danger">{cepError}</p>}
 
         <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
           <label className="block">
             <span className="text-[15px] uppercase text-shio-muted">Rua / Logradouro</span>
             <input
+              autoComplete="address-line1"
               value={form.street}
               onChange={(e) => set('street', e.target.value)}
               placeholder="Rua..."
@@ -163,6 +169,7 @@ const NewAddressPage = () => {
         <label className="block">
           <span className="text-[15px] uppercase text-shio-muted">Complemento <span className="normal-case font-normal text-shio-muted">(opcional)</span></span>
           <input
+            autoComplete="address-line2"
             value={form.complement}
             onChange={(e) => set('complement', e.target.value)}
             placeholder="Apto, Bloco..."
@@ -174,6 +181,7 @@ const NewAddressPage = () => {
           <label className="block sm:col-span-1">
             <span className="text-[15px] uppercase text-shio-muted">Bairro</span>
             <input
+              autoComplete="address-level3"
               value={form.neighborhood}
               onChange={(e) => set('neighborhood', e.target.value)}
               placeholder="Bairro"
@@ -184,6 +192,7 @@ const NewAddressPage = () => {
           <label className="block sm:col-span-1">
             <span className="text-[15px] uppercase text-shio-muted">Cidade</span>
             <input
+              autoComplete="address-level2"
               value={form.city}
               onChange={(e) => set('city', e.target.value)}
               placeholder="Cidade"
@@ -194,6 +203,7 @@ const NewAddressPage = () => {
           <label className="block sm:col-span-1">
             <span className="text-[15px] uppercase text-shio-muted">UF</span>
             <input
+              autoComplete="address-level1"
               value={form.state}
               onChange={(e) => set('state', e.target.value.toUpperCase().slice(0, 2))}
               placeholder="SP"
@@ -214,7 +224,7 @@ const NewAddressPage = () => {
         </label>
 
         {saveError && (
-          <p className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-[#cc0000]">{saveError}</p>
+          <p role="alert" className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-shio-danger">{saveError}</p>
         )}
 
         <div className="flex gap-4 pt-4">
@@ -224,8 +234,8 @@ const NewAddressPage = () => {
           </Link>
           <button
             type="submit"
-            disabled={saving}
-            className="flex h-12 flex-1 items-center justify-center gap-3 rounded-full bg-black text-[14px] font-bold uppercase text-white transition hover:bg-black/85 disabled:bg-black/40">
+            aria-disabled={saving || undefined}
+            className="flex h-12 flex-1 items-center justify-center gap-3 rounded-full bg-black text-[14px] font-bold uppercase text-white transition hover:bg-black/85 aria-disabled:bg-black/40">
             <Icon name="save" className="h-5 w-5" />
             {saving ? 'Salvando...' : 'Salvar Endereço'}
           </button>

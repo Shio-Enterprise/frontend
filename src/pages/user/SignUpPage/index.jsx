@@ -4,7 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useGoogleAuth } from '../../../context/useGoogleAuth';
 import { GoogleLoginButton } from '../../../context/GoogleLoginButton';
 import logo from '../../../assets/logo/logo.svg';
-import { PageMarker } from '../../../components/ui/ShioDesign';
+import PasswordInput from '../../../components/ui/PasswordInput';
 
 const SignUpPage = () => {
   const navigate = useNavigate();
@@ -22,6 +22,7 @@ const SignUpPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -39,7 +40,6 @@ const SignUpPage = () => {
 
   return (
     <main className="grid min-h-screen place-items-center bg-white px-6 py-16 font-inter text-black">
-      <PageMarker name="SignUpPage" />
       <section className="w-full max-w-[380px] text-center">
         <img src={logo} alt="Shio Logo" className="mx-auto h-auto w-[190px]" />
         <p className="mt-1 text-[18px] text-shio-muted">Crie sua conta</p>
@@ -60,29 +60,40 @@ const SignUpPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 text-left">
-          <input
-            type="text"
-            placeholder="Nome Completo"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
-          />
-          <input
-            type="email"
-            placeholder="E-mail"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
-          />
-          <input
-            type="password"
-            placeholder="Senha"
+          <div>
+            <label htmlFor="signup-name" className="mb-1.5 block text-sm font-medium text-black">
+              Nome completo
+            </label>
+            <input
+              id="signup-name"
+              type="text"
+              autoComplete="name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+            />
+          </div>
+          <div>
+            <label htmlFor="signup-email" className="mb-1.5 block text-sm font-medium text-black">
+              E-mail
+            </label>
+            <input
+              id="signup-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+            />
+          </div>
+          <PasswordInput
+            label="Senha"
+            autoComplete="new-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
           />
           <label className="flex items-start gap-2 text-sm text-black/60">
             <input
@@ -95,15 +106,16 @@ const SignUpPage = () => {
           </label>
           <button
             type="submit"
-            disabled={isLoading || isGoogleLoading}
-            className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 mt-2"
+            disabled={isGoogleLoading}
+            aria-disabled={isLoading || undefined}
+            className="w-full rounded-md bg-black p-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 aria-disabled:opacity-50 mt-2"
           >
             {isLoading ? 'Cadastrando...' : 'Criar Conta'}
           </button>
         </form>
 
         {displayedError && (
-          <p className="mt-4 rounded-[12px] border border-red-100 bg-red-50 p-3 text-[13px] text-red-600">
+          <p role="alert" className="mt-4 rounded-[12px] border border-red-100 bg-red-50 p-3 text-[13px] text-shio-danger">
             {displayedError}
           </p>
         )}

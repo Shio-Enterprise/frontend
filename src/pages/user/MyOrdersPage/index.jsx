@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { Icon } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 import { REFUND_STATUS } from '../../../lib/refunds';
 import { EXCHANGE_STATUS } from '../../../lib/exchanges';
@@ -43,7 +43,6 @@ const MyOrdersPage = () => {
 
   return (
     <AccountLayout>
-      <PageMarker name="MyOrdersPage" />
       <h1 className="mb-7 text-[34px] font-black uppercase text-black">Meus Pedidos</h1>
 
       {loading ? (

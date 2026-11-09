@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { PageMarker } from '../../../components/ui/ShioDesign';
 import { cancelStockAlert, listStockAlerts, stockAlertErrorMessage } from '../../../lib/stockAlertsApi';
 
 const formatDate = (iso) => {
@@ -44,7 +43,6 @@ export default function MyStockAlertsPage() {
 
   return (
     <AccountLayout>
-      <PageMarker name="MyStockAlertsPage" />
       <h1 className="text-[28px] font-black uppercase text-black md:text-[34px]">Meus avisos</h1>
       {error ? (
         <div className="py-10 text-center">

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
-import { ActionMenu, AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { ActionMenu, AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
+import DrawerShell from '../../../components/admin/DrawerShell';
 
 // ─── Customer Profile Drawer ──────────────────────────────────────────────────
 
@@ -18,26 +19,21 @@ function CustomerProfileDrawer({ id }) {
     : customer?.email?.[0]?.toUpperCase() ?? '?';
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-30 flex w-[360px] flex-col border-l border-black/10 bg-white shadow-2xl">
-      <div className="flex shrink-0 items-center justify-between border-b border-black/10 px-7 py-5">
-        <h2 className="text-[18px] font-black uppercase tracking-wide">Perfil do Cliente</h2>
-        <button onClick={() => navigate('/admin/customers')} aria-label="Fechar" className="rounded-full p-1 transition hover:bg-black/5">
-          <Icon name="close" className="h-5 w-5" />
-        </button>
-      </div>
+    <DrawerShell title="Perfil do Cliente" onClose={() => navigate('/admin/customers')}>
 
       {loading ? (
         <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
       ) : customer ? (
         <>
-          <div className="flex-1 overflow-y-auto">
+          {/* Rola por dentro sem nenhum botão: tabIndex para rolar pelo teclado. */}
+          <div role="region" aria-label="Dados do cliente" tabIndex={0} className="flex-1 overflow-y-auto focus-visible:outline-offset-[-2px]!">
             {/* Avatar + name */}
             <div className="flex items-center justify-between border-b border-black/10 px-7 py-5">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f0f0f0] text-[16px] font-bold text-shio-muted">
+              <div className="flex min-w-0 items-center gap-4">
+                <div aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f0f0f0] text-[16px] font-bold text-shio-muted">
                   {initials}
                 </div>
-                <span className="text-[16px] font-semibold text-black">{customer.name || '—'}</span>
+                <span className="min-w-0 break-words text-[16px] font-semibold text-black">{customer.name || '—'}</span>
               </div>
               <span className="rounded-full bg-black/5 px-3 py-1 text-[12px] font-semibold text-shio-muted">Cadastrado</span>
             </div>
@@ -96,9 +92,9 @@ function CustomerProfileDrawer({ id }) {
             {customer.order_history?.length > 0 && (
               <div className="px-7 py-5">
                 <h3 className="mb-4 text-[13px] font-bold uppercase text-shio-muted">Histórico de Pedidos</h3>
-                <div className="space-y-2">
+                <ul className="space-y-2">
                   {customer.order_history.map((order) => (
-                    <div key={order.id} className="flex items-center justify-between rounded-[8px] border border-black/10 px-4 py-3 text-[13px]">
+                    <li key={order.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-[8px] border border-black/10 px-4 py-3 text-[13px]">
                       <span className="font-semibold text-black">#{String(order.id).substring(0, 8).toUpperCase()}</span>
                       <span className="text-shio-muted">{formatDate(order.created_at)}</span>
                       <span className="flex flex-col items-start gap-1 text-shio-muted">
@@ -108,18 +104,18 @@ function CustomerProfileDrawer({ id }) {
                         )}
                       </span>
                       <span className="font-semibold">{formatCurrency(order.total_amount)}</span>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             )}
           </div>
 
           <div className="flex shrink-0 gap-3 border-t border-black/10 p-5">
-            <button onClick={() => navigate('/admin/customers')} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black">
+            <button type="button" onClick={() => navigate('/admin/customers')} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black">
               Fechar
             </button>
-            <button onClick={() => navigate(`/admin/customers/${id}/edit`)} className="flex h-11 flex-1 items-center justify-center rounded-[8px] bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85">
+            <button type="button" onClick={() => navigate(`/admin/customers/${id}/edit`)} className="flex h-11 flex-1 items-center justify-center rounded-[8px] bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85">
               Editar Cliente
             </button>
           </div>
@@ -127,7 +123,7 @@ function CustomerProfileDrawer({ id }) {
       ) : (
         <div className="flex flex-1 items-center justify-center text-shio-muted">Cliente não encontrado.</div>
       )}
-    </aside>
+    </DrawerShell>
   );
 }
 
@@ -158,8 +154,8 @@ const CustomersPage = () => {
   };
 
   const renderContent = () => {
-    if (loading) return <div className="p-10 text-center text-shio-muted">Carregando clientes...</div>;
-    if (error) return <div className="p-10 text-center text-shio-danger">Erro ao carregar clientes. Tente novamente.</div>;
+    if (loading) return <div role="status" className="p-10 text-center text-shio-muted">Carregando clientes...</div>;
+    if (error) return <div role="alert" className="p-10 text-center text-shio-danger">Erro ao carregar clientes. Tente novamente.</div>;
 
     const allCustomers = apiResponse
       ? Array.isArray(apiResponse) ? apiResponse : apiResponse.results ?? []
@@ -168,33 +164,36 @@ const CustomersPage = () => {
     if (allCustomers.length === 0) return <div className="p-10 text-center text-shio-muted">Nenhum cliente encontrado.</div>;
 
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-left">
-          <thead className="bg-[#f0f0f0] text-[20px] text-shio-muted">
+      // No celular a tabela rola para o lado dentro da caixa; a página não rola (#64, decisão B).
+      // tabIndex/role/nome: para dar para rolar pelo teclado.
+      <div role="region" aria-label="Tabela de clientes" tabIndex={0} className="overflow-x-auto focus-visible:outline-offset-[-2px]!">
+        <table className="min-w-full whitespace-nowrap text-left">
+          <caption className="sr-only">Clientes</caption>
+          <thead className="bg-[#f0f0f0] text-[14px] text-shio-muted md:text-[20px]">
             <tr>
-              <th className="px-10 py-6 font-normal">Cliente</th>
-              <th className="px-10 py-6 font-normal">Contato</th>
-              <th className="px-10 py-6 font-normal">Pedidos</th>
-              <th className="px-10 py-6 font-normal">Total gasto</th>
-              <th className="px-10 py-6 font-normal">Cadastrado em</th>
-              <th className="px-10 py-6 text-right font-normal">Ações</th>
+              <th className="px-4 py-4 font-normal md:px-10 md:py-6">Cliente</th>
+              <th className="px-4 py-4 font-normal md:px-10 md:py-6">Contato</th>
+              <th className="px-4 py-4 font-normal md:px-10 md:py-6">Pedidos</th>
+              <th className="px-4 py-4 font-normal md:px-10 md:py-6">Total gasto</th>
+              <th className="px-4 py-4 font-normal md:px-10 md:py-6">Cadastrado em</th>
+              <th className="px-4 py-4 text-right font-normal md:px-10 md:py-6">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-black/10">
             {allCustomers.map((customer) => (
               <tr key={customer.id} className={selectedId === customer.id ? 'bg-[#f9f9f9]' : ''}>
-                <td className="px-10 py-8 text-[20px] font-semibold text-black">
+                <td className="px-4 py-4 text-[14px] font-semibold text-black md:px-10 md:py-8 md:text-[20px]">
                   {customer.name || '—'}
                 </td>
-                <td className="px-10 py-8 text-[20px] text-shio-muted">{customer.email}</td>
-                <td className="px-10 py-8 text-[20px] text-shio-muted">{customer.total_orders ?? 0}</td>
-                <td className="px-10 py-8 text-[20px] text-shio-muted">
+                <td className="px-4 py-4 text-[14px] text-shio-muted md:px-10 md:py-8 md:text-[20px]">{customer.email}</td>
+                <td className="px-4 py-4 text-[14px] text-shio-muted md:px-10 md:py-8 md:text-[20px]">{customer.total_orders ?? 0}</td>
+                <td className="px-4 py-4 text-[14px] text-shio-muted md:px-10 md:py-8 md:text-[20px]">
                   R$ {parseFloat(customer.total_spent || 0).toFixed(2)}
                 </td>
-                <td className="px-10 py-8 text-[20px] text-shio-muted">
+                <td className="px-4 py-4 text-[14px] text-shio-muted md:px-10 md:py-8 md:text-[20px]">
                   {formatDate(customer.created_at)}
                 </td>
-                <td className="px-10 py-8 text-right">
+                <td className="px-4 py-2 text-right md:px-10 md:py-8">
                   <ActionMenu
                     label={`Ações para ${customer.name || customer.email}`}
                     items={[
@@ -216,17 +215,18 @@ const CustomersPage = () => {
 
   return (
     <div>
-      <PageMarker name="CustomersPage" />
       <AdminTitle title="Clientes" />
 
       <AdminPanel className="overflow-hidden">
-        <div className="flex items-center justify-between gap-4 p-5">
-          <label className="flex h-12 max-w-[675px] flex-1 items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
-            <Icon name="search" className="h-5 w-5" />
+        <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <label className="flex h-12 min-w-0 max-w-[675px] flex-1 basis-56 items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
+            <Icon name="search" className="h-5 w-5 shrink-0" />
             <input
+              type="search"
+              aria-label="Buscar clientes por nome ou e-mail"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent text-[20px] outline-none placeholder:text-shio-placeholder"
+              className="h-full w-full min-w-0 bg-transparent text-[16px] outline-none placeholder:text-shio-placeholder md:text-[20px]"
               placeholder="Buscar por nome ou e-mail..."
             />
           </label>

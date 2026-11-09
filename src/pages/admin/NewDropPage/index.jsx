@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAccessToken } from '../../../lib/authToken';
-import { buildDropPayload, flattenApiError, submitDrop, validateDropForm } from '../../../lib/dropForm';
-import { AdminPanel, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { buildDropPayload, flattenApiError, submitDrop, validateDropFields } from '../../../lib/dropForm';
+import { AdminPanel, Icon } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -18,6 +18,14 @@ const NewDropPage = () => {
   const [banner, setBanner] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [errorField, setErrorField] = useState(null);
+  const errorId = useId();
+  const addBannerRef = useRef(null);
+  const endDateRef = useRef(null);
+  const maxQuantityRef = useRef(null);
+  const invalidProps = (field) => (errorField === field
+    ? { 'aria-invalid': true, 'aria-describedby': errorId }
+    : {});
   const [showSuccess, setShowSuccess] = useState(false);
   const bannerInputRef = useRef(null);
 
@@ -36,15 +44,21 @@ const NewDropPage = () => {
   const removeBanner = () => {
     if (banner) URL.revokeObjectURL(banner.preview);
     setBanner(null);
+    // O botão de remover some: o foco vai para "Adicionar banner", que aparece no lugar.
+    setTimeout(() => addBannerRef.current?.focus());
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
 
-    const validationError = validateDropForm({ launchDate, endDate, maxQuantity });
+    setErrorField(null);
+    const validationError = validateDropFields({ launchDate, endDate, maxQuantity });
     if (validationError) {
-      setError(validationError);
+      setError(validationError.message);
+      setErrorField(validationError.field);
+      (validationError.field === 'endDate' ? endDateRef : maxQuantityRef).current?.focus();
       return;
     }
 
@@ -79,17 +93,16 @@ const NewDropPage = () => {
 
   return (
     <div>
-      <PageMarker name="NewDropPage" />
 
       {showSuccess && (
-        <div className="mb-4 flex h-12 w-full items-center justify-center gap-3 rounded-[12px] bg-[#b6edc8] text-[14px] font-bold uppercase text-shio-success md:text-[16px]">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-shio-success">✓</span>
+        <div role="status" className="mb-4 flex h-12 w-full items-center justify-center gap-3 rounded-[12px] bg-[#b6edc8] text-[14px] font-bold uppercase text-shio-success md:text-[16px]">
+          <span aria-hidden="true" className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-shio-success">✓</span>
           Drop salvo com sucesso!
         </div>
       )}
 
       <div className="mb-6 flex items-center gap-4">
-        <Link to="/admin/drops" aria-label="Voltar para drops" className="text-black transition hover:text-black/60">
+        <Link to="/admin/drops" aria-label="Voltar para drops" className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-black transition hover:bg-black/5">
           <Icon name="arrowLeft" className="h-6 w-6 md:h-7 md:w-7" />
         </Link>
         <h1 className="text-[26px] font-black uppercase leading-tight text-black md:text-[42px]">Novo Drop</h1>
@@ -124,6 +137,8 @@ const NewDropPage = () => {
               <span className="text-[15px] uppercase text-shio-muted">Data de encerramento</span>
               <input
                 type="date"
+                ref={endDateRef}
+                {...invalidProps('endDate')}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="mt-3 h-11 w-full rounded-full border border-black/25 px-7 text-[14px] outline-none focus:border-black md:h-12 md:text-[16px]"
@@ -163,6 +178,8 @@ const NewDropPage = () => {
               type="number"
               min="1"
               step="1"
+              ref={maxQuantityRef}
+              {...invalidProps('maxQuantity')}
               value={maxQuantity}
               onChange={(e) => setMaxQuantity(e.target.value)}
               placeholder="Sem limite"
@@ -186,7 +203,9 @@ const NewDropPage = () => {
               ref={bannerInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
+              // Escondido de verdade: o botão ao lado é quem abre o seletor (o input sr-only era uma
+              // parada de Tab invisível e sem rótulo).
+              hidden
               onChange={handleBannerSelect}
             />
             {banner ? (
@@ -196,13 +215,14 @@ const NewDropPage = () => {
                   type="button"
                   onClick={removeBanner}
                   aria-label="Remover banner"
-                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black"
+                  className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full bg-black/75 text-white transition hover:bg-black"
                 >
                   <Icon name="close" className="h-4 w-4" />
                 </button>
               </div>
             ) : (
               <button
+                ref={addBannerRef}
                 type="button"
                 onClick={() => bannerInputRef.current?.click()}
                 className="mt-3 flex h-[88px] w-full items-center justify-center gap-3 rounded-[18px] border border-dashed border-black/25 text-[15px] text-shio-muted transition hover:border-black/50 hover:text-black/65"
@@ -213,7 +233,7 @@ const NewDropPage = () => {
             )}
           </div>
 
-          {error && <p className="text-center text-sm font-semibold text-shio-danger">{error}</p>}
+          {error && <p id={errorId} role="alert" className="text-center text-sm font-semibold text-shio-danger">{error}</p>}
 
           <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:justify-end">
             <Link
@@ -224,8 +244,8 @@ const NewDropPage = () => {
             </Link>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="inline-flex h-12 w-full items-center justify-center gap-4 rounded-full bg-black px-7 text-[15px] font-bold uppercase text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/45 sm:w-auto sm:min-w-[220px] md:rounded-[8px]"
+              aria-disabled={isSubmitting || undefined}
+              className="inline-flex h-12 w-full items-center justify-center gap-4 rounded-full bg-black px-7 text-[15px] font-bold uppercase text-white transition hover:bg-black/85 aria-disabled:cursor-not-allowed aria-disabled:bg-black/45 sm:w-auto sm:min-w-[220px] md:rounded-[8px]"
             >
               <Icon name="save" className="h-5 w-5" />
               {isSubmitting ? 'Salvando...' : 'Salvar drop'}

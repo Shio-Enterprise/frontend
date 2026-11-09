@@ -1,11 +1,31 @@
 import { useState, useEffect } from 'react';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { PageMarker } from '../../../components/ui/ShioDesign';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import apiClient from '../../../lib/axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+const PROFILE_FIELDS = ['name', 'phone_number', 'cpf'];
+const FIELD_INPUT_CLASS =
+  'mt-3 h-11 w-full rounded-full border px-5 text-[14px] outline-none focus:border-black lg:mt-5 lg:h-12 lg:text-base';
+
+const asText = (value) => (Array.isArray(value) ? value.join(' ') : String(value));
+
+// O /me responde { error, details: { campo: [mensagens] } }; o DRF puro
+// responde { campo: [mensagens] }. Erro de campo vai para o campo.
+const parseSaveError = (data) => {
+  const source = data?.details && typeof data.details === 'object' ? data.details : data ?? {};
+  const fieldErrors = {};
+  PROFILE_FIELDS.forEach((field) => {
+    if (source[field]) fieldErrors[field] = asText(source[field]);
+  });
+  if (Object.keys(fieldErrors).length > 0) {
+    return { fieldErrors, message: 'Revise os campos destacados.' };
+  }
+  const message = typeof data?.error === 'string' ? data.error : 'Não foi possível salvar. Tente de novo.';
+  return { fieldErrors, message };
+};
 
 const MyAccountPage = () => {
   const { data: me, loading } = useApi('/api/auth/me/');
@@ -15,6 +35,7 @@ const MyAccountPage = () => {
   const [cpf, setCpf] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [receives, setReceives] = useState(null);
   const [savingMarketing, setSavingMarketing] = useState(false);
@@ -34,6 +55,7 @@ const MyAccountPage = () => {
   }, []);
 
   const toggleMarketing = async () => {
+    if (savingMarketing) return;
     const previous = receives;
     setReceives(!previous);
     setSavingMarketing(true);
@@ -56,10 +78,36 @@ const MyAccountPage = () => {
     setCpf(me.cpf ?? '');
   }, [me]);
 
+  const editField = (field, setter) => (e) => {
+    setter(e.target.value);
+    if (fieldErrors[field]) {
+      setFieldErrors((errors) => {
+        const next = { ...errors };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
+  const fieldProps = (field) => ({
+    'aria-invalid': fieldErrors[field] ? true : undefined,
+    'aria-describedby': fieldErrors[field] ? `${field}-error` : undefined,
+    className: `${FIELD_INPUT_CLASS} ${fieldErrors[field] ? 'border-shio-danger' : 'border-black/20'}`,
+  });
+
+  const fieldError = (field) =>
+    fieldErrors[field] && (
+      <p id={`${field}-error`} className="mt-2 text-[13px] text-shio-danger">
+        {fieldErrors[field]}
+      </p>
+    );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setSaveMsg(null);
+    setFieldErrors({});
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE_URL}/api/auth/me/`, {
@@ -72,23 +120,23 @@ const MyAccountPage = () => {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const msg = Object.entries(data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join(' | ') || 'Falha ao salvar.';
-        throw new Error(msg);
+        const { fieldErrors: errors, message } = parseSaveError(data);
+        setFieldErrors(errors);
+        setSaveMsg({ type: 'error', text: message });
+        return;
       }
       setSaveMsg({ type: 'success', text: 'Dados salvos com sucesso!' });
-    } catch (err) {
-      setSaveMsg({ type: 'error', text: err.message });
+      // Só o sucesso some sozinho; o erro fica até a pessoa corrigir.
+      setTimeout(() => setSaveMsg((msg) => (msg?.type === 'success' ? null : msg)), 4000);
+    } catch {
+      setSaveMsg({ type: 'error', text: 'Não foi possível salvar. Tente de novo.' });
     } finally {
       setSaving(false);
-      setTimeout(() => setSaveMsg(null), 4000);
     }
   };
 
   return (
     <AccountLayout>
-      <PageMarker name="MyAccountPage" />
       <h1 className="mb-7 text-[34px] font-black uppercase text-black">Meus Dados</h1>
 
       {loading ? (
@@ -99,48 +147,67 @@ const MyAccountPage = () => {
           onSubmit={handleSubmit}
         >
           <div className="grid gap-x-20 gap-y-6 md:grid-cols-2">
-            <label className="block">
-              <span className="text-[14px] text-shio-muted lg:text-[20px]">Nome Completo</span>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-3 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black lg:mt-5 lg:h-12 lg:text-base"
-              />
-            </label>
+            <div>
+              <label className="block">
+                <span className="text-[14px] text-shio-muted lg:text-[20px]">Nome Completo</span>
+                <input
+                  autoComplete="name"
+                  value={name}
+                  onChange={editField('name', setName)}
+                  {...fieldProps('name')}
+                />
+              </label>
+              {fieldError('name')}
+            </div>
 
-            <label className="block">
-              <span className="text-[14px] text-shio-muted lg:text-[20px]">Telefone</span>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(11) 99999-9999"
-                className="mt-3 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black lg:mt-5 lg:h-12 lg:text-base"
-              />
-            </label>
+            <div>
+              <label className="block">
+                <span className="text-[14px] text-shio-muted lg:text-[20px]">Telefone</span>
+                <input
+                  type="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={editField('phone_number', setPhone)}
+                  placeholder="(11) 99999-9999"
+                  {...fieldProps('phone_number')}
+                />
+              </label>
+              {fieldError('phone_number')}
+            </div>
 
-            <label className="block">
-              <span className="text-[14px] text-shio-muted lg:text-[20px]">E-mail</span>
-              <input
-                value={me?.email ?? ''}
-                readOnly
-                className="mt-3 h-11 w-full rounded-full border border-black/20 bg-black/[0.03] px-5 text-[14px] outline-none lg:mt-5 lg:h-12 lg:text-base"
-              />
-              <span className="mt-2 block text-[12px] text-shio-muted">O e-mail não pode ser alterado.</span>
-            </label>
+            <div>
+              <label className="block">
+                <span className="text-[14px] text-shio-muted lg:text-[20px]">E-mail</span>
+                <input
+                  type="email"
+                  value={me?.email ?? ''}
+                  readOnly
+                  aria-describedby="email-readonly-hint"
+                  className="mt-3 h-11 w-full rounded-full border border-black/20 bg-black/[0.03] px-5 text-[14px] outline-none lg:mt-5 lg:h-12 lg:text-base"
+                />
+              </label>
+              <p id="email-readonly-hint" className="mt-2 text-[12px] text-shio-muted">O e-mail não pode ser alterado.</p>
+            </div>
 
-            <label className="block">
-              <span className="text-[14px] text-shio-muted lg:text-[20px]">CPF</span>
-              <input
-                value={cpf}
-                onChange={(e) => setCpf(e.target.value)}
-                placeholder="000.000.000-00"
-                className="mt-3 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black lg:mt-5 lg:h-12 lg:text-base"
-              />
-            </label>
+            <div>
+              <label className="block">
+                <span className="text-[14px] text-shio-muted lg:text-[20px]">CPF</span>
+                <input
+                  inputMode="numeric"
+                  value={cpf}
+                  onChange={editField('cpf', setCpf)}
+                  placeholder="000.000.000-00"
+                  {...fieldProps('cpf')}
+                />
+              </label>
+              {fieldError('cpf')}
+            </div>
           </div>
 
           {saveMsg && (
-            <p className={`mt-5 text-sm font-semibold ${saveMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
+            <p
+              role={saveMsg.type === 'success' ? 'status' : 'alert'}
+              className={`mt-5 text-sm font-semibold ${saveMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
               {saveMsg.text}
             </p>
           )}
@@ -148,8 +215,8 @@ const MyAccountPage = () => {
           <div className="mt-6 lg:mt-10">
             <button
               type="submit"
-              disabled={saving}
-              className="h-12 w-full rounded-full bg-black text-[13px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/40 lg:h-[62px] lg:rounded-[16px] lg:text-[18px]"
+              aria-disabled={saving || undefined}
+              className="h-12 w-full rounded-full bg-black text-[13px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 aria-disabled:bg-black/40 lg:h-[62px] lg:rounded-[16px] lg:text-[18px]"
             >
               {saving ? 'Salvando...' : 'Salvar Alterações'}
             </button>
@@ -169,16 +236,16 @@ const MyAccountPage = () => {
               role="switch"
               aria-checked={receives}
               aria-labelledby="marketing-switch-label"
-              disabled={savingMarketing}
+              aria-disabled={savingMarketing || undefined}
               onClick={toggleMarketing}
-              className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${receives ? 'bg-black' : 'bg-black/25'}`}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition aria-disabled:opacity-50 ${receives ? 'bg-black' : 'bg-black/25'}`}
             >
               <span
                 className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white transition-transform ${receives ? 'translate-x-5' : ''}`}
               />
             </button>
           </div>
-          {marketingError && <p className="mt-3 text-sm font-semibold text-shio-danger">{marketingError}</p>}
+          {marketingError && <p role="alert" className="mt-3 text-sm font-semibold text-shio-danger">{marketingError}</p>}
         </section>
       )}
     </AccountLayout>

@@ -1,13 +1,14 @@
 import { pricePayload, apiError, toSaoPauloInput } from '../../../components/admin/productForm';
 import VariationManager from '../../../components/admin/VariationManager';
 import { ProductPriceFields, VariationFields, MarginSummary } from '../../../components/admin/ProductFields';
-import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
-import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
+import Dialog from '../../../components/ui/Dialog';
+import DrawerShell from '../../../components/admin/DrawerShell';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -21,19 +22,15 @@ function ProductDetailDrawer({ id }) {
   const firstImage = product?.images?.[0]?.image ?? null;
 
   return (
-    <aside className="fixed inset-0 z-30 flex flex-col bg-white lg:inset-y-0 lg:left-auto lg:right-0 lg:w-[360px] lg:border-l lg:border-black/10 lg:shadow-2xl">
-      <div className="flex shrink-0 items-center justify-between border-b border-black/10 px-7 py-5">
-        <h2 className="text-[18px] font-black uppercase tracking-wide">Detalhes do Produto</h2>
-        <button onClick={() => navigate('/admin/products')} aria-label="Fechar" className="rounded-full p-1 transition hover:bg-black/5">
-          <Icon name="close" className="h-5 w-5" />
-        </button>
-      </div>
+    <DrawerShell title="Detalhes do Produto" onClose={() => navigate('/admin/products')}>
 
       {loading ? (
         <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
       ) : product ? (
         <>
-          <div className="flex-1 overflow-y-auto">
+          {/* Sem nada focável dentro: tabIndex deixa rolar pelo teclado. */}
+          {/* Contorno para dentro: a região ocupa a largura toda e o contorno de fora sairia da tela. */}
+          <div className="flex-1 overflow-y-auto" role="region" aria-label="Informações do produto" tabIndex={0} style={{ outlineOffset: '-4px' }}>
             <div className="aspect-square w-full bg-[#f0f0f0]">
               {firstImage && <img src={firstImage} alt={product.name} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
             </div>
@@ -102,7 +99,7 @@ function ProductDetailDrawer({ id }) {
       ) : (
         <div className="flex flex-1 items-center justify-center text-shio-muted">Produto não encontrado.</div>
       )}
-    </aside>
+    </DrawerShell>
   );
 }
 
@@ -117,6 +114,8 @@ function ProductEditDrawer({ id, refetchList }) {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const statusLabelId = useId();
+  const statusHintId = useId();
 
   if (!loading && product && !form) {
     setForm({
@@ -170,13 +169,7 @@ function ProductEditDrawer({ id, refetchList }) {
   };
 
   return (
-    <aside className="fixed inset-0 z-30 flex flex-col bg-white lg:inset-y-0 lg:left-auto lg:right-0 lg:w-[360px] lg:border-l lg:border-black/10 lg:shadow-2xl">
-      <div className="flex shrink-0 items-center justify-between border-b border-black/10 px-7 py-5">
-        <h2 className="text-[18px] font-black uppercase tracking-wide">Editar Produto</h2>
-        <button onClick={() => navigate(`/admin/products/${id}`)} aria-label="Fechar" className="rounded-full p-1 transition hover:bg-black/5">
-          <Icon name="close" className="h-5 w-5" />
-        </button>
-      </div>
+    <DrawerShell title="Editar Produto" onClose={() => navigate(`/admin/products/${id}`)}>
 
       {loading || !form ? (
         <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
@@ -191,18 +184,26 @@ function ProductEditDrawer({ id, refetchList }) {
 
             <div className="px-7 py-6 space-y-5">
               <div className="flex items-center justify-between">
-                <span className="text-[15px] font-semibold text-black">Status</span>
-                <div className="flex items-center gap-3">
-                  <span className={`text-[14px] font-semibold ${form.is_active ? 'text-shio-success' : 'text-shio-muted'}`}>
+                <span id={statusLabelId} className="text-[15px] font-semibold text-black">Status</span>
+                <div className="flex items-center gap-1">
+                  <span aria-hidden="true" className={`text-[14px] font-semibold ${form.is_active ? 'text-shio-success' : 'text-shio-muted'}`}>
                     {form.is_active ? 'Ativo' : 'Rascunho'}
                   </span>
+                  {/* Interruptor: o leitor de tela anuncia "Status, ligado/desligado"; a área de toque tem 44px. */}
                   <button
                     type="button"
+                    role="switch"
+                    aria-checked={form.is_active}
+                    aria-labelledby={statusLabelId}
+                    aria-describedby={statusHintId}
                     onClick={() => setForm((f) => ({ ...f, is_active: !f.is_active }))}
-                    className={`relative h-6 w-11 rounded-full transition-colors ${form.is_active ? 'bg-shio-success' : 'bg-black/20'}`}
+                    className="group flex h-11 w-14 items-center justify-center rounded-full"
                   >
-                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.is_active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    <span className={`relative block h-6 w-11 rounded-full border transition-colors ${form.is_active ? 'border-shio-success bg-shio-success' : 'border-black/55 bg-black/20'}`}>
+                      <span className={`absolute left-0 top-[1px] h-5 w-5 rounded-full bg-white shadow transition-transform forced-colors:bg-[CanvasText] ${form.is_active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </span>
                   </button>
+                  <span id={statusHintId} className="sr-only">Ligado: produto ativo. Desligado: rascunho.</span>
                 </div>
               </div>
 
@@ -257,7 +258,7 @@ function ProductEditDrawer({ id, refetchList }) {
                 </div>
               )}
 
-              {saveError && <p className="text-sm font-semibold text-shio-danger">{saveError}</p>}
+              {saveError && <p role="alert" className="text-sm font-semibold text-shio-danger">{saveError}</p>}
             </div>
           </div>
 
@@ -271,7 +272,7 @@ function ProductEditDrawer({ id, refetchList }) {
           </div>
         </>
       )}
-    </aside>
+    </DrawerShell>
   );
 }
 
@@ -300,6 +301,7 @@ function StockManagementDrawer({ id, refetchList }) {
   const [movements, setMovements] = useState([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
   const [refreshMovements, setRefreshMovements] = useState(0);
+  const stockErrorId = useId();
 
 
   useEffect(() => {
@@ -380,13 +382,7 @@ function StockManagementDrawer({ id, refetchList }) {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
 
   return (
-    <aside className="fixed inset-0 z-30 flex flex-col bg-white lg:inset-y-0 lg:left-auto lg:right-0 lg:w-[380px] lg:border-l lg:border-black/10 lg:shadow-2xl">
-      <div className="flex shrink-0 items-center justify-between border-b border-black/10 px-7 py-5">
-        <h2 className="text-[18px] font-black uppercase tracking-wide">Gerenciar Estoque</h2>
-        <button onClick={() => navigate('/admin/products')} aria-label="Fechar" className="rounded-full p-1 transition hover:bg-black/5">
-          <Icon name="close" className="h-5 w-5" />
-        </button>
-      </div>
+    <DrawerShell title="Gerenciar Estoque" width={380} onClose={() => navigate('/admin/products')}>
 
       {loading ? (
         <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
@@ -446,14 +442,14 @@ function StockManagementDrawer({ id, refetchList }) {
 
               {/* ENTRADA / SAÍDA toggle */}
               <div>
-                <span className="text-[13px] font-semibold uppercase text-shio-muted">Tipo</span>
-                <div className="mt-2 flex overflow-hidden rounded-[8px] border border-black/20">
-                  <button type="button" onClick={() => { setKind('ENTRADA'); setReason('COMPRA'); }}
-                    className={`flex h-10 flex-1 items-center justify-center text-[14px] font-bold uppercase transition ${kind === 'ENTRADA' ? 'bg-shio-success text-white' : 'bg-white text-shio-muted hover:bg-[#f0f0f0]'}`}>
+                <span id={`${stockErrorId}-tipo`} className="text-[13px] font-semibold uppercase text-shio-muted">Tipo</span>
+                <div role="group" aria-labelledby={`${stockErrorId}-tipo`} className="mt-2 grid grid-cols-2 gap-2">
+                  <button type="button" aria-pressed={kind === 'ENTRADA'} onClick={() => { setKind('ENTRADA'); setReason('COMPRA'); }}
+                    className={`flex h-11 items-center justify-center rounded-[8px] border text-[14px] font-bold uppercase transition ${kind === 'ENTRADA' ? 'border-shio-success bg-shio-success text-white' : 'border-black/40 bg-white text-shio-muted hover:bg-[#f0f0f0]'}`}>
                     + Entrada
                   </button>
-                  <button type="button" onClick={() => { setKind('SAIDA'); setReason('AJUSTE'); }}
-                    className={`flex h-10 flex-1 items-center justify-center text-[14px] font-bold uppercase transition ${kind === 'SAIDA' ? 'bg-shio-danger text-white' : 'bg-white text-shio-muted hover:bg-[#f0f0f0]'}`}>
+                  <button type="button" aria-pressed={kind === 'SAIDA'} onClick={() => { setKind('SAIDA'); setReason('AJUSTE'); }}
+                    className={`flex h-11 items-center justify-center rounded-[8px] border text-[14px] font-bold uppercase transition ${kind === 'SAIDA' ? 'border-shio-danger bg-shio-danger text-white' : 'border-black/40 bg-white text-shio-muted hover:bg-[#f0f0f0]'}`}>
                     − Saída
                   </button>
                 </div>
@@ -462,7 +458,7 @@ function StockManagementDrawer({ id, refetchList }) {
               <label className="block">
                 <span className="text-[13px] font-semibold uppercase text-shio-muted">Quantidade</span>
                 <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)}
-                  placeholder="0"
+                  placeholder="0" aria-describedby={error ? stockErrorId : undefined}
                   className="mt-2 h-11 w-full rounded-[8px] border border-black/20 px-4 text-[15px] outline-none focus:border-black" />
               </label>
 
@@ -474,9 +470,9 @@ function StockManagementDrawer({ id, refetchList }) {
                 </select>
               </label>
 
-              {reversesMovement && <p className="text-sm">Compensação selecionada. <button type="button" className="underline" onClick={() => setReversesMovement(null)}>Cancelar compensação</button></p>}
-              <label className="block">Justificativa obrigatória<textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-2 w-full rounded-lg border p-3" /></label>
-              {error && <p className="text-sm font-semibold text-shio-danger">{error}</p>}
+              {reversesMovement && <p className="text-sm">Compensação selecionada. <button type="button" className="min-h-11 underline" onClick={() => setReversesMovement(null)}>Cancelar compensação</button></p>}
+              <label className="block">Justificativa obrigatória<textarea value={note} onChange={(e) => setNote(e.target.value)} aria-required="true" aria-describedby={error ? stockErrorId : undefined} className="mt-2 w-full rounded-lg border p-3" /></label>
+              {error && <p id={stockErrorId} role="alert" className="text-sm font-semibold text-shio-danger">{error}</p>}
             </div>
             )}
 
@@ -525,7 +521,7 @@ function StockManagementDrawer({ id, refetchList }) {
                         <p>Saldo: {m.balance_after == null ? 'Saldo histórico indisponível' : `${m.balance_after} un.`}</p>
                         <p className="break-all text-xs">Origem: {m.origin_type} — {m.origin_id}</p>
                         {m.note && <p>{m.note}</p>}
-                        {!m.is_legacy && <button type="button" className="mt-1 underline" onClick={() => { setReversesMovement(m.id); setKind(m.kind === 'ENTRADA' ? 'SAIDA' : 'ENTRADA'); setReason('AJUSTE'); setQuantity(String(m.quantity)); setNote(`Compensação: ${m.note || m.reason}`); }}>Compensar movimento</button>}
+                        {!m.is_legacy && <button type="button" className="mt-1 min-h-11 underline" aria-label={`Compensar movimento: ${m.kind === 'ENTRADA' ? '+' : '−'}${m.quantity} un., ${REASON_LABELS[m.reason] ?? m.reason}, ${formatDate(m.created_at)}`} onClick={() => { setReversesMovement(m.id); setKind(m.kind === 'ENTRADA' ? 'SAIDA' : 'ENTRADA'); setReason('AJUSTE'); setQuantity(String(m.quantity)); setNote(`Compensação: ${m.note || m.reason}`); }}>Compensar movimento</button>}
                       </div>
                       <span className="text-shio-muted">{formatDate(m.created_at)}</span>
                     </div>
@@ -534,7 +530,7 @@ function StockManagementDrawer({ id, refetchList }) {
               ) : (
                 <p className="text-[13px] text-shio-muted">Nenhuma movimentação registrada.</p>
               )}
-              {nextMovements && <button type="button" className="mt-3 underline" onClick={async () => {
+              {nextMovements && <button type="button" className="mt-3 min-h-11 underline" onClick={async () => {
                 try {
                   const response = await fetch(nextMovements, { headers: { Authorization: `Bearer ${getAccessToken()}` } });
                   if (!response.ok) throw new Error('Falha ao carregar histórico.');
@@ -558,7 +554,7 @@ function StockManagementDrawer({ id, refetchList }) {
       ) : (
         <div className="flex flex-1 items-center justify-center text-shio-muted">Produto não encontrado.</div>
       )}
-    </aside>
+    </DrawerShell>
   );
 }
 
@@ -574,6 +570,15 @@ const ProductsPage = () => {
   const [duplicateTarget, setDuplicateTarget] = useState(null);
   const [duplicateForm, setDuplicateForm] = useState({ name: '', cost_price: '', variations: [] });
   const [duplicating, setDuplicating] = useState(false);
+  const [duplicateError, setDuplicateError] = useState(null);
+  // Depois de excluir/duplicar o botão que abriu o modal some ou fica para trás: o foco vai
+  // para o aviso do resultado, e não para o início da página (#64).
+  const [notice, setNotice] = useState(null);
+  const noticeRef = useRef(null);
+
+  useEffect(() => {
+    if (notice) noticeRef.current?.focus();
+  }, [notice]);
 
   const dropsMap = Object.fromEntries(
     (Array.isArray(dropsResponse) ? dropsResponse : (dropsResponse?.results ?? []))
@@ -588,6 +593,10 @@ const ProductsPage = () => {
 
   const formatPrice = (product) =>
     `R$ ${Number(product.effective_price ?? product.base_price ?? 0).toFixed(2)}`;
+
+  const dropName = (product) => (
+    product.drop ? (dropsMap[product.drop] ?? product.drop?.name ?? 'Carregando...') : 'Sem drop'
+  );
 
   const getStock = (product) => {
     if (Array.isArray(product.variations)) {
@@ -613,6 +622,7 @@ const ProductsPage = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Falha ao excluir o produto.');
+      setNotice(`Produto ${deleteTarget.name} excluído.`);
       setDeleteTarget(null);
       refetch();
     } catch (err) {
@@ -624,6 +634,7 @@ const ProductsPage = () => {
   };
 
   const openDuplicateModal = (product) => {
+    setDuplicateError(null);
     setDuplicateTarget(product);
     setDuplicateForm({
       name: `${product.name} (cópia)`, cost_price: product.cost_price ?? '',
@@ -632,9 +643,9 @@ const ProductsPage = () => {
   };
 
   const handleConfirmDuplicate = async () => {
-    if (!duplicateTarget) return;
+    if (!duplicateTarget || duplicating) return;
     setDuplicating(true);
-    setActionError(null);
+    setDuplicateError(null);
     try {
       const token = getAccessToken();
 
@@ -654,11 +665,12 @@ const ProductsPage = () => {
       }
       await response.json();
 
+      setNotice(`Cópia de ${duplicateTarget.name} criada como rascunho.`);
       setDuplicateTarget(null);
       refetch();
     } catch (err) {
-      setActionError(err.message);
-      setDuplicateTarget(null);
+      // O modal continua aberto com o que foi digitado; o erro aparece dentro dele.
+      setDuplicateError(err.message);
     } finally {
       setDuplicating(false);
     }
@@ -669,8 +681,8 @@ const ProductsPage = () => {
     if (error) return (
       <div className="p-10 text-center text-shio-danger">
         <p className="font-semibold">Erro ao carregar produtos.</p>
-        <p className="mt-1 text-sm text-red-400">{error?.message}</p>
-        <button onClick={refetch} className="mt-3 text-sm underline">Tentar novamente</button>
+        <p className="mt-1 text-sm">{error?.message}</p>
+        <button type="button" onClick={refetch} className="mt-3 min-h-11 text-sm underline">Tentar novamente</button>
       </div>
     );
 
@@ -683,9 +695,48 @@ const ProductsPage = () => {
 
     if (products.length === 0) return <div className="p-10 text-center text-shio-muted">Nenhum produto encontrado.</div>;
 
+    const actionItems = (product) => [
+      { label: 'Ver detalhes', to: `/admin/products/${product.id}` },
+      { label: 'Editar produto', to: `/admin/edit-product/${product.id}` },
+      { label: 'Duplicar produto', onClick: () => openDuplicateModal(product) },
+      { label: 'Gerenciar estoque', to: `/admin/stock/${product.id}` },
+      { separator: true, key: 'sep' },
+      { label: 'Excluir produto', danger: true, icon: 'trash', onClick: () => setDeleteTarget(product) },
+    ];
+
     return (
-      <div className="overflow-x-auto">
+      <>
+      {/* Celular: um card por produto, só com as colunas principais (#64). */}
+      <ul aria-label="Produtos" className="divide-y divide-black/10 border-t border-black/10 md:hidden">
+        {products.map((product) => {
+          const image = getProductImage(product);
+          const stock = getStock(product);
+          return (
+            <li key={product.id} className={`flex items-start gap-3 py-4 pl-4 pr-2 ${selectedId === product.id ? 'bg-[#f9f9f9]' : ''}`}>
+              {image ? (
+                <img src={image} alt="" className="h-14 w-14 shrink-0 rounded-[6px] bg-[#f0f0f0] object-cover" />
+              ) : (
+                <div className="h-14 w-14 shrink-0 rounded-[6px] bg-[#f0f0f0]" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-[15px] font-semibold text-black">{product.name}</p>
+                <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[13px]">
+                  <dt className="text-shio-muted">Drop</dt>
+                  <dd className="break-words text-black">{dropName(product)}</dd>
+                  <dt className="text-shio-muted">Preço</dt>
+                  <dd className="text-black">{formatPrice(product)}</dd>
+                  <dt className="text-shio-muted">Estoque</dt>
+                  <dd className={`font-semibold ${stock > 0 ? 'text-shio-success' : 'text-shio-danger'}`}>{stock} UN.</dd>
+                </dl>
+              </div>
+              <ActionMenu label={`Ações para ${product.name}`} items={actionItems(product)} />
+            </li>
+          );
+        })}
+      </ul>
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full text-left">
+          <caption className="sr-only">Produtos</caption>
           <thead className="bg-[#f0f0f0] text-[14px] text-shio-muted md:text-[20px]">
             <tr>
               <th className="px-4 py-4 font-normal md:px-10 md:py-6">Produto</th>
@@ -703,7 +754,7 @@ const ProductsPage = () => {
                     {getProductImage(product) ? (
                       <img
                         src={getProductImage(product)}
-                        alt={product.name}
+                        alt=""
                         className="h-10 w-10 shrink-0 rounded-[6px] object-cover md:h-[86px] md:w-[86px]"
                         onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }}
                       />
@@ -713,36 +764,26 @@ const ProductsPage = () => {
                   </div>
                 </td>
                 <td className="px-4 py-4 text-[13px] text-shio-muted md:px-10 md:py-7 md:text-[20px]">
-                  {product.drop ? (dropsMap[product.drop] ?? product.drop?.name ?? 'Carregando...') : 'Sem drop'}
+                  {dropName(product)}
                 </td>
                 <td className="px-4 py-4 text-[13px] text-shio-muted md:px-10 md:py-7 md:text-[20px]">{formatPrice(product)}<MarginSummary product={product} /></td>
                 <td className={`px-4 py-4 text-[13px] font-semibold md:px-10 md:py-7 md:text-[20px] ${getStock(product) > 0 ? 'text-shio-success' : 'text-shio-danger'}`}>
                   {getStock(product)} UN.
                 </td>
                 <td className="px-4 py-4 text-right md:px-10 md:py-7">
-                  <ActionMenu
-                    label={`Ações para ${product.name}`}
-                    items={[
-                      { label: 'Ver detalhes', to: `/admin/products/${product.id}` },
-                      { label: 'Editar produto', to: `/admin/edit-product/${product.id}` },
-                      { label: 'Duplicar produto', onClick: () => openDuplicateModal(product) },
-                      { label: 'Gerenciar estoque', to: `/admin/stock/${product.id}` },
-                      { separator: true, key: 'sep' },
-                      { label: 'Excluir produto', danger: true, icon: 'trash', onClick: () => setDeleteTarget(product) },
-                    ]}
-                  />
+                  <ActionMenu label={`Ações para ${product.name}`} items={actionItems(product)} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      </>
     );
   };
 
   return (
     <div>
-      <PageMarker name="ProductsPage" />
       <AdminTitle
         title="Produtos"
         action={(
@@ -754,20 +795,22 @@ const ProductsPage = () => {
       />
 
       {actionError && (
-        <div className="mb-4 rounded-[10px] bg-red-50 px-5 py-3 text-sm font-semibold text-red-600">
+        <div role="alert" className="mb-4 rounded-[10px] bg-red-50 px-5 py-3 text-sm font-semibold text-shio-danger">
           {actionError}
-          <button type="button" className="ml-3 underline" onClick={() => setActionError(null)}>Fechar</button>
+          <button type="button" className="ml-3 min-h-11 underline" onClick={() => setActionError(null)}>Fechar</button>
         </div>
       )}
 
       <AdminPanel className="overflow-hidden">
-        <div className="flex items-center justify-between gap-4 p-5">
-          <label className="flex h-12 max-w-[675px] flex-1 items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
-            <Icon name="search" className="h-5 w-5" />
+        <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <label className="flex h-12 min-w-0 max-w-[675px] flex-1 basis-56 items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
+            <Icon name="search" className="h-5 w-5 shrink-0" />
             <input
+              type="search"
+              aria-label="Buscar produtos"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent text-[20px] outline-none placeholder:text-shio-placeholder"
+              className="h-full w-full min-w-0 bg-transparent text-[16px] outline-none placeholder:text-shio-placeholder md:text-[20px]"
               placeholder="Buscar produtos..."
             />
           </label>
@@ -785,128 +828,129 @@ const ProductsPage = () => {
       {selectedId && drawerMode === 'edit' && <ProductEditDrawer id={selectedId} refetchList={refetch} />}
       {selectedId && drawerMode === 'stock' && <StockManagementDrawer id={selectedId} refetchList={refetch} />}
 
-      {/* Delete confirmation modal */}
-      {deleteTarget && createPortal(
-        <>
-          <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setDeleteTarget(null)} />
-          <div className="fixed inset-x-4 top-1/2 z-50 -translate-y-1/2 rounded-[18px] border border-black/10 bg-white p-6 shadow-xl md:inset-x-auto md:right-6 md:top-6 md:w-full md:max-w-[420px] md:translate-y-0">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-[13px] font-bold uppercase tracking-widest text-shio-muted">Excluir produto</p>
-              <button onClick={() => setDeleteTarget(null)} className="rounded-full p-1 transition hover:bg-black/5">
-                <Icon name="close" className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="text-[16px] font-semibold text-black">Tem certeza que deseja excluir este produto?</p>
+      {deleteTarget && (
+        <Dialog
+          labelledBy="delete-product-title"
+          aria-describedby="delete-product-warning"
+          onClose={() => setDeleteTarget(null)}
+          overlayClassName="bg-black/20 px-4"
+          className="w-full max-w-[420px] rounded-[18px] border border-black/10 bg-white p-6 shadow-xl"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h2 id="delete-product-title" className="text-[13px] font-bold uppercase tracking-widest text-shio-muted">Excluir produto</h2>
+            <button type="button" onClick={() => setDeleteTarget(null)} aria-label="Fechar" className="-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-black/5">
+              <Icon name="close" className="h-5 w-5" />
+            </button>
+          </div>
+          <p className="text-[16px] font-semibold text-black">Tem certeza que deseja excluir este produto?</p>
 
-            <div className="mt-5 flex items-center gap-4 rounded-[12px] border border-black/10 p-4">
-              {getProductImage(deleteTarget) ? (
-                <img src={getProductImage(deleteTarget)} alt={deleteTarget.name}
-                  className="h-16 w-16 shrink-0 rounded-[8px] object-cover" />
-              ) : (
-                <div className="h-16 w-16 shrink-0 rounded-[8px] bg-[#f0f0f0]" />
-              )}
-              <div className="min-w-0">
-                <p className="truncate text-[16px] font-bold text-black">{deleteTarget.name}</p>
-                <p className="text-[14px] text-shio-muted">{formatPrice(deleteTarget)}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center gap-2 rounded-[10px] bg-red-50 px-4 py-3 text-sm font-semibold text-[#cc0000]">
-              <Icon name="trash" className="h-4 w-4 shrink-0" />
-              Essa ação é permanente e não pode ser desfeita.
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button onClick={() => setDeleteTarget(null)}
-                className="h-12 rounded-full border border-black/20 text-sm font-bold uppercase text-black transition hover:border-black">
-                Cancelar
-              </button>
-              <button onClick={handleDelete} disabled={deleting}
-                className="h-12 rounded-full bg-shio-danger text-sm font-bold uppercase text-white transition hover:bg-shio-danger-hover disabled:opacity-50">
-                {deleting ? 'Excluindo...' : 'Excluir'}
-              </button>
+          <div className="mt-5 flex items-center gap-4 rounded-[12px] border border-black/10 p-4">
+            {getProductImage(deleteTarget) ? (
+              <img src={getProductImage(deleteTarget)} alt="" className="h-16 w-16 shrink-0 rounded-[8px] object-cover" />
+            ) : (
+              <div className="h-16 w-16 shrink-0 rounded-[8px] bg-[#f0f0f0]" />
+            )}
+            <div className="min-w-0">
+              <p className="break-words text-[16px] font-bold text-black">{deleteTarget.name}</p>
+              <p className="text-[14px] text-shio-muted">{formatPrice(deleteTarget)}</p>
             </div>
           </div>
-        </>,
-        document.body
+
+          <p id="delete-product-warning" className="mt-4 flex items-center gap-2 rounded-[10px] bg-red-50 px-4 py-3 text-sm font-semibold text-shio-danger">
+            <Icon name="trash" className="h-4 w-4 shrink-0" />
+            Essa ação é permanente e não pode ser desfeita.
+          </p>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => setDeleteTarget(null)}
+              className="h-12 rounded-full border border-black/20 text-sm font-bold uppercase text-black transition hover:border-black">
+              Cancelar
+            </button>
+            <button type="button" onClick={handleDelete} disabled={deleting}
+              className="h-12 rounded-full bg-shio-danger text-sm font-bold uppercase text-white transition hover:bg-shio-danger-hover disabled:opacity-50">
+              {deleting ? 'Excluindo...' : 'Excluir'}
+            </button>
+          </div>
+        </Dialog>
       )}
 
-      {/* Duplicate product modal */}
-      {duplicateTarget && createPortal(
-        <>
-          <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setDuplicateTarget(null)} />
-          <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-white md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[90vh] md:w-[480px] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[20px]">
-            {/* Header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-black/10 px-6 py-5">
-              <h2 className="text-[18px] font-black uppercase tracking-wide">Duplicar Produto</h2>
-              <button onClick={() => setDuplicateTarget(null)} className="rounded-full p-1 transition hover:bg-black/5">
-                <Icon name="close" className="h-5 w-5" />
-              </button>
-            </div>
+      {duplicateTarget && (
+        <Dialog
+          labelledBy="duplicate-product-title"
+          onClose={() => setDuplicateTarget(null)}
+          overlayClassName="bg-black/20 md:px-4"
+          className="flex h-full w-full flex-col bg-white md:h-auto md:max-h-[90vh] md:w-[480px] md:rounded-[20px]"
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-black/10 py-3 pl-6 pr-4">
+            <h2 id="duplicate-product-title" className="text-[18px] font-black uppercase tracking-wide">Duplicar Produto</h2>
+            <button type="button" onClick={() => setDuplicateTarget(null)} aria-label="Fechar" className="flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-black/5">
+              <Icon name="close" className="h-5 w-5" />
+            </button>
+          </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
-              {/* Original product card */}
-              <div>
-                <p className="mb-3 text-[12px] font-bold uppercase tracking-widest text-shio-muted">Produto original</p>
-                <div className="flex items-center gap-4 rounded-[12px] border border-black/10 p-4">
-                  {getProductImage(duplicateTarget) ? (
-                    <img src={getProductImage(duplicateTarget)} alt={duplicateTarget.name}
-                      className="h-14 w-14 shrink-0 rounded-[8px] object-cover" />
-                  ) : (
-                    <div className="h-14 w-14 shrink-0 rounded-[8px] bg-[#f0f0f0]" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="truncate text-[15px] font-bold text-black">{duplicateTarget.name}</p>
-                    <p className="text-[13px] text-shio-muted">
-                      {duplicateTarget.drop ? (dropsMap[duplicateTarget.drop] ?? duplicateTarget.drop?.name ?? '') : ''}
-                    </p>
-                    <p className="text-[14px] font-semibold text-black">{formatPrice(duplicateTarget)}</p>
-                  </div>
+          <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
+            <div>
+              <h3 className="mb-3 text-[12px] font-bold uppercase tracking-widest text-shio-muted">Produto original</h3>
+              <div className="flex items-center gap-4 rounded-[12px] border border-black/10 p-4">
+                {getProductImage(duplicateTarget) ? (
+                  <img src={getProductImage(duplicateTarget)} alt="" className="h-14 w-14 shrink-0 rounded-[8px] object-cover" />
+                ) : (
+                  <div className="h-14 w-14 shrink-0 rounded-[8px] bg-[#f0f0f0]" />
+                )}
+                <div className="min-w-0">
+                  <p className="break-words text-[15px] font-bold text-black">{duplicateTarget.name}</p>
+                  <p className="text-[13px] text-shio-muted">
+                    {duplicateTarget.drop ? (dropsMap[duplicateTarget.drop] ?? duplicateTarget.drop?.name ?? '') : ''}
+                  </p>
+                  <p className="text-[14px] font-semibold text-black">{formatPrice(duplicateTarget)}</p>
                 </div>
               </div>
-
-              <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-shio-muted">Nome do produto</span>
-                <input
-                  type="text"
-                  value={duplicateForm.name}
-                  onChange={(e) => setDuplicateForm((f) => ({ ...f, name: e.target.value }))}
-                  className="mt-2 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black"
-                />
-              </label>
-
-              <label className="block">Custo unitário (R$) *
-                <input type="number" min="0" step="0.01" value={duplicateForm.cost_price} onChange={(e) => setDuplicateForm((f) => ({ ...f, cost_price: e.target.value }))} className="mt-2 w-full rounded-lg border p-3" />
-              </label>
-              <p className="text-sm">A cópia será um rascunho, sem promoção e sem estoque herdado. Imagens e combinações serão copiadas.</p>
-              <VariationFields duplicate rows={duplicateForm.variations} onChange={(variations) => setDuplicateForm((f) => ({ ...f, variations }))} />
-              {actionError && <p role="alert" className="text-red-600">{actionError}</p>}
-
-
-              <p className="text-[12px] text-shio-muted">
-                Uma cópia do produto será então criada com os mesmos dados do original.
-              </p>
             </div>
 
-            {/* Buttons */}
-            <div className="flex shrink-0 gap-3 border-t border-black/10 p-5">
-              <button
-                onClick={() => setDuplicateTarget(null)}
-                className="flex h-12 flex-1 items-center justify-center rounded-full border border-black/20 text-[13px] font-bold uppercase text-black transition hover:border-black"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmDuplicate}
-                disabled={duplicating}
-                className="flex h-12 flex-1 items-center justify-center rounded-full bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85 disabled:opacity-50"
-              >
-                {duplicating ? 'Duplicando...' : 'Duplicar Produto'}
-              </button>
-            </div>
+            <label className="block">
+              <span className="text-[13px] font-semibold uppercase text-shio-muted">Nome do produto</span>
+              <input
+                type="text"
+                value={duplicateForm.name}
+                onChange={(e) => setDuplicateForm((f) => ({ ...f, name: e.target.value }))}
+                className="mt-2 h-11 w-full rounded-full border border-black/20 px-5 text-[14px] outline-none focus:border-black"
+              />
+            </label>
+
+            <label className="block">Custo unitário (R$) *
+              <input type="number" min="0" step="0.01" value={duplicateForm.cost_price} onChange={(e) => setDuplicateForm((f) => ({ ...f, cost_price: e.target.value }))} className="mt-2 w-full rounded-lg border p-3" />
+            </label>
+            <p className="text-sm">A cópia será um rascunho, sem promoção e sem estoque herdado. Imagens e combinações serão copiadas.</p>
+            <VariationFields duplicate rows={duplicateForm.variations} onChange={(variations) => setDuplicateForm((f) => ({ ...f, variations }))} />
+            {duplicateError && <p role="alert" className="text-sm font-semibold text-shio-danger">{duplicateError}</p>}
+
+            <p className="text-[12px] text-shio-muted">
+              Uma cópia do produto será então criada com os mesmos dados do original.
+            </p>
           </div>
-        </>,
-        document.body
+
+          <div className="flex shrink-0 gap-3 border-t border-black/10 p-5">
+            <button
+              type="button"
+              onClick={() => setDuplicateTarget(null)}
+              className="flex h-12 flex-1 items-center justify-center rounded-full border border-black/20 text-[13px] font-bold uppercase text-black transition hover:border-black"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmDuplicate}
+              aria-disabled={duplicating || undefined}
+              className="flex h-12 flex-1 items-center justify-center rounded-full bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85 aria-disabled:opacity-50"
+            >
+              {duplicating ? 'Duplicando...' : 'Duplicar Produto'}
+            </button>
+          </div>
+        </Dialog>
+      )}
+
+      {notice && (
+        <p ref={noticeRef} tabIndex={-1} role="status" className="sr-only">{notice}</p>
       )}
     </div>
   );

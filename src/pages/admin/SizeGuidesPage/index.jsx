@@ -52,6 +52,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
 
   const handleSave = async (event) => {
     event.preventDefault();
+    if (saving) return;
     const problem = formProblem(form);
     if (problem) {
       setError(problem);
@@ -198,7 +199,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
 
         <div className="flex shrink-0 justify-end gap-3 border-t bg-gray-50 p-4">
           <button type="button" onClick={onClose} className="rounded-md border px-4 py-2 text-sm font-bold hover:bg-gray-100">Cancelar</button>
-          <BlackButton type="submit" form="guide-form" disabled={saving}>{saving ? 'Salvando...' : 'Salvar guia'}</BlackButton>
+          <BlackButton type="submit" form="guide-form" aria-disabled={saving || undefined}>{saving ? 'Salvando...' : 'Salvar guia'}</BlackButton>
         </div>
       </div>
     </div>,

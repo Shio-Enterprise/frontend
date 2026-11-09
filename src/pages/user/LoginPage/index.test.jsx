@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import LoginPage from './index';
 import { useAuth } from '../../../context/AuthContext';
+import { axe } from 'vitest-axe';
 
 vi.mock('../../../context/AuthContext');
 vi.mock('@react-oauth/google', () => ({
@@ -29,8 +30,8 @@ describe('LoginPage', () => {
 
     expect(screen.getByAltText('Shio Logo')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Bem vindo\(a\)/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('E-mail')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Senha')).toBeInTheDocument();
+    expect(screen.getByLabelText('E-mail')).toBeInTheDocument();
+    expect(screen.getByLabelText('Senha')).toBeInTheDocument();
   });
 
   it('returns to the complete source location, including query and hash', async () => {
@@ -43,8 +44,8 @@ describe('LoginPage', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByPlaceholderText('E-mail'), { target: { value: 'a@example.com' } });
-    fireEvent.change(screen.getByPlaceholderText('Senha'), { target: { value: 'password' } });
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'a@example.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/category/shoes?size=42#results'));
@@ -78,10 +79,10 @@ describe('LoginPage', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByPlaceholderText('E-mail'), {
+    fireEvent.change(screen.getByLabelText('E-mail'), {
       target: { value: 'admin@shio.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Senha'), {
+    fireEvent.change(screen.getByLabelText('Senha'), {
       target: { value: 'senha-segura' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
@@ -94,5 +95,76 @@ describe('LoginPage', () => {
       'admin@shio.com',
       'senha-segura',
     );
+  });
+  it('campos com rótulo visível, autocomplete e olho na senha', () => {
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('main')).toBeInTheDocument();
+    expect(screen.getByLabelText('E-mail')).toHaveAttribute('autocomplete', 'email');
+    expect(screen.getByLabelText('Senha')).toHaveAttribute('autocomplete', 'current-password');
+    expect(screen.getByRole('button', { name: 'Mostrar senha' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('anuncia o erro de login', async () => {
+    loginWithPasswordMock.mockRejectedValueOnce({ response: { data: { error: 'Credenciais inválidas.' } } });
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'a@example.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'errada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Credenciais inválidas.');
+  });
+
+  it('enviando pelo botão, o foco fica no botão durante o envio e depois do erro', async () => {
+    let falhar;
+    loginWithPasswordMock.mockReturnValueOnce(new Promise((_, reject) => { falhar = reject; }));
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'a@a.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'errada' } });
+    const botao = screen.getByRole('button', { name: 'Entrar' });
+    botao.focus();
+    fireEvent.click(botao);
+    const ocupado = await screen.findByRole('button', { name: 'Autenticando...' });
+    expect(ocupado).toHaveAttribute('aria-disabled', 'true');
+    expect(ocupado).not.toBeDisabled();
+    expect(ocupado).toHaveFocus();
+    // Segundo clique durante o envio não manda de novo.
+    fireEvent.click(ocupado);
+    expect(loginWithPasswordMock).toHaveBeenCalledTimes(1);
+    falhar({ response: { status: 401, data: {} } });
+    await screen.findByRole('alert');
+    expect(screen.getByRole('button', { name: 'Entrar' })).toHaveFocus();
+  });
+});
+
+// Testes mínimos da #64: formulário de login sem violações, vazio e com erro.
+describe('LoginPage — acessibilidade (axe)', () => {
+  beforeEach(() => {
+    useAuth.mockReturnValue({ loginWithPassword: vi.fn().mockRejectedValue(new Error('x')), login: vi.fn() });
+  });
+
+  it('sem violações, com a senha visível e com erro de login', async () => {
+    const { container } = render(<MemoryRouter><LoginPage /></MemoryRouter>);
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar senha' }));
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'errada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+    await screen.findByRole('alert');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
-import { PageMarker, ProductCard } from '../../../components/ui/ShioDesign';
+import { ProductCard } from '../../../components/ui/ShioDesign';
 import useNow from '../../../hooks/useNow';
 import { getCountdownParts, getDropPhase } from '../../../lib/dropCountdown';
 import { getAccessToken } from '../../../lib/authToken';
@@ -137,7 +137,6 @@ const DropPage = () => {
   if (loading) {
     return (
       <PublicLayout>
-        <PageMarker name="DropPage" />
         <div className="flex min-h-[400px] items-center justify-center text-shio-muted">
           Carregando drop...
         </div>
@@ -148,7 +147,6 @@ const DropPage = () => {
   if (result.notFound || !result.drop) {
     return (
       <PublicLayout>
-        <PageMarker name="DropPage" />
         <div className="mx-auto max-w-[1240px] px-6 py-20 text-center">
           <p className="text-[24px] font-bold text-black">Drop não encontrado.</p>
           <Link to="/" className="mt-6 inline-block text-black underline">Voltar à loja</Link>
@@ -165,7 +163,6 @@ const DropPage = () => {
 
   return (
     <PublicLayout>
-      <PageMarker name="DropPage" />
       <section className="mx-auto max-w-[1240px] px-6 py-10">
         {drop.banner && (
           <div className="overflow-hidden rounded-[20px] bg-[#f0efed]">
@@ -245,11 +242,14 @@ const DropPage = () => {
         )}
 
         {products.length > 0 ? (
+          <>
+          <h2 className="sr-only">Produtos do drop</h2>
           <div className="mt-14 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
+          </>
         ) : (
           <p className="mt-14 text-[14px] text-shio-muted">Nenhum produto publicado neste drop ainda.</p>
         )}

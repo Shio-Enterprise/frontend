@@ -1,8 +1,9 @@
 import { StrictMode } from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import PaymentPage from './index';
+import { axe } from 'vitest-axe';
 
 vi.mock('../../../context/AuthContext', () => ({
   useAuth: () => ({ isAdmin: false }),
@@ -22,6 +23,8 @@ const addresses = [
   { id: 'address-2', title: 'Trabalho', zip_code: '72000000', street: 'Rua B', address_number: '2' },
 ];
 const jsonResponse = (data, ok = true, status = ok ? 200 : 400) => ({ ok, status, json: async () => data });
+
+const LoginState = () => <p data-testid="login-from">{useLocation().state?.from?.pathname}</p>;
 
 const renderPage = () => render(<BrowserRouter><PaymentPage /></BrowserRouter>);
 
@@ -64,14 +67,13 @@ afterEach(() => {
 });
 
 describe('PaymentPage', () => {
-  it('renders headline', () => {
+  it('renders headline', async () => {
     render(
       <BrowserRouter>
         <PaymentPage />
       </BrowserRouter>
     );
-    const headline = screen.getByText(/PaymentPage/i);
-    expect(headline).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('exibe valores do servidor e não aplica desconto PIX local', async () => {
@@ -547,5 +549,172 @@ describe('PaymentPage', () => {
       const checkout = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
       expect(JSON.parse(checkout[1].body)).not.toHaveProperty('coupon_code');
     });
+  });
+
+  describe('acessibilidade (#64, área 4)', () => {
+    const live = () => screen.getByTestId('payment-live');
+
+    it('etapas são títulos com botão que informa se está aberta', async () => {
+      renderPage();
+      const entrega = screen.getByRole('button', { name: 'Etapa 1 de 3: Entrega' });
+      expect(entrega).toHaveAttribute('aria-expanded', 'true');
+      expect(entrega.closest('h2')).not.toBeNull();
+      expect(screen.getByRole('button', { name: 'Etapa 2 de 3: Pagamento' })).toHaveAttribute('aria-expanded', 'false');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+    });
+
+    it('ao avançar, o foco vai para o título da próxima etapa', async () => {
+      renderPage();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar para Pagamento' }));
+      expect(screen.getByRole('button', { name: 'Etapa 2 de 3: Pagamento' })).toHaveFocus();
+      fireEvent.click(screen.getByRole('button', { name: 'Revisar Pedido' }));
+      expect(screen.getByRole('button', { name: 'Etapa 3 de 3: Revisão' })).toHaveFocus();
+    });
+
+    it('endereços ficam num grupo com legenda', async () => {
+      renderPage();
+      const group = await screen.findByRole('group', { name: 'Endereço de entrega' });
+      expect(group.tagName).toBe('FIELDSET');
+      expect(screen.getAllByRole('radio')).toHaveLength(2);
+    });
+
+    it('anuncia frete e total quando a cotação chega', async () => {
+      renderPage();
+      await waitFor(() => expect(live()).toHaveTextContent('Frete: R$ 19.92. Total: R$ 59.90.'));
+    });
+
+    it('anuncia cupom aplicado com desconto e novo total', async () => {
+      calculationResponse = async (options) => (JSON.parse(options.body).coupon_code === 'VERAO20'
+        ? jsonResponse({ ...calculation, discount_amount: '10.00', total_amount: '49.90', coupon: { code: 'VERAO20' } })
+        : jsonResponse(calculation));
+      renderPage();
+      await showReview();
+      fireEvent.change(screen.getByLabelText('Cupom de desconto'), { target: { value: 'VERAO20' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+      await waitFor(() => expect(live()).toHaveTextContent('Cupom VERAO20 aplicado: desconto de R$ 10.00. Frete: R$ 19.92. Total: R$ 49.90.'));
+    });
+
+    it('anuncia cupom removido e o total sem desconto', async () => {
+      calculationResponse = async (options) => (JSON.parse(options.body).coupon_code === 'VERAO20'
+        ? jsonResponse({ ...calculation, discount_amount: '10.00', total_amount: '49.90', coupon: { code: 'VERAO20' } })
+        : jsonResponse(calculation));
+      renderPage();
+      await showReview();
+      fireEvent.change(screen.getByLabelText('Cupom de desconto'), { target: { value: 'VERAO20' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+      await waitFor(() => expect(live()).toHaveTextContent('Cupom VERAO20 aplicado'));
+      fireEvent.click(screen.getByRole('button', { name: 'Remover' }));
+      await waitFor(() => expect(live()).toHaveTextContent('Cupom removido. Frete: R$ 19.92. Total: R$ 59.90.'));
+    });
+
+    it('anuncia erro do cálculo de frete na etapa de entrega', async () => {
+      calculationResponse = async () => jsonResponse({ message: 'CEP fora da área de entrega.' }, false);
+      renderPage();
+      expect(await screen.findByRole('alert')).toHaveTextContent('CEP fora da área de entrega.');
+    });
+
+    it('quantidade na revisão: grupo nomeado e anúncio da nova quantidade', async () => {
+      renderPage();
+      await showReview();
+      const group = screen.getByRole('group', { name: 'Quantidade de Camiseta' });
+      expect(group).toHaveTextContent('2');
+      fireEvent.click(screen.getByRole('button', { name: 'Aumentar quantidade de Camiseta' }));
+      await waitFor(() => expect(live()).toHaveTextContent('Quantidade de Camiseta: 3.'));
+    });
+
+    it('itens da revisão são uma lista e o resumo é título', async () => {
+      renderPage();
+      await showReview();
+      expect(screen.getByRole('heading', { level: 3, name: 'Resumo da compra' })).toBeInTheDocument();
+      const list = screen.getByRole('list', { name: 'Itens do pedido' });
+      expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    });
+
+    it('depois de finalizar, o foco vai para a mensagem (o botão fica travado)', async () => {
+      renderPage();
+      await showReview();
+      await waitFor(() => expect(screen.getByRole('checkbox', { name: /Conferi os itens/ })).toBeEnabled());
+      confirmQuote();
+      const finish = screen.getByRole('button', { name: 'Finalizar Compra' });
+      finish.focus();
+      fireEvent.click(finish);
+      const message = await screen.findByText('Gateway indisponível.');
+      await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+      expect(document.activeElement).toContainElement(message);
+    });
+
+    it('preço riscado da promoção diz que é o preço original', async () => {
+      currentCart = { ...cart, items: [{ ...cart.items[0], is_promotion_active: true, base_price: '125.00' }] };
+      calculationResponse = async () => jsonResponse({ ...calculation, items: currentCart.items });
+      renderPage();
+      await showReview();
+      expect(screen.getByText(/Preço original:/).closest('s')).toHaveTextContent('Preço original: R$ 125.00');
+    });
+
+    it('etapa mostra seta que gira quando aberta (pista além da cor)', async () => {
+      renderPage();
+      const open = screen.getByRole('button', { name: 'Etapa 1 de 3: Entrega' }).querySelector('[data-chevron]');
+      const closed = screen.getByRole('button', { name: 'Etapa 2 de 3: Pagamento' }).querySelector('[data-chevron]');
+      expect(open).toHaveClass('rotate-180');
+      expect(closed).not.toHaveClass('rotate-180');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+    });
+
+    it('visitante sem login vê aviso para entrar, sem as etapas', async () => {
+      localStorage.clear();
+      render(
+        <MemoryRouter initialEntries={['/payment']}>
+          <Routes>
+            <Route path="/payment" element={<PaymentPage />} />
+            <Route path="/login" element={<LoginState />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      expect(screen.getByRole('heading', { level: 2, name: 'Entre para finalizar a compra' })).toBeInTheDocument();
+      expect(screen.queryByText('Você ainda não tem endereços cadastrados.')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Etapa 1 de 3/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Criar conta' })).toHaveAttribute('href', '/signup');
+      expect(screen.getByRole('link', { name: 'Voltar ao carrinho' })).toHaveAttribute('href', '/cart');
+      fireEvent.click(screen.getByRole('link', { name: 'Entrar' }));
+      expect(await screen.findByTestId('login-from')).toHaveTextContent('/payment');
+      await act(async () => {});
+      expect(fetch.mock.calls.some(([url]) => url.includes('/checkout/'))).toBe(false);
+    });
+
+    it('erro do checkout é anunciado', async () => {
+      renderPage();
+      await showReview();
+      await waitFor(() => expect(screen.getByRole('checkbox', { name: /Conferi os itens/ })).toBeEnabled());
+      confirmQuote();
+      // Sem tentativa salva: falha de persistência mostra erro sem virar tentativa pendente.
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Armazenamento indisponível.'); });
+      fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Armazenamento indisponível.');
+    });
+  });
+});
+
+// Testes mínimos da #64: formulário de pagamento sem violações em cada etapa e com erro.
+describe('PaymentPage — acessibilidade (axe)', () => {
+  it('sem violações no endereço, no pagamento, na revisão e com erro ao finalizar', async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar para Pagamento' }));
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar Pedido' }));
+    expect(await axe(container)).toHaveNoViolations();
+    confirmQuote();
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));
+    await screen.findByText('Gateway indisponível.');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('sem violações quando o cálculo do frete falha', async () => {
+    calculationResponse = async () => jsonResponse({ detail: 'Correios indisponíveis.' }, false);
+    const { container } = renderPage();
+    await screen.findByText(/Correios indisponíveis/);
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
