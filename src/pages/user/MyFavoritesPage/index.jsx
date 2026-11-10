@@ -17,7 +17,7 @@ const toCard = (product) => {
     oldPrice: promo ? `R$ ${base.toFixed(2)}` : null,
     discount: promo && base > 0 ? `-${Math.round((1 - effective / base) * 100)}%` : null,
     image: product.images?.[0]?.image ?? null,
-    unavailable: product.is_sellable === false || !product.variations?.some((variation) => Number(variation.stock_quantity) > 0),
+    unavailable: product.is_sellable === false || !product.variations?.some((variation) => variation.in_stock),
   };
 };
 

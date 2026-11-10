@@ -93,7 +93,7 @@ export function ProductCard({ product }) {
   const { isAuthenticated, isWishlisted, pending, loading, idsError, refreshWishlist, toggleWishlist } = useWishlist();
   const [wishlistError, setWishlistError] = useState(false);
   const productId = product.id ?? '1';
-  const unavailable = product.unavailable || product.is_sellable === false || (Array.isArray(product.variations) && product.variations.every((variation) => Number(variation.stock_quantity ?? 0) <= 0));
+  const unavailable = product.unavailable || product.is_sellable === false || (Array.isArray(product.variations) && product.variations.every((variation) => !variation.in_stock));
   const wishlisted = isWishlisted(productId);
   const isPending = pending.has(productId);
   const handleWishlist = async (event) => {
