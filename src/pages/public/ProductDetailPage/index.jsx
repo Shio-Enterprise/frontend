@@ -185,12 +185,12 @@ const ProductDetailContent = ({ id }) => {
   const price = (Number(product.effective_price ?? basePrice)).toFixed(2);
   const discount = promoPrice ? Math.round((1 - promoPrice / basePrice) * 100) : null;
   const selectedVariation = product.variations?.find((v) => v.id === selectedVarId);
-  const totalStock = product.variations?.reduce((s, v) => s + (v.stock_quantity || 0), 0) ?? 0;
+  const anyInStock = product.variations?.some((v) => v.in_stock) ?? false;
   // Um produto pode ser visível (por isso a página carregou) e ainda assim
   // não vendável — drop Rascunho, Programado, Encerrado ou Esgotado (issue
   // #6). Distinto de "Esgotado" (estoque zerado na variação).
   const notSellable = product.is_sellable === false;
-  const variationOutOfStock = Boolean(selectedVariation) && selectedVariation.stock_quantity === 0;
+  const variationOutOfStock = Boolean(selectedVariation) && !selectedVariation.in_stock;
   const showStockAlert = variationOutOfStock && !notSellable;
   const alertPending = showStockAlert && pendingAlertIds.includes(String(selectedVarId));
 
@@ -224,7 +224,7 @@ const ProductDetailContent = ({ id }) => {
               {discount && (
                 <span className="rounded-full bg-[#ffebeb] px-4 py-1 text-sm font-semibold text-shio-danger">-{discount}%</span>
               )}
-              {totalStock === 0 && (
+              {!anyInStock && (
                 <span className="rounded-full bg-red-50 px-4 py-1 text-sm font-medium text-shio-danger">Esgotado</span>
               )}
               {notSellable && (
@@ -255,19 +255,15 @@ const ProductDetailContent = ({ id }) => {
                     // transparência, que deixava o texto sem contraste.
                     <button key={v.id} type="button" aria-pressed={v.id === selectedVarId}
                       onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
-                      className={`min-h-11 min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-shio-muted hover:bg-black/10 ${v.stock_quantity === 0 ? 'border border-dashed border-shio-muted' : ''}`}`}>
+                      className={`min-h-11 min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-shio-muted hover:bg-black/10 ${!v.in_stock ? 'border border-dashed border-shio-muted' : ''}`}`}>
                       {v.size}{v.color ? ` / ${v.color}` : ''}
-                      {v.stock_quantity === 0 && ' (esgotado)'}
+                      {!v.in_stock && ' (esgotado)'}
                     </button>
                   ))}
                 </div>
-                {selectedVariation && (
-                  <p aria-live="polite" className="mt-3 text-[13px] text-shio-muted">
-                    {selectedVariation.stock_quantity > 0
-                      ? `${selectedVariation.stock_quantity} unidades em estoque`
-                      : 'Sem estoque para este tamanho'}
-                  </p>
-                )}
+                <p aria-live="polite" className="mt-3 text-[13px] text-shio-muted empty:hidden">
+                  {variationOutOfStock ? 'Sem estoque para este tamanho' : ''}
+                </p>
               </div>
             )}
 
@@ -295,7 +291,7 @@ const ProductDetailContent = ({ id }) => {
                 <span aria-live="polite" className="text-[16px] font-semibold">{quantity}</span>
                 <button type="button" onClick={() => setQuantity((q) => q + 1)} aria-label="Aumentar quantidade" className="flex h-11 w-11 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10"><span aria-hidden="true">+</span></button>
               </div>
-              <button type="button" onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || totalStock === 0 || notSellable}
+              <button type="button" onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || !anyInStock || notSellable}
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40">
                 {addingToCart ? 'Adicionando...' : notSellable ? 'Indisponível' : 'Adicionar ao Carrinho'}
               </button>
