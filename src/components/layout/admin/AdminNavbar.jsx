@@ -22,6 +22,13 @@ const navItems = [
     permission: ADMIN_PERMISSIONS.DROPS,
   },
   {
+    label: 'Página inicial',
+    to: '/admin/homepage',
+    icon: 'grid',
+    matches: ['/admin/homepage'],
+    permission: ADMIN_PERMISSIONS.HOMEPAGE,
+  },
+  {
     label: 'Produtos',
     to: '/admin/products',
     icon: 'box',
