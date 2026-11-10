@@ -112,4 +112,15 @@ describe('HomepagePage', () => {
     await screen.findByText('Banner publicado.');
     expect(screen.getByLabelText('Imagem para computador').files).toHaveLength(0);
   });
+
+  it('shows a clear image picker button and the selected filename', async () => {
+    render(<MemoryRouter><HomepagePage /></MemoryRouter>);
+    await screen.findByText('Campanha');
+    const input = screen.getByLabelText('Imagem para computador');
+    const openPicker = vi.spyOn(input, 'click');
+    fireEvent.click(screen.getByRole('button', { name: 'Escolher imagem para computador' }));
+    expect(openPicker).toHaveBeenCalledOnce();
+    fireEvent.change(input, { target: { files: [new File(['png'], 'campanha.png', { type: 'image/png' })] } });
+    expect(screen.getByText('campanha.png')).toBeInTheDocument();
+  });
 });

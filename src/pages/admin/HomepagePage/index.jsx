@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAccessToken } from '../../../lib/authToken';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -28,6 +28,39 @@ function checkFile(file) {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'Use uma imagem JPEG, PNG ou WebP.';
   if (file.size > 5 * 1024 * 1024) return 'A imagem não pode passar de 5 MB.';
   return '';
+}
+
+function ImagePicker({ id, label, buttonLabel, file, onChange, disabled, keepExisting }) {
+  const inputRef = useRef(null);
+
+  return <div className="grid gap-2">
+    <label htmlFor={id} className="text-sm font-medium text-black">{label}</label>
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-black/25 bg-[#fafafa] p-4">
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={onChange}
+        tabIndex={-1}
+        className="sr-only"
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => inputRef.current?.click()}
+        className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" className="h-5 w-5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+        </svg>
+        {buttonLabel}
+      </button>
+      <span className="min-w-0 break-all text-sm text-black/60" aria-live="polite">
+        {file?.name || (keepExisting ? 'Nenhuma nova imagem — a atual será mantida' : 'Nenhum arquivo selecionado')}
+      </span>
+    </div>
+  </div>;
 }
 
 export default function HomepagePage() {
@@ -63,9 +96,10 @@ export default function HomepagePage() {
   const update = (field, value) => setForm((old) => ({ ...old, [field]: value }));
   const selectFile = (field, file) => {
     const message = checkFile(file);
-    if (message) { setError(message); return; }
+    if (message) { setError(message); return false; }
     setError('');
     update(field, file);
+    return true;
   };
 
   const run = async (action, message, includeTagline = false) => {
@@ -176,8 +210,8 @@ export default function HomepagePage() {
     <section className="rounded-xl border border-black/15 bg-white p-6">
       <h2 className="mb-4 text-xl font-semibold">{editingId ? 'Editar banner' : 'Adicionar banner'}</h2>
       <form key={formRevision} onSubmit={saveBanner} className="grid gap-4">
-        <label className="grid gap-2">Imagem para computador {editingId ? '(deixe vazio para manter)' : ''}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => selectFile('image_desktop', event.target.files?.[0])} /></label>
-        <label className="grid gap-2">Imagem para celular (opcional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => selectFile('image_mobile', event.target.files?.[0])} /></label>
+        <ImagePicker id="homepage-desktop-image" label="Imagem para computador" buttonLabel="Escolher imagem para computador" file={form.image_desktop} disabled={busy} keepExisting={Boolean(editingId)} onChange={(event) => { if (!selectFile('image_desktop', event.target.files?.[0])) event.target.value = ''; }} />
+        <ImagePicker id="homepage-mobile-image" label="Imagem para celular (opcional)" buttonLabel="Escolher imagem para celular" file={form.image_mobile} disabled={busy} keepExisting={Boolean(editingId && banners.find((banner) => banner.id === editingId)?.image_mobile)} onChange={(event) => { if (!selectFile('image_mobile', event.target.files?.[0])) event.target.value = ''; }} />
         {editingId && banners.find((banner) => banner.id === editingId)?.image_mobile && <label className="flex gap-2"><input type="checkbox" checked={form.remove_image_mobile} onChange={(event) => update('remove_image_mobile', event.target.checked)} />Remover imagem de celular atual</label>}
         <label className="grid gap-2">Texto alternativo<input required maxLength={255} value={form.alt_text} onChange={(event) => update('alt_text', event.target.value)} className="rounded border border-black/30 p-3" /></label>
         <label className="grid gap-2">Link interno (opcional)<input placeholder="/drop/novo" maxLength={500} value={form.link} onChange={(event) => update('link', event.target.value)} className="rounded border border-black/30 p-3" /></label>
