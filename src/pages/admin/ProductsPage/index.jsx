@@ -1,6 +1,6 @@
-import { pricePayload, apiError, toSaoPauloInput } from '../../../components/admin/productForm';
+import { apiError } from '../../../components/admin/productForm';
 import VariationManager from '../../../components/admin/VariationManager';
-import { ProductPriceFields, VariationFields, MarginSummary } from '../../../components/admin/ProductFields';
+import { VariationFields, MarginSummary } from '../../../components/admin/ProductFields';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
@@ -98,179 +98,6 @@ function ProductDetailDrawer({ id }) {
         </>
       ) : (
         <div className="flex flex-1 items-center justify-center text-shio-muted">Produto não encontrado.</div>
-      )}
-    </DrawerShell>
-  );
-}
-
-// ─── Product Edit Drawer ──────────────────────────────────────────────────────
-
-function ProductEditDrawer({ id, refetchList }) {
-  const navigate = useNavigate();
-  const { data: product, loading } = useApi(`/api/catalog/products/${id}/`);
-  const { data: dropsData } = useApi('/api/catalog/drops/');
-  const { data: catsData } = useApi('/api/catalog/categories/');
-
-  const [form, setForm] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
-  const statusLabelId = useId();
-  const statusHintId = useId();
-
-  if (!loading && product && !form) {
-    setForm({
-      name: product.name || '',
-      description: product.description || '',
-      base_price: product.base_price || '',
-      promotional_price: product.promotional_price || '',
-      cost_price: product.cost_price ?? '',
-      promo_start: toSaoPauloInput(product.promo_start),
-      promo_end: toSaoPauloInput(product.promo_end),
-      drop: product.drop?.id ?? '',
-      category: product.category?.id ?? '',
-      is_active: product.is_active,
-    });
-  }
-
-  const drops = Array.isArray(dropsData) ? dropsData : dropsData?.results ?? [];
-  const categories = Array.isArray(catsData) ? catsData : catsData?.results ?? [];
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSaveError(null);
-    try {
-      const token = getAccessToken();
-      const price = parseFloat(form.base_price);
-      const res = await fetch(`${API_BASE_URL}/api/catalog/products/${id}/`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          name: form.name,
-          description: form.description || '',
-          base_price: isNaN(price) ? product.base_price : price,
-          ...pricePayload(form),
-          drop: form.drop || null,
-          category: form.category || null,
-          is_active: form.is_active,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const msg = apiError(data) || 'Falha ao salvar.';
-        throw new Error(msg);
-      }
-      refetchList?.();
-      navigate(`/admin/products/${id}`);
-    } catch (e) {
-      setSaveError(e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <DrawerShell title="Editar Produto" onClose={() => navigate(`/admin/products/${id}`)}>
-
-      {loading || !form ? (
-        <div className="flex flex-1 items-center justify-center text-shio-muted">Carregando...</div>
-      ) : (
-        <>
-          <div className="flex-1 overflow-y-auto">
-            {product?.images?.[0]?.image && (
-              <div className="aspect-square w-full bg-[#f0f0f0]">
-                <img src={product.images[0].image} alt={product.name} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-              </div>
-            )}
-
-            <div className="px-7 py-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <span id={statusLabelId} className="text-[15px] font-semibold text-black">Status</span>
-                <div className="flex items-center gap-1">
-                  <span aria-hidden="true" className={`text-[14px] font-semibold ${form.is_active ? 'text-shio-success' : 'text-shio-muted'}`}>
-                    {form.is_active ? 'Ativo' : 'Rascunho'}
-                  </span>
-                  {/* Interruptor: o leitor de tela anuncia "Status, ligado/desligado"; a área de toque tem 44px. */}
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={form.is_active}
-                    aria-labelledby={statusLabelId}
-                    aria-describedby={statusHintId}
-                    onClick={() => setForm((f) => ({ ...f, is_active: !f.is_active }))}
-                    className="group flex h-11 w-14 items-center justify-center rounded-full"
-                  >
-                    <span className={`relative block h-6 w-11 rounded-full border transition-colors ${form.is_active ? 'border-shio-success bg-shio-success' : 'border-black/55 bg-black/20'}`}>
-                      <span className={`absolute left-0 top-[1px] h-5 w-5 rounded-full bg-white shadow transition-transform forced-colors:bg-[CanvasText] ${form.is_active ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                    </span>
-                  </button>
-                  <span id={statusHintId} className="sr-only">Ligado: produto ativo. Desligado: rascunho.</span>
-                </div>
-              </div>
-
-              <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-shio-muted">Nome do produto</span>
-                <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="mt-2 h-11 w-full rounded-[8px] border border-black/20 px-4 text-[15px] outline-none focus:border-black" />
-              </label>
-
-              <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-shio-muted">Drop</span>
-                <select value={form.drop} onChange={(e) => setForm((f) => ({ ...f, drop: e.target.value }))}
-                  className="mt-2 h-11 w-full rounded-[8px] border border-black/20 bg-white px-4 text-[15px] outline-none focus:border-black">
-                  <option value="">Sem drop</option>
-                  {drops.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-shio-muted">Preço original</span>
-                <input type="number" step="0.01" value={form.base_price} onChange={(e) => setForm((f) => ({ ...f, base_price: e.target.value }))}
-                  className="mt-2 h-11 w-full rounded-[8px] border border-black/20 px-4 text-[15px] outline-none focus:border-black" />
-              </label>
-
-              <ProductPriceFields form={form} onChange={setForm} />
-
-              <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-shio-muted">Categoria</span>
-                <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  className="mt-2 h-11 w-full rounded-[8px] border border-black/20 bg-white px-4 text-[15px] outline-none focus:border-black">
-                  <option value="">Sem categoria</option>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-[13px] font-semibold uppercase text-shio-muted">Descrição</span>
-                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={4}
-                  className="mt-2 w-full rounded-[8px] border border-black/20 px-4 py-3 text-[15px] outline-none focus:border-black resize-none" />
-              </label>
-
-              {product?.variations?.length > 0 && (
-                <div>
-                  <span className="text-[13px] font-semibold uppercase text-shio-muted">Variações</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {product.variations.map((v) => (
-                      <span key={v.id} className="flex h-9 min-w-[36px] items-center justify-center rounded-full border border-black/20 px-3 text-[14px] font-medium">
-                        {v.size}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {saveError && <p role="alert" className="text-sm font-semibold text-shio-danger">{saveError}</p>}
-            </div>
-          </div>
-
-          <div className="flex shrink-0 gap-3 border-t border-black/10 p-5">
-            <button onClick={() => navigate(`/admin/products/${id}`)} className="flex h-11 flex-1 items-center justify-center rounded-[8px] border border-black/25 text-[13px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black">
-              Cancelar
-            </button>
-            <button onClick={handleSave} disabled={saving} className="flex h-11 flex-1 items-center justify-center rounded-[8px] bg-black text-[13px] font-bold uppercase text-white transition hover:bg-black/85 disabled:bg-black/40">
-              {saving ? 'Salvando...' : 'Salvar Alterações'}
-            </button>
-          </div>
-        </>
       )}
     </DrawerShell>
   );
@@ -585,11 +412,11 @@ const ProductsPage = () => {
       .map((d) => [d.id, d.name])
   );
 
+  // A edição virou página própria (EditProductPage); aqui ficam só detalhes e estoque.
   const detailMatch = useMatch('/admin/products/:id');
-  const editMatch = useMatch('/admin/edit-product/:id');
   const stockMatch = useMatch('/admin/stock/:id');
-  const selectedId = detailMatch?.params?.id ?? editMatch?.params?.id ?? stockMatch?.params?.id ?? null;
-  const drawerMode = editMatch ? 'edit' : stockMatch ? 'stock' : 'detail';
+  const selectedId = detailMatch?.params?.id ?? stockMatch?.params?.id ?? null;
+  const drawerMode = stockMatch ? 'stock' : 'detail';
 
   const formatPrice = (product) =>
     `R$ ${Number(product.effective_price ?? product.base_price ?? 0).toFixed(2)}`;
@@ -825,7 +652,6 @@ const ProductsPage = () => {
       </AdminPanel>
 
       {selectedId && drawerMode === 'detail' && <ProductDetailDrawer id={selectedId} />}
-      {selectedId && drawerMode === 'edit' && <ProductEditDrawer id={selectedId} refetchList={refetch} />}
       {selectedId && drawerMode === 'stock' && <StockManagementDrawer id={selectedId} refetchList={refetch} />}
 
       {deleteTarget && (

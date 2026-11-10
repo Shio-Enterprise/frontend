@@ -30,6 +30,7 @@ const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
 const DetailedDashboardPage = lazy(() => import("../pages/admin/DetailedDashboardPage"));
 const ProductsPage = lazy(() => import("../pages/admin/ProductsPage"));
 const NewProductPage = lazy(() => import("../pages/admin/NewProductPage"));
+const EditProductPage = lazy(() => import("../pages/admin/EditProductPage"));
 const OrdersPage = lazy(() => import("../pages/admin/OrdersPage"));
 const NewDropPage = lazy(() => import("../pages/admin/NewDropPage"));
 const EditDropPage = lazy(() => import("../pages/admin/EditDropPage"));
@@ -161,7 +162,7 @@ const routes = [
   },
   {
     path: "/admin/edit-product/:id",
-    component: <AdminLayout><ProductsPage /></AdminLayout>,
+    component: <AdminLayout><EditProductPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.CATALOG,
   },

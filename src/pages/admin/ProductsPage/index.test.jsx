@@ -147,12 +147,17 @@ describe('ProductsPage — acessibilidade (#64, área 6)', () => {
     expect(within(dialog).getAllByRole('button', { name: 'Fechar' })).toHaveLength(2);
   });
 
-  it('status do produto na edição é um interruptor', () => {
+  it('"Editar produto" leva para a página de edição completa', () => {
+    setup();
+    const [trigger] = screen.getAllByRole('button', { name: 'Ações para Camiseta' });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menuitem', { name: 'Editar produto' })).toHaveAttribute('href', '/admin/edit-product/p1');
+  });
+
+  it('na rota de edição a lista não abre mais o drawer antigo', () => {
+    // /admin/edit-product/:id agora é a EditProductPage (rota própria).
     setup('/admin/edit-product/p1');
-    const status = screen.getByRole('switch', { name: 'Status' });
-    expect(status).toHaveAttribute('aria-checked', 'true');
-    fireEvent.click(status);
-    expect(status).toHaveAttribute('aria-checked', 'false');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('Entrada/Saída do estoque anunciam qual está escolhido', () => {
