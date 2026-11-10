@@ -17,6 +17,8 @@ const measureSpan = (guide, key) => {
   return first && last ? `${first[0]}–${last[1]} cm` : '—';
 };
 
+const productCountLabel = (count) => (count === 1 ? '1 produto' : `${count} produtos`);
+
 function RangeInput({ form, setForm, row, column, index }) {
   return (
     <input
@@ -175,6 +177,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
 
             <fieldset>
               <legend className="mb-1 text-sm font-semibold">Categorias que usam este guia</legend>
+              <p className="mb-2 text-xs text-shio-muted">Opcional. Sem categoria, o guia pode ser escolhido em cada produto.</p>
               {categories.length === 0 && <p className="text-sm text-gray-500">Nenhuma categoria cadastrada.</p>}
               <div className="space-y-1">
                 {categories.map((category) => {
@@ -216,7 +219,9 @@ export default function SizeGuidesPage() {
   const handleDelete = async (guide) => {
     const linked = guide.category_details.map((c) => c.name).join(', ');
     const warning = linked ? ` As categorias ${linked} ficarão sem tabela de medidas na loja.` : '';
-    const products = ' Produtos que usam este guia voltam a usar o guia da categoria.';
+    const products = guide.product_count
+      ? ` Produtos que usam este guia (${productCountLabel(guide.product_count)}) voltam a usar o guia da categoria.`
+      : '';
     if (!window.confirm(`Excluir o guia “${guide.name}”?${warning}${products}`)) return;
     setActionError(null);
     try {
@@ -238,7 +243,7 @@ export default function SizeGuidesPage() {
         title="Guias de medidas"
         action={<BlackButton onClick={() => setDrawer({ guide: null })}>+ Novo guia</BlackButton>}
       />
-      <p className="-mt-4 mb-6 text-sm text-shio-muted">A tabela de medidas aparece na página dos produtos das categorias ligadas a cada guia.</p>
+      <p className="-mt-4 mb-6 text-sm text-shio-muted">Cada produto usa o guia escolhido nele ou, se não tiver, o guia da sua categoria.</p>
       {actionError && <p role="alert" className="mb-4 text-sm font-semibold text-red-600">{actionError}</p>}
 
       <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
@@ -250,14 +255,15 @@ export default function SizeGuidesPage() {
                 <th className="px-6 py-4">Tamanhos</th>
                 <th className="px-6 py-4">Medidas</th>
                 <th className="px-6 py-4">Categorias</th>
+                <th className="px-6 py-4">Produtos</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
-              {loading && <tr><td colSpan="5" className="p-6 text-center text-gray-500">Carregando...</td></tr>}
-              {!loading && error && <tr><td colSpan="5" className="p-6 text-center text-red-600">Não foi possível carregar os guias.</td></tr>}
+              {loading && <tr><td colSpan="6" className="p-6 text-center text-gray-500">Carregando...</td></tr>}
+              {!loading && error && <tr><td colSpan="6" className="p-6 text-center text-red-600">Não foi possível carregar os guias.</td></tr>}
               {!loading && !error && guides.length === 0 && (
-                <tr><td colSpan="5" className="p-6 text-center text-gray-500">Nenhum guia cadastrado.</td></tr>
+                <tr><td colSpan="6" className="p-6 text-center text-gray-500">Nenhum guia cadastrado.</td></tr>
               )}
               {guides.map((guide) => (
                 <tr key={guide.id} className="transition hover:bg-gray-50">
@@ -272,6 +278,9 @@ export default function SizeGuidesPage() {
                   </td>
                   <td className="px-6 py-4 text-gray-700">
                     {guide.category_details.length ? guide.category_details.map((c) => c.name).join(', ') : <span className="text-shio-muted">Nenhuma</span>}
+                  </td>
+                  <td className="px-6 py-4 text-gray-700">
+                    {guide.product_count ? productCountLabel(guide.product_count) : <span className="text-shio-muted">Nenhum</span>}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <ActionMenu
