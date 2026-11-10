@@ -1,43 +1,237 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import HomePage from './index';
+import { axe } from 'vitest-axe';
 
-vi.mock('../../../components/layout/public/PublicLayout', () => ({ default: ({ children }) => <main>{children}</main> }));
-vi.mock('../../../components/ui/WelcomeModal', () => ({ default: () => null }));
+vi.mock('../../../components/layout/public/PublicLayout', () => ({
+  default: ({ children }) => <main>{children}</main>,
+}));
 
-const response = (body) => Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+const product = (id) => ({ id, name: `Produto ${id}`, base_price: '100.00', images: [] });
+const response = (ids) => ({
+  ok: true,
+  json: async () => ({ count: 30, next: 'page=2', previous: null, results: ids.map(product) }),
+});
+const homepageResponse = (data = { tagline: 'Deus primeiro. Negócios depois.', banners: [] }) => ({
+  ok: true,
+  json: async () => data,
+});
+const isHomepageRequest = (url) => url.includes('/api/catalog/homepage/');
 const mount = () => render(<MemoryRouter><HomePage /></MemoryRouter>);
+const section = (name) => within(screen.getByRole('heading', { name }).closest('section'));
 
-describe('HomePage content', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn((url) => url.includes('/homepage/')
-      ? response({ tagline: 'Novo drop', banners: [{ id: 'b1', image_desktop: '/desktop.png', image_mobile: '/mobile.png', alt_text: 'Ver drop', link: '/drop/novo' }] })
-      : response({ results: [] })));
-  });
-  afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(
+    isHomepageRequest(url)
+      ? homepageResponse()
+      : response(url.includes('-sales_count') ? [25, 3, 9, 1] : [30, 29, 28, 27]),
+  )));
+});
+afterEach(() => vi.unstubAllGlobals());
 
-  it('shows configured banner, mobile image, link and tagline', async () => {
+describe('HomePage', () => {
+  it('consulta quatro lançamentos e quatro mais vendidos e preserva a ordem do servidor', async () => {
     mount();
+    await screen.findByText('Produto 25');
+    expect(fetch).toHaveBeenCalledTimes(3);
+    const queries = fetch.mock.calls
+      .filter(([url]) => url.includes('/api/catalog/products/'))
+      .map(([url]) => new URL(url, 'http://localhost').searchParams);
+    expect(queries.map((query) => query.get('ordering'))).toEqual(['-created_at', '-sales_count']);
+    queries.forEach((query) => expect(query.get('page_size')).toBe('4'));
+    expect(section('Lançamentos').getAllByRole('heading', { level: 3 }).map((node) => node.textContent))
+      .toEqual(['Produto 30', 'Produto 29', 'Produto 28', 'Produto 27']);
+    expect(section('Mais vendidos').getAllByRole('heading', { level: 3 }).map((node) => node.textContent))
+      .toEqual(['Produto 25', 'Produto 3', 'Produto 9', 'Produto 1']);
+    expect(section('Mais vendidos').getByRole('link', { name: /ver todos/i }))
+      .toHaveAttribute('href', '/category/all?ordering=-sales_count');
+  });
+
+  it('permite o mesmo produto em lançamentos e mais vendidos', async () => {
+    fetch.mockImplementation((url) => Promise.resolve(
+      isHomepageRequest(url) ? homepageResponse() : response([1]),
+    ));
+    mount();
+    expect(await screen.findAllByText('Produto 1')).toHaveLength(2);
+  });
+
+  it.each(['http', 'network'])('preserva lançamentos quando o ranking falha por %s', async (failure) => {
+    fetch.mockImplementation((url) => {
+      if (isHomepageRequest(url)) return Promise.resolve(homepageResponse());
+      if (!url.includes('-sales_count')) return Promise.resolve(response([30]));
+      return failure === 'http'
+        ? Promise.resolve({ ok: false })
+        : Promise.reject(new Error('Offline'));
+    });
+    mount();
+    await screen.findByRole('alert');
+    expect(section('Lançamentos').getByText('Produto 30')).toBeInTheDocument();
+    expect(section('Mais vendidos').getByRole('alert')).toHaveTextContent('Não foi possível');
+    expect(screen.queryByText('Nenhum produto disponível.')).not.toBeInTheDocument();
+  });
+
+  it('exibe resultados vazios sem carregar outras páginas do catálogo', async () => {
+    fetch.mockImplementation((url) => Promise.resolve(
+      isHomepageRequest(url) ? homepageResponse() : response([]),
+    ));
+    mount();
+    expect(await screen.findAllByText('Nenhum produto disponível.')).toHaveLength(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('carrega as seções independentemente e ignora respostas depois de sair', async () => {
+    let resolveRanking;
+    fetch.mockImplementation((url) => {
+      if (isHomepageRequest(url)) return Promise.resolve(homepageResponse());
+      return url.includes('-sales_count')
+        ? new Promise((resolve) => { resolveRanking = resolve; })
+        : Promise.resolve(response([30]));
+    });
+    const view = mount();
+    await screen.findByText('Produto 30');
+    expect(section('Mais vendidos').getByRole('status')).toHaveTextContent('Carregando...');
+    const resolveOld = resolveRanking;
+    view.unmount();
+    fetch.mock.calls.forEach(([, options]) => expect(options.signal.aborted).toBe(true));
+    mount();
+    await act(async () => resolveRanking(response([25])));
+    await act(async () => resolveOld(response([1])));
+    expect(section('Mais vendidos').getByText('Produto 25')).toBeInTheDocument();
+    expect(screen.queryByText('Produto 1')).not.toBeInTheDocument();
+  });
+});
+
+describe('HomePage — carrossel', () => {
+  const slideTrack = () => document.querySelector('[style*="translateX"]');
+  const stubReducedMotion = (reduce) => vi.stubGlobal('matchMedia', vi.fn((query) => ({
+    matches: reduce && query === '(prefers-reduced-motion: reduce)',
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  })));
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('troca de slide sozinho a cada 5 segundos', () => {
+    stubReducedMotion(false);
+    mount();
+    act(() => vi.advanceTimersByTime(5000));
+    expect(slideTrack().style.transform).toBe('translateX(-100%)');
+  });
+
+  it('não troca sozinho quando o sistema pede menos movimento', () => {
+    stubReducedMotion(true);
+    mount();
+    act(() => vi.advanceTimersByTime(15000));
+    expect(slideTrack().style.transform).toBe('translateX(-0%)');
+    expect(screen.getByRole('button', { name: 'Retomar troca automática dos slides' })).toBeInTheDocument();
+  });
+
+  it('o botão de pausar para e retoma a troca (#64)', () => {
+    stubReducedMotion(false);
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Pausar troca automática dos slides' }));
+    // O clique deixa o foco no botão; tira o foco para testar só a pausa.
+    act(() => document.activeElement.blur());
+    act(() => vi.advanceTimersByTime(15000));
+    expect(slideTrack().style.transform).toBe('translateX(-0%)');
+    fireEvent.click(screen.getByRole('button', { name: 'Retomar troca automática dos slides' }));
+    act(() => document.activeElement.blur());
+    act(() => vi.advanceTimersByTime(5000));
+    expect(slideTrack().style.transform).toBe('translateX(-100%)');
+  });
+
+  it('não troca com o mouse ou o foco em cima do carrossel (#64)', () => {
+    stubReducedMotion(false);
+    mount();
+    const carousel = screen.getByRole('region', { name: 'Destaques' });
+    fireEvent.mouseEnter(carousel);
+    act(() => vi.advanceTimersByTime(10000));
+    expect(slideTrack().style.transform).toBe('translateX(-0%)');
+    fireEvent.mouseLeave(carousel);
+    act(() => screen.getByRole('button', { name: 'Próximo slide' }).focus());
+    act(() => vi.advanceTimersByTime(10000));
+    expect(slideTrack().style.transform).toBe('translateX(-0%)');
+  });
+
+  it('só o slide visível fica para o leitor de tela e a bolinha atual é marcada (#64)', () => {
+    stubReducedMotion(true);
+    mount();
+    expect(screen.getByRole('img', { name: 'Pré-venda do Novo Drop — Shio' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Deus primeiro. Negócios depois.' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ir para slide 2' }));
+    expect(screen.getByRole('button', { name: 'Ir para slide 2' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('button', { name: 'Ir para slide 1' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('img', { name: 'Deus primeiro. Negócios depois.' })).toBeInTheDocument();
+  });
+});
+
+// Testes mínimos da #64: vitest-axe no carrossel e na Home com produtos carregados.
+describe('HomePage — acessibilidade (axe)', () => {
+  it('carrossel e vitrines sem violações, também depois de trocar de slide', async () => {
+    const { container } = mount();
+    await screen.findByText('Produto 25');
+    expect(await axe(container)).toHaveNoViolations();
+    act(() => { screen.getByRole('button', { name: 'Próximo slide' }).click(); });
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('sem violações com erro ao carregar os produtos', async () => {
+    fetch.mockResolvedValue({ ok: false, json: async () => ({}) });
+    const { container } = mount();
+    expect(await screen.findAllByRole('alert')).toHaveLength(2);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('HomePage — conteúdo configurável', () => {
+  it('mostra banner, imagem de celular, link e frase cadastrados', async () => {
+    fetch.mockImplementation((url) => Promise.resolve(
+      isHomepageRequest(url)
+        ? homepageResponse({
+          tagline: 'Novo drop',
+          banners: [{
+            id: 'b1', image_desktop: '/desktop.png', image_mobile: '/mobile.png',
+            alt_text: 'Ver drop', link: '/drop/novo',
+          }],
+        })
+        : response([]),
+    ));
+
+    mount();
+
     expect(await screen.findByText('Novo drop')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver drop' })).toHaveAttribute('href', '/drop/novo');
     expect(screen.getByRole('img', { name: 'Ver drop' })).toHaveAttribute('src', '/desktop.png');
     expect(document.querySelector('source[media="(max-width: 767px)"]')).toHaveAttribute('srcset', '/mobile.png');
   });
 
-  it('uses existing images when no banner is registered', async () => {
-    fetch.mockImplementation((url) => url.includes('/homepage/')
-      ? response({ tagline: 'Faixa nova', banners: [] }) : response({ results: [] }));
+  it('usa as imagens padrão quando não há banners cadastrados', async () => {
+    fetch.mockImplementation((url) => Promise.resolve(
+      isHomepageRequest(url)
+        ? homepageResponse({ tagline: 'Faixa nova', banners: [] })
+        : response([]),
+    ));
+
     mount();
+
     expect(await screen.findByText('Faixa nova')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Pré-venda do Novo Drop/i })).toHaveAttribute('src', '/images/shio/hero-slide-1.png');
+    expect(screen.getByRole('img', { name: /Pré-venda do Novo Drop/i }))
+      .toHaveAttribute('src', '/images/shio/hero-slide-1.png');
   });
 
-  it('keeps the default content when the homepage request fails', async () => {
-    fetch.mockImplementation((url) => url.includes('/homepage/')
-      ? Promise.reject(new Error('offline')) : response({ results: [] }));
+  it('mantém o conteúdo padrão se a configuração não carregar', async () => {
+    fetch.mockImplementation((url) => isHomepageRequest(url)
+      ? Promise.reject(new Error('offline'))
+      : Promise.resolve(response([])));
+
     mount();
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/homepage/'), expect.any(Object)));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/homepage/'), expect.any(Object),
+    ));
     expect(screen.getByText('Deus primeiro. Negócios depois.')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /Pré-venda do Novo Drop/i })).toBeInTheDocument();
   });
