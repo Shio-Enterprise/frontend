@@ -26,6 +26,12 @@ describe('ProductCard', () => {
     expect(screen.getByText('Indisponível')).toBeInTheDocument();
   });
 
+  it('product with one size in stock is available without the exact quantity (#85)', () => {
+    render(<BrowserRouter><ProductCard product={{ id: 'ok', name: 'Com estoque', price: 'R$ 10,00', variations: [{ in_stock: false }, { in_stock: true }] }} /></BrowserRouter>);
+    expect(screen.queryByText('Indisponível')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Com estoque' })).toBeInTheDocument();
+  });
+
   it('sends anonymous users to login from the accessible favorite control', () => {
     render(<MemoryRouter initialEntries={['/category/all']}><ProductCard product={{ id: 'p1', name: 'Camiseta', price: 'R$ 10,00' }} /><LocationProbe /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /adicionar camiseta/i }));

@@ -329,6 +329,64 @@ describe('ProductDetailPage', () => {
     });
   });
 
+  describe('estoque sem quantidade (#85)', () => {
+    const mountWith = (data, cartResponse) => {
+      fetch.mockImplementation((url) => {
+        if (url.includes('/recommendations/')) return Promise.resolve(recommendations([]));
+        if (url.includes('/cart/items/')) return Promise.resolve(cartResponse);
+        return Promise.resolve(response(data));
+      });
+      return mount();
+    };
+    const withVariations = (variations) => ({ ...product('1'), is_sellable: true, variations });
+
+    it('tamanho com estoque não mostra quantidade, mesmo se a API mandar o número', async () => {
+      mountWith(withVariations([{ id: 'vG', size: 'G', color: '', in_stock: true, stock_quantity: 12 }]));
+      fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
+
+      expect(screen.queryByText(/unidades/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/12/)).not.toBeInTheDocument();
+      expect(screen.queryByText('Sem estoque para este tamanho')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Adicionar ao Carrinho' })).not.toBeDisabled();
+    });
+
+    it('tamanho esgotado continua marcado e com Avise-me', async () => {
+      mountWith(withVariations([
+        { id: 'vM', size: 'M', color: '', in_stock: false },
+        { id: 'vG', size: 'G', color: '', in_stock: true },
+      ]));
+      const m = await screen.findByRole('button', { name: 'M (esgotado)' });
+      expect(screen.getByRole('button', { name: 'G' })).toBeInTheDocument();
+
+      fireEvent.click(m);
+      expect(screen.getByText('Sem estoque para este tamanho')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Avise-me quando chegar' })).toBeInTheDocument();
+      expect(screen.queryByText('Esgotado')).not.toBeInTheDocument();
+    });
+
+    it('produto sem nenhum tamanho em estoque mostra o selo Esgotado', async () => {
+      mountWith(withVariations([
+        { id: 'vM', size: 'M', color: '', in_stock: false },
+        { id: 'vG', size: 'G', color: '', in_stock: false },
+      ]));
+      expect(await screen.findByText('Esgotado')).toBeInTheDocument();
+    });
+
+    it('recusa do servidor por estoque aparece para o cliente', async () => {
+      mountWith(
+        withVariations([{ id: 'vG', size: 'G', color: '', in_stock: true }]),
+        { ok: false, json: async () => ({ message: 'Estoque insuficiente para Produto 1.' }) },
+      );
+      fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Aumentar quantidade' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Adicionar ao Carrinho' }));
+
+      await waitFor(() => expect(
+        screen.getAllByRole('status').some((el) => el.textContent === 'Estoque insuficiente para Produto 1.'),
+      ).toBe(true));
+    });
+  });
+
   describe('acessibilidade (#64)', () => {
     const full = {
       ...product('1'),
