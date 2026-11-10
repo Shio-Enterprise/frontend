@@ -4,12 +4,11 @@ import { getAccessToken } from '../../lib/authToken';
 import { BlackButton, Icon } from '../ui/ShioDesign';
 
 const MAX_SUBJECT = 255;
-const MAX_MESSAGE = 5000;
+// Mesmo limite do backend (NewsletterEmailMessageSerializer)
+const MAX_MESSAGE = 10000;
 const PREVIEW_DEBOUNCE_MS = 400;
 
 const inscritos = (n) => `${n} ${n === 1 ? 'inscrito' : 'inscritos'}`;
-const enviados = (n) => `${n} ${n === 1 ? 'enviado' : 'enviados'}`;
-const falhas = (n) => `${n} ${n === 1 ? 'falha' : 'falhas'}`;
 
 export default function NewsletterModal({ onClose, onSent }) {
   const baseUrl = `${import.meta.env.VITE_API_URL}/api/auth/admin/newsletter/`;
@@ -106,7 +105,8 @@ export default function NewsletterModal({ onClose, onSent }) {
     setError(null);
     try {
       const res = await request('send/', { subject, message });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      // 202: o envio começou e segue em segundo plano; 409: já há outro em andamento
       if (!res.ok) throw new Error(data.error || 'Não foi possível enviar a newsletter.');
       setResult(data);
       setConfirming(false);
@@ -155,7 +155,7 @@ export default function NewsletterModal({ onClose, onSent }) {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
         {loadError && (
-          <div role="alert" className="p-3 bg-red-100 text-red-700 text-sm rounded-md">
+          <div role="alert" className="p-3 bg-red-50 text-shio-danger text-sm font-semibold rounded-md">
             {loadError}
           </div>
         )}
@@ -164,7 +164,7 @@ export default function NewsletterModal({ onClose, onSent }) {
         )}
 
         {noAudience && (
-          <div role="alert" className="p-3 bg-amber-50 text-amber-800 text-sm rounded-md border border-amber-200">
+          <div role="alert" className="p-3 bg-amber-50 text-shio-warning text-sm font-semibold rounded-md">
             Nenhum inscrito elegível com consentimento LGPD ativo no momento.
           </div>
         )}
@@ -230,7 +230,7 @@ export default function NewsletterModal({ onClose, onSent }) {
         {testFeedback && (
           <p
             role="status"
-            className={`text-sm ${testFeedback.ok ? 'text-green-700' : 'text-red-700'}`}
+            className={`text-sm font-semibold ${testFeedback.ok ? 'text-shio-success' : 'text-shio-danger'}`}
           >
             {testFeedback.text}
           </p>
@@ -241,7 +241,7 @@ export default function NewsletterModal({ onClose, onSent }) {
             ref={result ? undefined : outcomeRef}
             tabIndex={-1}
             role="alert"
-            className="p-3 bg-red-100 text-red-700 text-sm rounded-md"
+            className="p-3 bg-red-50 text-shio-danger text-sm font-semibold rounded-md"
           >
             {error}
           </div>
@@ -252,10 +252,13 @@ export default function NewsletterModal({ onClose, onSent }) {
             ref={outcomeRef}
             tabIndex={-1}
             role="status"
-            className="p-4 bg-green-50 border border-green-200 text-green-800 text-sm rounded-md space-y-1"
+            className="p-4 bg-green-50 border border-shio-success text-shio-success text-sm rounded-md space-y-1"
           >
-            <p className="font-semibold text-green-900">Newsletter enviada com sucesso!</p>
-            <p>{enviados(result.sent_count)}, {falhas(result.failed_count)}</p>
+            <p className="font-semibold">Envio iniciado!</p>
+            <p>
+              A newsletter está sendo enviada para {inscritos(result.total_count ?? totalSubscribers)} em
+              segundo plano. Você pode fechar esta janela e acompanhar o andamento no histórico.
+            </p>
           </div>
         )}
 

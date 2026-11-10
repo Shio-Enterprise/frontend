@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
 import NewsletterModal from '../../../components/admin/NewsletterModal';
 import DrawerShell from '../../../components/admin/DrawerShell';
@@ -15,6 +15,30 @@ const inscritos = (n) => `${n} ${n === 1 ? 'inscrito' : 'inscritos'}`;
 const enviados = (n) => `${n} ${n === 1 ? 'enviado' : 'enviados'}`;
 const falhas = (n) => `${n} ${n === 1 ? 'falha' : 'falhas'}`;
 
+// Enquanto houver envio em andamento, o histórico se atualiza sozinho
+export const POLL_INTERVAL_MS = 5000;
+
+const STATUS = {
+  sending: { label: 'Enviando', className: 'text-shio-warning' },
+  sent: { label: 'Concluído', className: 'text-shio-success' },
+  interrupted: { label: 'Interrompido', className: 'text-shio-danger' },
+};
+
+function statusText(item) {
+  const label = STATUS[item.status]?.label ?? 'Concluído';
+  if (item.status !== 'sending') return label;
+  const done = item.sent_count + item.failed_count;
+  return item.total_count ? `${label} (${done} de ${item.total_count})` : `${label}…`;
+}
+
+function StatusLabel({ item }) {
+  return (
+    <span className={`font-semibold ${STATUS[item.status]?.className ?? 'text-shio-success'}`}>
+      {statusText(item)}
+    </span>
+  );
+}
+
 export default function NewsletterPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,8 +46,9 @@ export default function NewsletterPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedSend, setSelectedSend] = useState(null);
 
-  const fetchData = async () => {
-    setLoading(true);
+  // silent: atualização automática, sem trocar a tabela por "Carregando..."
+  const fetchData = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/admin/newsletter/`, {
@@ -40,16 +65,28 @@ export default function NewsletterPage() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const totalSubscribers = data?.total_subscribers ?? 0;
   const history = data?.history ?? [];
+  const inProgress = history.some((item) => item.status === 'sending');
+
+  useEffect(() => {
+    if (!inProgress) return undefined;
+    const t = setInterval(() => fetchData({ silent: true }), POLL_INTERVAL_MS);
+    return () => clearInterval(t);
+  }, [inProgress, fetchData]);
+
+  // A gaveta mostra a versão mais recente do envio aberto (contadores sobem)
+  const selected = selectedSend
+    ? history.find((item) => item.id === selectedSend.id) ?? selectedSend
+    : null;
 
   return (
     <AdminPanel className="p-4 md:p-6">
@@ -66,7 +103,7 @@ export default function NewsletterPage() {
       {error && (
         <div role="alert" className="mt-4 rounded-[10px] bg-red-50 p-4 text-sm font-semibold text-shio-danger">
           {error}
-          <button type="button" className="ml-3 underline" onClick={fetchData}>
+          <button type="button" className="ml-3 underline" onClick={() => fetchData()}>
             Tentar novamente
           </button>
         </div>
@@ -100,7 +137,19 @@ export default function NewsletterPage() {
       </div>
 
       {/* Tabela de Histórico */}
-      <div className="mt-8 overflow-hidden rounded-lg border border-black/10 bg-white shadow-xs">
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+        <p role="status" className="text-sm text-shio-muted">
+          {inProgress ? 'Envio em andamento. O histórico se atualiza sozinho.' : ''}
+        </p>
+        <button
+          type="button"
+          onClick={() => fetchData({ silent: true })}
+          className="h-11 rounded-md border border-black/15 px-4 text-sm font-semibold text-black hover:bg-black/5"
+        >
+          Atualizar histórico
+        </button>
+      </div>
+      <div className="mt-3 overflow-hidden rounded-lg border border-black/10 bg-white shadow-xs">
         <div
           role="region"
           aria-label="Tabela de histórico de newsletters"
@@ -114,6 +163,7 @@ export default function NewsletterPage() {
                 <th className="px-6 py-4">Assunto</th>
                 <th className="px-6 py-4">Data do Envio</th>
                 <th className="px-6 py-4">Enviado por</th>
+                <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Entregues</th>
                 <th className="px-6 py-4">Falhas</th>
                 <th className="px-6 py-4 text-right">Ações</th>
@@ -122,14 +172,14 @@ export default function NewsletterPage() {
             <tbody className="divide-y divide-black/5">
               {loading && (
                 <tr>
-                  <td colSpan="6" role="status" className="p-6 text-center text-shio-muted">
+                  <td colSpan="7" role="status" className="p-6 text-center text-shio-muted">
                     Carregando histórico...
                   </td>
                 </tr>
               )}
               {!loading && history.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="p-6 text-center text-shio-muted">
+                  <td colSpan="7" className="p-6 text-center text-shio-muted">
                     Nenhuma newsletter enviada ainda.
                   </td>
                 </tr>
@@ -148,10 +198,13 @@ export default function NewsletterPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-gray-600">
                       {item.sent_by_name || '—'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-green-700">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusLabel item={item} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-shio-success">
                       {enviados(item.sent_count)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-amber-700">
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-shio-warning">
                       {falhas(item.failed_count)}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
@@ -174,12 +227,12 @@ export default function NewsletterPage() {
         <NewsletterModal
           onClose={() => setModalOpen(false)}
           onSent={() => {
-            fetchData();
+            fetchData({ silent: true });
           }}
         />
       )}
 
-      {selectedSend && (
+      {selected && (
         <DrawerShell
           title="Detalhes da Newsletter"
           onClose={() => setSelectedSend(null)}
@@ -187,32 +240,36 @@ export default function NewsletterPage() {
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div>
               <span className="text-xs uppercase tracking-wider text-shio-muted font-semibold">Assunto</span>
-              <p className="text-lg font-bold text-black mt-1">{selectedSend.subject}</p>
+              <p className="text-lg font-bold text-black mt-1">{selected.subject}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 border-y border-black/10 py-4 text-sm">
               <div>
                 <span className="text-xs text-shio-muted">Enviado em</span>
-                <p className="font-medium mt-0.5">{fmtDateTime(selectedSend.sent_at)}</p>
+                <p className="font-medium mt-0.5">{fmtDateTime(selected.sent_at)}</p>
               </div>
               <div>
                 <span className="text-xs text-shio-muted">Enviado por</span>
-                <p className="font-medium mt-0.5">{selectedSend.sent_by_name || '—'}</p>
+                <p className="font-medium mt-0.5">{selected.sent_by_name || '—'}</p>
+              </div>
+              <div className="col-span-2">
+                <span className="text-xs text-shio-muted">Status</span>
+                <p className="mt-0.5"><StatusLabel item={selected} /></p>
               </div>
               <div>
                 <span className="text-xs text-shio-muted">Entregues</span>
-                <p className="font-bold text-green-700 mt-0.5">{enviados(selectedSend.sent_count)}</p>
+                <p className="font-bold text-shio-success mt-0.5">{enviados(selected.sent_count)}</p>
               </div>
               <div>
                 <span className="text-xs text-shio-muted">Falhas</span>
-                <p className="font-bold text-amber-700 mt-0.5">{falhas(selectedSend.failed_count)}</p>
+                <p className="font-bold text-shio-warning mt-0.5">{falhas(selected.failed_count)}</p>
               </div>
             </div>
 
             <div>
               <span className="text-xs uppercase tracking-wider text-shio-muted font-semibold">Mensagem enviada</span>
               <div className="mt-2 whitespace-pre-wrap rounded-md bg-gray-50 border border-black/10 p-4 text-sm text-gray-800 font-sans leading-relaxed">
-                {selectedSend.message}
+                {selected.message}
               </div>
             </div>
           </div>

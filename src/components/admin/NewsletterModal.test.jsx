@@ -8,6 +8,16 @@ function json(body, status = 200) {
   return Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
 }
 
+// Resposta do backend: o envio começou e segue em segundo plano
+const STARTED = {
+  id: 'send-1',
+  status: 'sending',
+  total_count: 87,
+  sent_count: 0,
+  failed_count: 0,
+  sent_at: '2026-10-20T10:00:00Z',
+};
+
 function setupFetch({ info, send, test, preview } = {}) {
   const calls = [];
   globalThis.fetch = vi.fn((url, opts = {}) => {
@@ -21,7 +31,7 @@ function setupFetch({ info, send, test, preview } = {}) {
     if (url.endsWith('/newsletter/send/')) {
       return send
         ? send()
-        : json({ sent_count: 87, failed_count: 0, sent_at: '2026-10-20T10:00:00Z' }, 201);
+        : json(STARTED, 202);
     }
     return json(info || { total_subscribers: 87, history: [] });
   });
@@ -117,8 +127,9 @@ describe('NewsletterModal', () => {
     expect(calls.some((x) => x.url.endsWith('/newsletter/send/'))).toBe(false);
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
-    expect(await screen.findByText('87 enviados, 0 falhas')).toBeInTheDocument();
-    expect(onSent).toHaveBeenCalledWith(expect.objectContaining({ sent_count: 87 }));
+    expect(await screen.findByText('Envio iniciado!')).toBeInTheDocument();
+    expect(screen.getByText(/sendo enviada para 87 inscritos em\s+segundo plano/)).toBeInTheDocument();
+    expect(onSent).toHaveBeenCalledWith(expect.objectContaining({ status: 'sending' }));
   });
 
   it('desabilita botão de envio se não houver público', async () => {
@@ -141,10 +152,38 @@ describe('NewsletterModal', () => {
     expect(await screen.findByText('Erro no servidor de e-mail.')).toBeInTheDocument();
   });
 
-  it('trata singular corretamente para 1 inscrito, 1 enviado e 1 falha', async () => {
+  it('mostra o 409 quando já há outro envio em andamento', async () => {
+    setupFetch({
+      send: () => json({ error: 'Já existe um envio de newsletter em andamento.' }, 409),
+    });
+    render(<NewsletterModal onClose={() => {}} />);
+    await screen.findByText('87 inscritos');
+
+    fireEvent.change(screen.getByLabelText(/Assunto/), { target: { value: 'Assunto' } });
+    fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'Mensagem' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 inscritos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
+    expect(
+      await screen.findByText('Já existe um envio de newsletter em andamento.'),
+    ).toBeInTheDocument();
+  });
+
+  it('aceita mensagem até o limite do backend (10000 caracteres)', async () => {
+    setupFetch();
+    render(<NewsletterModal onClose={() => {}} />);
+    await screen.findByText('87 inscritos');
+    const textarea = screen.getByLabelText(/Mensagem/);
+    expect(textarea).toHaveAttribute('maxLength', '10000');
+    fireEvent.change(textarea, { target: { value: 'a'.repeat(10001) } });
+    expect(textarea.value).toHaveLength(10000);
+    expect(screen.getByText('10000/10000 caracteres')).toBeInTheDocument();
+  });
+
+  it('trata singular corretamente para 1 inscrito', async () => {
     setupFetch({
       info: { total_subscribers: 1, history: [] },
-      send: () => json({ sent_count: 1, failed_count: 1 }, 201),
+      send: () => json({ ...STARTED, total_count: 1 }, 202),
     });
     render(<NewsletterModal onClose={() => {}} />);
     expect(await screen.findByText('1 inscrito')).toBeInTheDocument();
@@ -156,7 +195,7 @@ describe('NewsletterModal', () => {
     expect(screen.getByText('Enviar para 1 inscrito? Não dá para desfazer.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
-    expect(await screen.findByText('1 enviado, 1 falha')).toBeInTheDocument();
+    expect(await screen.findByText(/sendo enviada para 1 inscrito em/)).toBeInTheDocument();
   });
 
   it('não fecha por Esc enquanto envia', async () => {
@@ -165,7 +204,7 @@ describe('NewsletterModal', () => {
       send: () =>
         new Promise((r) => {
           resolveSend = () =>
-            r({ ok: true, status: 201, json: () => Promise.resolve({ sent_count: 87, failed_count: 0 }) });
+            r({ ok: true, status: 202, json: () => Promise.resolve(STARTED) });
         }),
     });
     const onClose = vi.fn();
@@ -184,7 +223,7 @@ describe('NewsletterModal', () => {
     await act(async () => {
       resolveSend();
     });
-    expect(await screen.findByText('87 enviados, 0 falhas')).toBeInTheDocument();
+    expect(await screen.findByText('Envio iniciado!')).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -201,7 +240,7 @@ describe('NewsletterModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 inscritos' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
 
-    await screen.findByText('87 enviados, 0 falhas');
-    await waitFor(() => expect(document.activeElement).toHaveTextContent('Newsletter enviada com sucesso!'));
+    await screen.findByText('Envio iniciado!');
+    await waitFor(() => expect(document.activeElement).toHaveTextContent('Envio iniciado!'));
   });
 });

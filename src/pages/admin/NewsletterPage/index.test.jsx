@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import NewsletterPage from './index';
+import NewsletterPage, { POLL_INTERVAL_MS } from './index';
 
 vi.mock('../../../lib/authToken', () => ({ getAccessToken: () => 'tok' }));
 
@@ -19,6 +19,9 @@ const SAMPLE_DATA = {
       sent_by_name: 'Admin Teste',
       sent_count: 130,
       failed_count: 2,
+      total_count: 132,
+      status: 'sent',
+      finished_at: '2026-11-05T14:32:00Z',
     },
   ],
 };
@@ -29,6 +32,7 @@ describe('NewsletterPage', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
   });
 
@@ -43,6 +47,67 @@ describe('NewsletterPage', () => {
     expect(screen.getByText('Admin Teste')).toBeInTheDocument();
     expect(screen.getByText('130 enviados')).toBeInTheDocument();
     expect(screen.getByText('2 falhas')).toBeInTheDocument();
+    expect(screen.getByText('Concluído')).toBeInTheDocument();
+  });
+
+  it('com envio em andamento, mostra o progresso e atualiza sozinho até concluir', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const sending = {
+      ...SAMPLE_DATA.history[0],
+      status: 'sending',
+      sent_count: 40,
+      failed_count: 0,
+      finished_at: null,
+    };
+    const responses = [
+      { total_subscribers: 132, history: [sending] },
+      { total_subscribers: 132, history: [{ ...sending, sent_count: 100 }] },
+      SAMPLE_DATA,
+    ];
+    let call = 0;
+    globalThis.fetch = vi.fn().mockImplementation(() =>
+      json(responses[Math.min(call++, responses.length - 1)]),
+    );
+
+    render(<NewsletterPage />);
+
+    expect(await screen.findByText('Enviando (40 de 132)')).toBeInTheDocument();
+    expect(screen.getByText('Envio em andamento. O histórico se atualiza sozinho.')).toBeInTheDocument();
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    expect(await screen.findByText('Enviando (100 de 132)')).toBeInTheDocument();
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    expect(await screen.findByText('Concluído')).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(3);
+
+    // Concluído: para de consultar
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3);
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('não consulta de novo sozinho quando nada está em andamento', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    globalThis.fetch = vi.fn().mockImplementation(() => json(SAMPLE_DATA));
+
+    render(<NewsletterPage />);
+    await screen.findByText('Drop Cyberpunk Inverno');
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('mostra envio interrompido e atualiza pelo botão', async () => {
+    const interrupted = { ...SAMPLE_DATA.history[0], status: 'interrupted', sent_count: 50 };
+    globalThis.fetch = vi
+      .fn()
+      .mockImplementationOnce(() => json({ total_subscribers: 132, history: [interrupted] }))
+      .mockImplementation(() => json(SAMPLE_DATA));
+
+    render(<NewsletterPage />);
+
+    expect(await screen.findByText('Interrompido')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Atualizar histórico' }));
+    expect(await screen.findByText('Concluído')).toBeInTheDocument();
   });
 
   it('exibe mensagem quando não há campanhas enviadas', async () => {
