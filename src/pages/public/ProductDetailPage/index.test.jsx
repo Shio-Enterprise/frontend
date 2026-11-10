@@ -356,6 +356,17 @@ describe('ProductDetailPage', () => {
       expect(segunda).toHaveAttribute('aria-pressed', 'true');
     });
 
+    it('volta para a primeira foto ao trocar de produto', async () => {
+      const { router } = mountFull();
+      fireEvent.click(await screen.findByRole('button', { name: 'Ver foto 2 de 2' }));
+      fetch.mockImplementation((url) => Promise.resolve(url.includes('/recommendations/')
+        ? recommendations([])
+        : response({ ...full, id: '2', name: 'Produto 2', images: [{ id: 'j1', image: '/a.png' }, { id: 'j2', image: '/b.png' }] })));
+      await act(async () => router.navigate('/product/2'));
+      expect(await screen.findByRole('img', { name: 'Produto 2' })).toHaveAttribute('src', '/a.png');
+      expect(screen.getByRole('button', { name: 'Ver foto 1 de 2' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
     it('tamanho e cor ficam num grupo e anunciam o selecionado', async () => {
       mountFull();
       const group = await screen.findByRole('group', { name: 'Tamanho e cor' });

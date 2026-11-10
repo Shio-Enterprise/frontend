@@ -4,6 +4,7 @@ import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
 import ProductReviews from '../../../components/reviews/ProductReviews';
 import SizeGuideTable from '../../../components/product/SizeGuideTable';
+import ProductGallery from '../../../components/product/ProductGallery';
 import { getAccessToken } from '../../../lib/authToken';
 import { EVENT_TYPES, trackEvent } from '../../../lib/analytics';
 import { useCart } from '../../../context/CartContext';
@@ -31,7 +32,6 @@ const ProductDetailContent = ({ id }) => {
   const [notFound, setNotFound] = useState(false);
   const [selectedVarId, setSelectedVarId] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [activeImage, setActiveImage] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMsg, setCartMsg] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
@@ -68,7 +68,6 @@ const ProductDetailContent = ({ id }) => {
       .then((data) => {
         if (controller.signal.aborted) return;
         setProduct(data);
-        setActiveImage(0);
         if (data.variations?.length > 0) setSelectedVarId(data.variations[0].id);
         trackEvent(EVENT_TYPES.PRODUCT_VIEW, { productId: data.id });
       })
@@ -181,8 +180,6 @@ const ProductDetailContent = ({ id }) => {
     );
   }
 
-  const images = product.images ?? [];
-  const currentImage = images[activeImage]?.image ?? null;
   const basePrice = Number(product.base_price ?? 0);
   const promoPrice = product.is_promotion_active ? Number(product.effective_price) : null;
   const price = (Number(product.effective_price ?? basePrice)).toFixed(2);
@@ -203,29 +200,7 @@ const ProductDetailContent = ({ id }) => {
       <section className="mx-auto max-w-[1240px] px-6 py-16">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[570px_minmax(0,1fr)]">
           {/* Image gallery */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-[132px_minmax(0,1fr)]">
-            <div role={images.length > 0 ? 'group' : undefined} aria-label={images.length > 0 ? 'Fotos do produto' : undefined} className="grid grid-cols-3 gap-4 sm:grid-cols-1">
-              {images.length > 0 ? images.map((img, i) => (
-                <button key={img.id} type="button" onClick={() => setActiveImage(i)}
-                  aria-label={`Ver foto ${i + 1} de ${images.length}`}
-                  aria-pressed={i === activeImage}
-                  className={`overflow-hidden rounded-[2px] bg-[#f0efed] ring-2 transition ${i === activeImage ? 'ring-black' : 'ring-transparent'}`}>
-                  <img src={img.image} alt="" className="aspect-square w-full object-cover" />
-                </button>
-              )) : (
-                <div className="overflow-hidden rounded-[2px] bg-[#f0efed]">
-                  <div className="aspect-square w-full" />
-                </div>
-              )}
-            </div>
-            <div className="overflow-hidden rounded-[8px] bg-[#f0efed]">
-              {currentImage ? (
-                <img src={currentImage} alt={product.name} className="h-full min-h-[420px] w-full object-cover" />
-              ) : (
-                <div className="h-full min-h-[420px] w-full bg-[#f0efed]" />
-              )}
-            </div>
-          </div>
+          <ProductGallery images={product.images ?? []} productName={product.name} />
 
           {/* Product info */}
           <div>
