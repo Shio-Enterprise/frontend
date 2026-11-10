@@ -1,6 +1,10 @@
 import { pricePayload, apiError, toSaoPauloInput } from '../../../components/admin/productForm';
 import { ProductPriceFields } from '../../../components/admin/ProductFields';
-import { useState } from 'react';
+import ProductImagesEditor from '../../../components/admin/ProductImagesEditor';
+import { imagesChanged, syncProductImages } from '../../../components/admin/productImages';
+import ProductVariationsEditor from '../../../components/admin/ProductVariationsEditor';
+import { syncProductVariations, toVariationRows, validateVariations, variationsChanged } from '../../../components/admin/productVariations';
+import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
@@ -36,6 +40,13 @@ const EditProductForm = ({ productId, product }) => {
   const { data: dropsResponse } = useApi('/api/catalog/drops/');
   const { data: categoriesResponse } = useApi('/api/catalog/categories/');
   const [form, setForm] = useState(() => initialForm(product));
+  const [images, setImages] = useState(() => (product.images ?? []).map((image) => ({ key: image.id, id: image.id, url: image.image })));
+  const [removedImageIds, setRemovedImageIds] = useState([]);
+  const [variations, setVariations] = useState(() => toVariationRows(product.variations));
+  const [stockNote, setStockNote] = useState('');
+  // Mesma operação de estoque reenviada (ex.: nova tentativa) reaproveita a chave:
+  // o backend não registra a movimentação duas vezes.
+  const stockKeysRef = useRef(new Map());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
@@ -47,8 +58,14 @@ const EditProductForm = ({ productId, product }) => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (isSubmitting) return;
-    setIsSubmitting(true);
     setSubmitError(null);
+    // Erro de tamanho/estoque (ex.: estoque negativo) barra antes de salvar qualquer coisa.
+    const variationError = validateVariations(variations, stockNote);
+    if (variationError) {
+      setSubmitError(variationError);
+      return;
+    }
+    setIsSubmitting(true);
 
     try {
       const token = getAccessToken();
@@ -72,6 +89,36 @@ const EditProductForm = ({ productId, product }) => {
         const errorData = await response.json().catch(() => ({}));
         // O backend responde {"error": ..., "details": {campo: motivo}}: mostra o motivo.
         throw new Error(apiError(errorData.details ?? errorData) || 'Falha ao salvar o produto.');
+      }
+
+      if (imagesChanged(images, removedImageIds, product.images)) {
+        try {
+          const saved = await syncProductImages({ productId, images, removedIds: removedImageIds, token });
+          // Se os tamanhos falharem logo abaixo, a nova tentativa não reenvia as imagens.
+          setImages(saved.images);
+          setRemovedImageIds(saved.removedIds);
+        } catch (err) {
+          // Guarda o que já foi enviado: tentar de novo não duplica imagens.
+          if (err.state) {
+            setImages(err.state.images);
+            setRemovedImageIds(err.state.removedIds);
+          }
+          throw new Error(`Os dados do produto foram salvos, mas as imagens não. ${err.message}`, { cause: err });
+        }
+      }
+
+      if (variationsChanged(variations)) {
+        const keyFor = (signature) => {
+          const keys = stockKeysRef.current;
+          if (!keys.has(signature)) keys.set(signature, crypto.randomUUID());
+          return keys.get(signature);
+        };
+        try {
+          await syncProductVariations({ productId, rows: variations, note: stockNote, token, keyFor });
+        } catch (err) {
+          if (err.state) setVariations(err.state);
+          throw new Error(`Os dados do produto foram salvos, mas os tamanhos/estoque não. ${err.message}`, { cause: err });
+        }
       }
 
       navigate(detailUrl);
@@ -160,32 +207,13 @@ const EditProductForm = ({ productId, product }) => {
             />
           </label>
 
-          {/* Imagens e tamanhos ainda só aparecem aqui; a edição deles entra nas próximas etapas da issue #79. */}
-          {product.images?.length > 0 && (
-            <div>
-              <span className={labelClass}>Imagens</span>
-              <ul aria-label="Imagens do produto" className="mt-3 flex flex-wrap gap-3">
-                {product.images.map((image, index) => (
-                  <li key={image.id}>
-                    <img src={image.image} alt={`Imagem ${index + 1}${index === 0 ? ' (principal)' : ''}`} className="h-20 w-20 rounded-[10px] border border-black/15 object-cover" />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <ProductImagesEditor
+            images={images}
+            onChange={setImages}
+            onRemoveExisting={(id) => setRemovedImageIds((ids) => [...ids, id])}
+          />
 
-          {product.variations?.length > 0 && (
-            <div>
-              <span className={labelClass}>Tamanhos</span>
-              <ul aria-label="Tamanhos do produto" className="mt-3 flex flex-wrap gap-2">
-                {product.variations.map((v) => (
-                  <li key={v.id} className={`rounded-full border px-4 py-2 text-[14px] font-medium ${v.is_active === false ? 'border-dashed border-black/30 text-shio-muted' : 'border-black/20 text-black'}`}>
-                    {v.size}{v.color ? ` / ${v.color}` : ''} — {v.stock_quantity ?? 0} un.{v.is_active === false ? ' (inativo)' : ''}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <ProductVariationsEditor rows={variations} onChange={setVariations} note={stockNote} onNoteChange={setStockNote} />
 
           {submitError && <p role="alert" className="text-center text-sm font-semibold text-shio-danger">{submitError}</p>}
 

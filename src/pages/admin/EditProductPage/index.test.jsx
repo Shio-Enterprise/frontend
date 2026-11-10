@@ -77,10 +77,13 @@ describe('EditProductPage', () => {
     expect(screen.getByLabelText('Fim da promoção')).toHaveValue('2026-12-10T10:00');
   });
 
-  it('marca o tamanho inativo na lista de tamanhos', () => {
+  it('mostra os tamanhos com a quantidade atual; o inativo só pode ser reativado', () => {
     renderPage();
-    expect(screen.getByText('P — 0 un. (inativo)')).toBeInTheDocument();
-    expect(screen.getByText('G / Preto — 3 un.')).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'Quantidade final de G / Preto' })).toHaveValue(3);
+    expect(screen.getByText('Atual: 3 un. · sem mudança')).toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: 'Quantidade final de P' })).not.toBeInTheDocument();
+    expect(screen.getByText('Inativo')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reativar tamanho P' })).toBeInTheDocument();
   });
 
   it('salva com PUT os dados alterados e volta para o detalhe do produto', async () => {
@@ -135,6 +138,236 @@ describe('EditProductPage', () => {
 
   it('formulário sem violações de acessibilidade', async () => {
     const { container } = renderPage();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('EditProductPage — imagens', () => {
+  const twoImages = { ...product, images: [{ id: 'i1', image: 'http://img/1.png' }, { id: 'i2', image: 'http://img/2.png' }] };
+  const fileInputs = (container) => container.querySelectorAll('input[type=file]');
+  const imageNames = () => screen.getAllByRole('img').map((img) => img.getAttribute('alt'));
+
+  beforeEach(() => {
+    let n = 0;
+    globalThis.URL.createObjectURL = vi.fn(() => `blob:img${n++}`);
+    globalThis.URL.revokeObjectURL = vi.fn();
+    useApiMock.mockImplementation((url) => ({
+      data: url === '/api/catalog/products/p1/' ? twoImages : apiData[url] ?? null,
+      loading: false, error: null, refetch: vi.fn(),
+    }));
+  });
+
+  it('lista as imagens atuais, com a primeira como principal', () => {
+    renderPage();
+    expect(imageNames()).toEqual(['Imagem 1 (principal)', 'Imagem 2']);
+    expect(screen.getByRole('button', { name: 'Tornar principal a imagem 1' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Subir imagem 1' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Descer imagem 2' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('tornar principal leva a imagem para o topo e mantém o foco no botão dela', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Tornar principal a imagem 2' }));
+
+    expect(screen.getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual(['http://img/2.png', 'http://img/1.png']);
+    expect(screen.getByRole('status')).toHaveTextContent('A imagem agora é a principal.');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tornar principal a imagem 1' })).toHaveFocus());
+  });
+
+  it('adiciona imagem nova e recusa arquivo acima de 5MB', () => {
+    const { container } = renderPage();
+    const big = new File(['x'], 'grande.png', { type: 'image/png' });
+    Object.defineProperty(big, 'size', { value: 6 * 1024 * 1024 });
+    fireEvent.change(fileInputs(container)[0], { target: { files: [new File(['a'], 'frente.png', { type: 'image/png' }), big] } });
+
+    expect(imageNames()).toEqual(['Imagem 1 (principal)', 'Imagem 2', 'Imagem 3, nova']);
+    expect(screen.getByText('Nova: frente.png (enviada ao salvar)')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('1 imagem(ns) ignorada(s) por exceder 5MB.');
+  });
+
+  it('substituir troca a pré-visualização e marca a imagem como substituída', () => {
+    const { container } = renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Substituir imagem 2' }));
+    fireEvent.change(fileInputs(container)[1], { target: { files: [new File(['b'], 'nova-costas.png', { type: 'image/png' })] } });
+
+    expect(imageNames()).toEqual(['Imagem 1 (principal)', 'Imagem 2, substituída']);
+    expect(screen.getByText('Substituída: nova-costas.png (enviada ao salvar)')).toBeInTheDocument();
+  });
+
+  it('remover tira a imagem da lista e devolve o foco para "Adicionar imagens"', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Remover imagem 1' }));
+    expect(imageNames()).toEqual(['Imagem 1 (principal)']);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Adicionar imagens' })).toHaveFocus());
+  });
+
+  it('ao salvar, envia produto, remoção, imagem nova e a ordem escolhida', async () => {
+    const fetchMock = vi.fn((url, options) => {
+      if (options.method === 'POST') return Promise.resolve({ ok: true, json: async () => ({ id: 'n1', image: 'http://img/n1.png' }) });
+      return Promise.resolve({ ok: true, status: options.method === 'DELETE' ? 204 : 200, json: async () => ({}) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover imagem 1' }));
+    fireEvent.change(fileInputs(container)[0], { target: { files: [new File(['a'], 'frente.png', { type: 'image/png' })] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tornar principal a imagem 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    expect(await screen.findByText('Detalhe do produto')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url, options]) => `${options.method} ${url.replace(/^.*\/api\/catalog/, '')}`)).toEqual([
+      'PUT /products/p1/',
+      'DELETE /images/i1/',
+      'POST /products/p1/images/',
+      'PUT /products/p1/images/order/',
+    ]);
+    expect(JSON.parse(fetchMock.mock.calls[3][1].body)).toEqual({ image_ids: ['n1', 'i2'] });
+  });
+
+  it('se a imagem falha, avisa na tela e a nova tentativa não reenvia o que já subiu', async () => {
+    let posts = 0;
+    const fetchMock = vi.fn((url, options) => {
+      if (options.method === 'POST') {
+        posts += 1;
+        return posts === 1
+          ? Promise.resolve({ ok: true, json: async () => ({ id: 'n1', image: 'http://img/n1.png' }) })
+          : Promise.resolve({ ok: false, status: 400, json: async () => ({ details: { image: ['Formato inválido.'] } }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = renderPage();
+    fireEvent.change(fileInputs(container)[0], {
+      target: { files: [new File(['a'], 'a.png', { type: 'image/png' }), new File(['b'], 'b.gif', { type: 'image/gif' })] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    expect(await screen.findByText(/Os dados do produto foram salvos, mas as imagens não\. Falha ao enviar a imagem 4: image: Formato inválido\./)).toBeInTheDocument();
+    // A imagem 3 já subiu e deixou de ser "nova"; a 4 continua pendente.
+    expect(imageNames()).toEqual(['Imagem 1 (principal)', 'Imagem 2', 'Imagem 3', 'Imagem 4, nova']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+    await screen.findByRole('button', { name: 'Salvando...' });
+    await screen.findByRole('button', { name: 'Salvar alterações' });
+    // 2 envios na primeira tentativa + só a imagem 4 na segunda.
+    expect(posts).toBe(3);
+  });
+
+  it('editor de imagens sem violações de acessibilidade (com imagem nova)', async () => {
+    const { container } = renderPage();
+    fireEvent.change(fileInputs(container)[0], { target: { files: [new File(['a'], 'frente.png', { type: 'image/png' })] } });
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('EditProductPage — tamanhos e estoque', () => {
+  const quantity = (name) => screen.getByRole('spinbutton', { name: `Quantidade final de ${name}` });
+  const save = () => fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+  const route = ([url, options = {}]) => `${options.method ?? 'GET'} ${url.replace(/^.*\/api\/catalog/, '')}`;
+
+  beforeEach(() => {
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:nova');
+    globalThis.URL.revokeObjectURL = vi.fn();
+  });
+
+  it('diminuir o estoque abaixo de zero é recusado antes de salvar qualquer coisa', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    renderPage();
+    fireEvent.change(quantity('G / Preto'), { target: { value: '-1' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Justificativa do ajuste/ }), { target: { value: 'Avaria' } });
+    save();
+
+    // min="0": o próprio navegador barra o envio e mostra o motivo no campo
+    // (a validação em productVariations.js é a segunda barreira, testada lá).
+    expect(quantity('G / Preto')).toBeInvalid();
+    expect(quantity('G / Preto').validity.rangeUnderflow).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByText('Detalhe do produto')).not.toBeInTheDocument();
+  });
+
+  it('mudar o estoque exige justificativa', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    renderPage();
+    fireEvent.change(quantity('G / Preto'), { target: { value: '1' } });
+
+    expect(screen.getByText('Atual: 3 un. · −2 un. (saída por ajuste)')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /Justificativa do ajuste/ })).toHaveAttribute('aria-required', 'true');
+    save();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Informe a justificativa do ajuste de estoque.');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('salva nova imagem, novo tamanho e estoque alterado, e o ajuste vai para o histórico', async () => {
+    const fetchMock = vi.fn((url, options = {}) => {
+      if (!options.method) return Promise.resolve({ ok: true, json: async () => product });
+      if (options.method === 'POST' && url.endsWith('/images/')) return Promise.resolve({ ok: true, json: async () => ({ id: 'n1', image: 'http://img/n1.png' }) });
+      if (options.method === 'POST' && url.endsWith('/variations/')) return Promise.resolve({ ok: true, json: async () => ({ id: 'vm', size: 'M', sku: 'SH-1', stock_quantity: 4 }) });
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = renderPage();
+
+    fireEvent.change(container.querySelector('input[type=file]'), { target: { files: [new File(['a'], 'frente.png', { type: 'image/png' })] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar tamanho' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tamanho do novo tamanho 1' }), { target: { value: 'M' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Estoque inicial do novo tamanho 1' }), { target: { value: '4' } });
+    fireEvent.change(quantity('G / Preto'), { target: { value: '5' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Justificativa do ajuste/ }), { target: { value: 'Chegou reposição' } });
+    save();
+
+    expect(await screen.findByText('Detalhe do produto')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(route)).toEqual([
+      'PUT /products/p1/',
+      'POST /products/p1/images/',
+      'PUT /products/p1/images/order/',
+      'GET /products/p1/',
+      'POST /products/p1/variations/',
+      'POST /variations/vg/stock-movements/',
+    ]);
+    const bodies = fetchMock.mock.calls.map(([, options = {}]) => options.body);
+    expect(JSON.parse(bodies[4])).toEqual({ size: 'M', color: '', sku: '', stock_quantity: 4 });
+    const movement = JSON.parse(bodies[5]);
+    expect(movement).toMatchObject({ kind: 'ENTRADA', reason: 'AJUSTE', quantity: 2, note: 'Chegou reposição' });
+    expect(movement.idempotency_key).toEqual(expect.any(String));
+  });
+
+  it('remover tamanho com estoque avisa que zera; desfazer volta ao normal e o foco acompanha', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Remover tamanho G / Preto' }));
+
+    expect(screen.getByText(/Será removido ao salvar \(ou desativado, se tiver histórico\)\. O estoque de 3 un\. será zerado por ajuste\./)).toBeInTheDocument();
+    const undo = screen.getByRole('button', { name: 'Desfazer mudança em G / Preto' });
+    await waitFor(() => expect(undo).toHaveFocus());
+
+    fireEvent.click(undo);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remover tamanho G / Preto' })).toHaveFocus());
+    expect(quantity('G / Preto')).toHaveValue(3);
+  });
+
+  it('erro do backend no estoque aparece na tela com o motivo', async () => {
+    vi.stubGlobal('fetch', vi.fn((url, options = {}) => {
+      if (!options.method) return Promise.resolve({ ok: true, json: async () => product });
+      if (url.includes('stock-movements')) {
+        return Promise.resolve({ ok: false, status: 400, json: async () => ({ details: { quantity: ['Saída supera o estoque atual.'] } }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }));
+    renderPage();
+    fireEvent.change(quantity('G / Preto'), { target: { value: '0' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Justificativa do ajuste/ }), { target: { value: 'Perda' } });
+    save();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Os dados do produto foram salvos, mas os tamanhos/estoque não. Falha ao ajustar o estoque de G / Preto: quantity: Saída supera o estoque atual.',
+    );
+  });
+
+  it('tamanhos sem violações de acessibilidade (com tamanho novo)', async () => {
+    const { container } = renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar tamanho' }));
     expect(await axe(container)).toHaveNoViolations();
   });
 });
