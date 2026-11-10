@@ -216,7 +216,8 @@ export default function SizeGuidesPage() {
   const handleDelete = async (guide) => {
     const linked = guide.category_details.map((c) => c.name).join(', ');
     const warning = linked ? ` As categorias ${linked} ficarão sem tabela de medidas na loja.` : '';
-    if (!window.confirm(`Excluir o guia “${guide.name}”?${warning}`)) return;
+    const products = ' Produtos que usam este guia voltam a usar o guia da categoria.';
+    if (!window.confirm(`Excluir o guia “${guide.name}”?${warning}${products}`)) return;
     setActionError(null);
     try {
       const response = await fetch(`${API_BASE_URL}/api/catalog/size-guides/${guide.id}/`, {
