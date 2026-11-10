@@ -195,7 +195,7 @@ describe('ProductDetailPage', () => {
     const withGuide = (extra = {}) => ({
       ...product('1'),
       is_sellable: true,
-      variations: [{ id: 'vM', size: 'M', color: '', stock_quantity: 2 }],
+      variations: [{ id: 'vM', size: 'M', color: '', in_stock: true }],
       size_guide: sizeGuide,
       ...extra,
     });
@@ -233,8 +233,8 @@ describe('ProductDetailPage', () => {
       ...product('1'),
       is_sellable: true,
       variations: [
-        { id: 'vM', size: 'M', color: '', stock_quantity: 0 },
-        { id: 'vG', size: 'G', color: '', stock_quantity: 2 },
+        { id: 'vM', size: 'M', color: '', in_stock: false },
+        { id: 'vG', size: 'G', color: '', in_stock: true },
       ],
       ...extra,
     });
@@ -335,8 +335,8 @@ describe('ProductDetailPage', () => {
       is_sellable: true,
       images: [{ id: 'i1', image: '/1.png' }, { id: 'i2', image: '/2.png' }],
       variations: [
-        { id: 'vM', size: 'M', color: 'Preto', stock_quantity: 0 },
-        { id: 'vG', size: 'G', color: 'Preto', stock_quantity: 2 },
+        { id: 'vM', size: 'M', color: 'Preto', in_stock: false },
+        { id: 'vG', size: 'G', color: 'Preto', in_stock: true },
       ],
     };
     const mountFull = () => {
