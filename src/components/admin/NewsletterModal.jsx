@@ -31,6 +31,27 @@ export default function NewsletterModal({ onClose, onSent }) {
     if (result || error) outcomeRef.current?.focus();
   }, [result, error]);
 
+  // O botão "Enviar para N" fica desabilitado ao pedir confirmação: o foco vai para a
+  // caixa de confirmação (que rola para a área visível) e não para o body. Não vai direto
+  // para "Confirmar envio" para um Enter acidental não disparar o envio.
+  // "Voltar" devolve o foco ao botão de envio.
+  const confirmRef = useRef(null);
+  const sendButtonRef = useRef(null);
+  const returnFocusToSend = useRef(false);
+  useEffect(() => {
+    if (confirming) {
+      confirmRef.current?.focus();
+    } else if (returnFocusToSend.current) {
+      returnFocusToSend.current = false;
+      sendButtonRef.current?.focus();
+    }
+  }, [confirming]);
+
+  const cancelConfirm = () => {
+    returnFocusToSend.current = true;
+    setConfirming(false);
+  };
+
   const request = useCallback(
     (path, body) =>
       fetch(`${baseUrl}${path}`, {
@@ -263,11 +284,18 @@ export default function NewsletterModal({ onClose, onSent }) {
         )}
 
         {confirming && !result && (
-          <div className="p-4 border-2 border-black rounded-md space-y-3 bg-amber-50/40">
-            <p className="text-sm font-semibold text-black">
+          <div
+            ref={confirmRef}
+            tabIndex={-1}
+            role="group"
+            aria-labelledby={`${titleId}-confirm`}
+            aria-describedby={`${titleId}-confirm-desc`}
+            className="p-4 border-2 border-black rounded-md space-y-3 bg-amber-50/40"
+          >
+            <p id={`${titleId}-confirm`} className="text-sm font-semibold text-black">
               Enviar para {inscritos(totalSubscribers)}? Não dá para desfazer.
             </p>
-            <p className="text-xs text-shio-muted">
+            <p id={`${titleId}-confirm-desc`} className="text-xs text-shio-muted">
               Cada pessoa receberá um e-mail individual com seu link exclusivo para cancelar a inscrição a qualquer momento.
             </p>
             <div className="flex gap-3">
@@ -276,7 +304,7 @@ export default function NewsletterModal({ onClose, onSent }) {
               </BlackButton>
               <button
                 type="button"
-                onClick={() => setConfirming(false)}
+                onClick={cancelConfirm}
                 disabled={sending}
                 className="h-12 rounded-md border border-black/25 px-4 text-sm font-bold hover:bg-black/5"
               >
@@ -305,6 +333,7 @@ export default function NewsletterModal({ onClose, onSent }) {
           {testing ? 'Enviando teste...' : 'Enviar teste para mim'}
         </button>
         <BlackButton
+          ref={sendButtonRef}
           onClick={() => setConfirming(true)}
           disabled={!canSend}
         >

@@ -229,6 +229,31 @@ describe('NewsletterModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('ao pedir confirmação o foco vai para a caixa; Voltar devolve ao botão de envio (#64)', async () => {
+    setupFetch();
+    render(<NewsletterModal onClose={() => {}} />);
+    await screen.findByText('87 inscritos');
+
+    fireEvent.change(screen.getByLabelText(/Assunto/), { target: { value: 'A' } });
+    fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'M' } });
+
+    const sendButton = screen.getByRole('button', { name: 'Enviar para 87 inscritos' });
+    sendButton.focus();
+    fireEvent.click(sendButton);
+
+    const box = screen.getByRole('group', { name: 'Enviar para 87 inscritos? Não dá para desfazer.' });
+    expect(box).toHaveAccessibleDescription(/e-mail individual/);
+    await waitFor(() => expect(document.activeElement).toBe(box));
+    // Não cai direto no botão que dispara o envio
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Confirmar envio' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }));
+    expect(screen.queryByRole('group')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Enviar para 87 inscritos' })),
+    );
+  });
+
   it('após enviar, o foco vai para o resultado (#64)', async () => {
     setupFetch();
     render(<NewsletterModal onClose={() => {}} />);
