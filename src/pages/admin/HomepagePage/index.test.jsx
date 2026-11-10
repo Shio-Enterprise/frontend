@@ -90,4 +90,26 @@ describe('HomepagePage', () => {
     const options = fetch.mock.calls.find(([url, init]) => url.endsWith('/homepage/banners/b1/') && init.method === 'PATCH')[1];
     expect(options.body.get('remove_image_mobile')).toBe('true');
   });
+
+  it('keeps an unsaved phrase while a banner action refreshes the list', async () => {
+    const second = { ...banner, id: 'b2', alt_text: 'Segundo', display_order: 1 };
+    fetch.mockImplementation((url) => url.includes('/admin/')
+      ? reply({ tagline: 'Frase atual', banners: [banner, second] }) : reply({}));
+    render(<MemoryRouter><HomepagePage /></MemoryRouter>);
+    await screen.findByText('Segundo');
+    fireEvent.change(screen.getByLabelText('Frase da faixa'), { target: { value: 'Rascunho da frase' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Descer Campanha' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/homepage/banners/order/'), expect.objectContaining({ method: 'PUT' })));
+    expect(screen.getByLabelText('Frase da faixa')).toHaveValue('Rascunho da frase');
+  });
+
+  it('clears the file chooser after adding a banner', async () => {
+    render(<MemoryRouter><HomepagePage /></MemoryRouter>);
+    await screen.findByText('Campanha');
+    fireEvent.change(screen.getByLabelText('Texto alternativo'), { target: { value: 'Novo' } });
+    fireEvent.change(screen.getByLabelText('Imagem para computador'), { target: { files: [new File(['png'], 'new.png', { type: 'image/png' })] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar banner' }));
+    await screen.findByText('Banner publicado.');
+    expect(screen.getByLabelText('Imagem para computador').files).toHaveLength(0);
+  });
 });

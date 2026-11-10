@@ -35,15 +35,16 @@ export default function HomepagePage() {
   const [tagline, setTagline] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [formRevision, setFormRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (includeTagline = false) => {
     const data = await apiRequest('admin/', { headers: authHeaders(), cache: 'no-store' });
     setBanners(data.banners ?? []);
-    setTagline(data.tagline ?? '');
+    if (includeTagline) setTagline(data.tagline ?? '');
   }, []);
 
   useEffect(() => {
@@ -67,13 +68,13 @@ export default function HomepagePage() {
     update(field, file);
   };
 
-  const run = async (action, message) => {
+  const run = async (action, message, includeTagline = false) => {
     setBusy(true);
     setError('');
     setSuccess('');
     try {
       await action();
-      await refresh();
+      await refresh(includeTagline);
       setSuccess(message);
     } catch (err) {
       setError(err.message);
@@ -85,7 +86,7 @@ export default function HomepagePage() {
   const saveTagline = (event) => {
     event.preventDefault();
     if (!tagline.trim()) { setError('Informe a frase da faixa.'); return; }
-    void run(() => apiRequest('tagline/', { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ tagline: tagline.trim() }) }), 'Frase publicada.');
+    void run(() => apiRequest('tagline/', { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ tagline: tagline.trim() }) }), 'Frase publicada.', true);
   };
 
   const saveBanner = (event) => {
@@ -111,12 +112,14 @@ export default function HomepagePage() {
       });
       setEditingId(null);
       setForm(emptyForm);
+      setFormRevision((value) => value + 1);
     }, 'Banner publicado.');
   };
 
   const edit = (banner) => {
     setEditingId(banner.id);
     setForm({ ...emptyForm, alt_text: banner.alt_text, link: banner.link || '' });
+    setFormRevision((value) => value + 1);
     setError('');
     setSuccess('');
   };
@@ -172,7 +175,7 @@ export default function HomepagePage() {
 
     <section className="rounded-xl border border-black/15 bg-white p-6">
       <h2 className="mb-4 text-xl font-semibold">{editingId ? 'Editar banner' : 'Adicionar banner'}</h2>
-      <form onSubmit={saveBanner} className="grid gap-4">
+      <form key={formRevision} onSubmit={saveBanner} className="grid gap-4">
         <label className="grid gap-2">Imagem para computador {editingId ? '(deixe vazio para manter)' : ''}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => selectFile('image_desktop', event.target.files?.[0])} /></label>
         <label className="grid gap-2">Imagem para celular (opcional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => selectFile('image_mobile', event.target.files?.[0])} /></label>
         {editingId && banners.find((banner) => banner.id === editingId)?.image_mobile && <label className="flex gap-2"><input type="checkbox" checked={form.remove_image_mobile} onChange={(event) => update('remove_image_mobile', event.target.checked)} />Remover imagem de celular atual</label>}
@@ -181,7 +184,7 @@ export default function HomepagePage() {
         <p className="text-sm text-black/60">JPEG, PNG ou WebP. Máximo de 5 MB por imagem.</p>
         <div className="flex gap-3">
           <button type="submit" disabled={busy || loading} className="rounded bg-black px-5 py-3 text-white disabled:opacity-50">{editingId ? 'Salvar banner' : 'Adicionar banner'}</button>
-          {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); }} className="rounded border px-5 py-3">Cancelar</button>}
+          {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); setFormRevision((value) => value + 1); }} className="rounded border px-5 py-3">Cancelar</button>}
         </div>
       </form>
     </section>
