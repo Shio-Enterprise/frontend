@@ -62,6 +62,13 @@ const navItems = [
     permission: ADMIN_PERMISSIONS.CUSTOMERS,
   },
   {
+    label: 'Newsletter',
+    to: '/admin/newsletter',
+    icon: 'mail',
+    matches: ['/admin/newsletter'],
+    permission: ADMIN_PERMISSIONS.CUSTOMERS,
+  },
+  {
     label: 'Avaliações',
     to: '/admin/reviews',
     icon: 'star',
