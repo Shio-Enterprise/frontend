@@ -128,8 +128,8 @@ export default function AdminNavbar() {
 
   return (
     <>
-      {/* Compacta para caber em notebook (1366×768); se a tela for mais baixa, rola por dentro. */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-[240px] lg:flex-col lg:overflow-y-auto lg:border-r lg:border-black/20 lg:bg-white">
+      {/* Logo e conta/sair ficam fixos; só a lista de seções rola quando não cabe na altura. */}
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-[240px] lg:flex-col lg:overflow-hidden lg:border-r lg:border-black/20 lg:bg-white">
         <div className="flex h-[88px] shrink-0 flex-col items-center justify-center border-b border-black/20">
           <Link to="/admin/dashboard" className="flex flex-col items-center">
             <img src={logo} alt="Shio Logo" className="h-auto w-[68px]" />
@@ -137,7 +137,11 @@ export default function AdminNavbar() {
           </Link>
         </div>
 
-        <nav className="space-y-1 px-4 py-4" aria-label="Navegação administrativa">
+        <nav
+          className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-4 py-4"
+          aria-label="Navegação administrativa"
+          data-testid="admin-sidebar-nav"
+        >
           {visibleNavItems.map((item) => {
             const active = isActive(item, pathname);
             return (
@@ -156,7 +160,7 @@ export default function AdminNavbar() {
           })}
         </nav>
 
-        <div className="mt-auto px-4 pb-5">
+        <div className="shrink-0 border-t border-black/10 px-4 pb-5 pt-3" data-testid="admin-sidebar-footer">
           <div className="mb-3 rounded-[12px] border border-black/10 bg-[#f7f7f7] px-3 py-3" data-testid="admin-user-summary">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-white">
