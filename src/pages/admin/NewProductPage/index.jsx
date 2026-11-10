@@ -17,12 +17,14 @@ const NewProductPage = () => {
   const navigate = useNavigate();
   const { data: dropsResponse } = useApi('/api/catalog/drops/');
   const { data: categoriesResponse } = useApi('/api/catalog/categories/');
+  const { data: guidesResponse } = useApi('/api/catalog/size-guides/');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [pricing, setPricing] = useState({ cost_price: '', promotional_price: '', promo_start: '', promo_end: '' });
   const [variations, setVariations] = useState([emptyVariation()]);
   const [dropId, setDropId] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [sizeGuideId, setSizeGuideId] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,6 +67,7 @@ const NewProductPage = () => {
       base_price: price || '0',
       drop: dropId || null,
       category: categoryId || null,
+      size_guide: sizeGuideId || null,
       is_active: true,
       ...pricePayload(pricing),
       variations: variations.map((v) => ({ ...v, stock_quantity: Number(v.stock_quantity || 0) })),
@@ -171,7 +174,23 @@ const NewProductPage = () => {
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
-            <span id="categoria-ajuda" className="mt-2 block text-[13px] text-shio-muted">A categoria define a tabela de medidas mostrada na loja.</span>
+            <span id="categoria-ajuda" className="mt-2 block text-[13px] text-shio-muted">Organiza o produto na loja.</span>
+          </label>
+
+          <label>
+            <span className="text-[15px] uppercase text-shio-muted">Guia de medidas</span>
+            <select
+              value={sizeGuideId}
+              onChange={(event) => setSizeGuideId(event.target.value)}
+              aria-describedby="guia-ajuda"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 bg-white px-7 text-[16px] text-black/65 outline-none focus:border-black"
+            >
+              <option value="">Usar o guia da categoria</option>
+              {getResults(guidesResponse).map((guide) => (
+                <option key={guide.id} value={guide.id}>{guide.name}</option>
+              ))}
+            </select>
+            <span id="guia-ajuda" className="mt-2 block text-[13px] text-shio-muted">Escolha um guia só se este produto tiver uma modelagem diferente da categoria.</span>
           </label>
 
           <label>

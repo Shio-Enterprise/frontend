@@ -119,7 +119,23 @@ describe('SizeGuidesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ações' }));
     fireEvent.click(screen.getByText('Excluir'));
     expect(confirm.mock.calls[0][0]).toContain('Camisetas ficarão sem tabela de medidas');
+    // Nenhum produto usa este guia: não fala de produtos.
+    expect(confirm.mock.calls[0][0]).not.toContain('Produtos');
     await waitFor(() => expect(state.refetch).toHaveBeenCalled());
     expect(fetch.mock.calls[0][1].method).toBe('DELETE');
+  });
+
+  it('mostra quantos produtos usam cada guia e avisa ao excluir', () => {
+    const productGuide = { ...topGuide, id: 'g2', name: 'Camiseta oversized', categories: [], category_details: [], product_count: 3 };
+    state.guides = [topGuide, productGuide];
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderPage();
+    expect(within(screen.getByRole('row', { name: /Parte de cima/ })).getByText('Nenhum')).toBeInTheDocument();
+    const row = within(screen.getByRole('row', { name: /Camiseta oversized/ }));
+    expect(row.getByText('3 produtos')).toBeInTheDocument();
+    fireEvent.click(row.getByRole('button', { name: 'Ações' }));
+    fireEvent.click(screen.getByText('Excluir'));
+    expect(confirm.mock.calls[0][0]).toContain('Produtos que usam este guia (3 produtos) voltam a usar o guia da categoria.');
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
