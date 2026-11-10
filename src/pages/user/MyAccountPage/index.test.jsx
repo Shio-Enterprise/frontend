@@ -79,12 +79,45 @@ describe('MyAccountPage', () => {
   });
 
   it('anuncia o erro de salvar os dados', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, json: async () => ({ cpf: ['inválido'] }) });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'Dados inválidos.', details: { cpf: ['CPF inválido.'] } }),
+    });
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Salvar Alterações' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Revise os campos destacados.');
-    expect(screen.getByLabelText('CPF')).toHaveAccessibleDescription('inválido');
+    expect(screen.getByLabelText('CPF')).toHaveAccessibleDescription('CPF inválido.');
+    expect(screen.getByLabelText('CPF')).toHaveAttribute('aria-invalid', 'true');
     fetchMock.mockRestore();
+  });
+
+  it.each([
+    ['09675623330', '096.756.233-30'],
+    ['096.756.233-30', '096.756.233-30'],
+    ['', null],
+  ])('envia %s e exibe o CPF devolvido pela API depois de salvar', async (typed, saved) => {
+    localStorage.setItem('accessToken', 'test-token');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, options) => ({
+      ok: true,
+      json: async () => options?.method === 'PATCH'
+        ? { cpf: saved }
+        : { name: 'Cliente', phone_number: '61999999999', cpf: '529.982.247-25' },
+    }));
+    try {
+      renderPage();
+      const field = await screen.findByLabelText('CPF');
+      await waitFor(() => expect(field).toHaveValue('529.982.247-25'));
+      fireEvent.change(field, { target: { value: typed } });
+      expect(field).toHaveValue(typed);
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
+      expect(await screen.findByRole('status')).toHaveTextContent('Dados salvos com sucesso!');
+      expect(field).toHaveValue(saved ?? '');
+      const patchCall = fetchMock.mock.calls.find(([, options]) => options?.method === 'PATCH');
+      expect(JSON.parse(patchCall[1].body).cpf).toBe(typed);
+    } finally {
+      fetchMock.mockRestore();
+      localStorage.removeItem('accessToken');
+    }
   });
 
   describe('erro do backend no formato { error, details }', () => {

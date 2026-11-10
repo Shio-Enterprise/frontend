@@ -125,6 +125,8 @@ const MyAccountPage = () => {
         setSaveMsg({ type: 'error', text: message });
         return;
       }
+      const data = await res.json();
+      setCpf(data.cpf ?? '');
       setSaveMsg({ type: 'success', text: 'Dados salvos com sucesso!' });
       // Só o sucesso some sozinho; o erro fica até a pessoa corrigir.
       setTimeout(() => setSaveMsg((msg) => (msg?.type === 'success' ? null : msg)), 4000);
