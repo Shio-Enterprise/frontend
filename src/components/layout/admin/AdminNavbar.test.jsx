@@ -128,6 +128,7 @@ describe('AdminNavbar', () => {
     expect(screen.getAllByRole('link', { name: 'Permissões' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Produtos' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Drops' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Página inicial' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Clientes' })).not.toBeInTheDocument();
   });
 
@@ -151,7 +152,7 @@ describe('AdminNavbar', () => {
       renderNavbar();
       fireEvent.click(menuButton());
       const menu = within(mobileMenu());
-      ['Dashboard', 'Drops', 'Produtos', 'Guias de medidas', 'Pedidos', 'Cupons', 'Clientes', 'Avaliações', 'Permissões']
+      ['Dashboard', 'Drops', 'Página inicial', 'Produtos', 'Guias de medidas', 'Pedidos', 'Cupons', 'Clientes', 'Avaliações', 'Permissões']
         .forEach((name) => expect(menu.getByRole('link', { name })).toBeInTheDocument());
     });
 

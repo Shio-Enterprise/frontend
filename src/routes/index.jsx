@@ -37,6 +37,7 @@ const DropsPage = lazy(() => import("../pages/admin/DropsPage"));
 const DropDetailsPage = lazy(() => import("../pages/admin/DropDetailsPage"));
 const CustomersPage = lazy(() => import("../pages/admin/CustomersPage"));
 const AdminPermissionsPage = lazy(() => import("../pages/admin/AdminPermissionsPage"));
+const HomepagePage = lazy(() => import("../pages/admin/HomepagePage"));
 const ReviewsPage = lazy(() => import("../pages/admin/ReviewsPage"));
 const CouponsPage = lazy(() => import("../pages/admin/CouponsPage"));
 const SizeGuidesPage = lazy(() => import("../pages/admin/SizeGuidesPage"));
@@ -249,6 +250,12 @@ const routes = [
     component: <AdminLayout><AdminPermissionsPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.ADMIN_PERMISSIONS,
+  },
+  {
+    path: "/admin/homepage",
+    component: <AdminLayout><HomepagePage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.HOMEPAGE,
   },
   {
     path: "/admin/newsletter",
