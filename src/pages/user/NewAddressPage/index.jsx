@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { Icon } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -36,6 +36,7 @@ const NewAddressPage = () => {
   };
 
   const lookupCep = useCallback(async () => {
+    if (cepLoading) return;
     const clean = form.zip_code.replace(/\D/g, '');
     if (clean.length !== 8) return;
     setCepLoading(true);
@@ -56,10 +57,11 @@ const NewAddressPage = () => {
     } finally {
       setCepLoading(false);
     }
-  }, [form.zip_code]);
+  }, [form.zip_code, cepLoading]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -92,7 +94,6 @@ const NewAddressPage = () => {
 
   return (
     <AccountLayout>
-      <PageMarker name="NewAddressPage" />
 
       <div className="mb-9 flex items-center gap-5">
         <Link to={returnTo} aria-label="Voltar" className="text-black transition hover:text-black/60">
@@ -104,101 +105,110 @@ const NewAddressPage = () => {
       <form onSubmit={handleSubmit} className="max-w-[720px] space-y-6">
 
         <label className="block">
-          <span className="text-[15px] uppercase text-black/55">Título</span>
+          <span className="text-[15px] uppercase text-shio-muted">Título</span>
           <input
             value={form.title}
             onChange={(e) => set('title', e.target.value)}
             placeholder="Ex: Casa, Trabalho"
             required
-            className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+            className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
           />
         </label>
 
         <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
           <label className="block">
-            <span className="text-[15px] uppercase text-black/55">CEP</span>
+            <span className="text-[15px] uppercase text-shio-muted">CEP</span>
             <input
+              autoComplete="postal-code"
+              inputMode="numeric"
+              aria-invalid={cepError ? true : undefined}
+              aria-describedby={cepError ? 'cep-error' : undefined}
               value={form.zip_code}
               onChange={handleCepChange}
               onBlur={lookupCep}
               placeholder="00000-000"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
           <button
             type="button"
             onClick={lookupCep}
-            disabled={cepLoading}
-            className="mt-auto h-12 rounded-full bg-black px-6 text-[14px] font-bold text-white disabled:bg-black/40"
+            aria-disabled={cepLoading || undefined}
+            className="mt-auto h-12 rounded-full bg-black px-6 text-[14px] font-bold text-white aria-disabled:bg-black/40"
           >
-            {cepLoading ? '...' : 'Buscar'}
+            {cepLoading ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
-        {cepError && <p className="text-[13px] text-[#ff3333]">{cepError}</p>}
+        {cepError && <p id="cep-error" role="alert" className="text-[13px] text-shio-danger">{cepError}</p>}
 
         <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
           <label className="block">
-            <span className="text-[15px] uppercase text-black/55">Rua / Logradouro</span>
+            <span className="text-[15px] uppercase text-shio-muted">Rua / Logradouro</span>
             <input
+              autoComplete="address-line1"
               value={form.street}
               onChange={(e) => set('street', e.target.value)}
               placeholder="Rua..."
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
           <label className="block">
-            <span className="text-[15px] uppercase text-black/55">Número</span>
+            <span className="text-[15px] uppercase text-shio-muted">Número</span>
             <input
               value={form.address_number}
               onChange={(e) => set('address_number', e.target.value)}
               placeholder="123"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
         </div>
 
         <label className="block">
-          <span className="text-[15px] uppercase text-black/55">Complemento <span className="normal-case font-normal text-black/35">(opcional)</span></span>
+          <span className="text-[15px] uppercase text-shio-muted">Complemento <span className="normal-case font-normal text-shio-muted">(opcional)</span></span>
           <input
+            autoComplete="address-line2"
             value={form.complement}
             onChange={(e) => set('complement', e.target.value)}
             placeholder="Apto, Bloco..."
-            className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+            className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
           />
         </label>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <label className="block sm:col-span-1">
-            <span className="text-[15px] uppercase text-black/55">Bairro</span>
+            <span className="text-[15px] uppercase text-shio-muted">Bairro</span>
             <input
+              autoComplete="address-level3"
               value={form.neighborhood}
               onChange={(e) => set('neighborhood', e.target.value)}
               placeholder="Bairro"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
           <label className="block sm:col-span-1">
-            <span className="text-[15px] uppercase text-black/55">Cidade</span>
+            <span className="text-[15px] uppercase text-shio-muted">Cidade</span>
             <input
+              autoComplete="address-level2"
               value={form.city}
               onChange={(e) => set('city', e.target.value)}
               placeholder="Cidade"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
           <label className="block sm:col-span-1">
-            <span className="text-[15px] uppercase text-black/55">UF</span>
+            <span className="text-[15px] uppercase text-shio-muted">UF</span>
             <input
+              autoComplete="address-level1"
               value={form.state}
               onChange={(e) => set('state', e.target.value.toUpperCase().slice(0, 2))}
               placeholder="SP"
               required
-              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-black/45 focus:border-black"
+              className="mt-3 h-12 w-full rounded-full border border-black/25 px-7 text-[16px] outline-none placeholder:text-shio-placeholder focus:border-black"
             />
           </label>
         </div>
@@ -214,18 +224,18 @@ const NewAddressPage = () => {
         </label>
 
         {saveError && (
-          <p className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-[#cc0000]">{saveError}</p>
+          <p role="alert" className="rounded-[10px] bg-red-50 px-4 py-3 text-[13px] text-shio-danger">{saveError}</p>
         )}
 
         <div className="flex gap-4 pt-4">
           <Link to={returnTo}
-            className="flex h-12 flex-1 items-center justify-center rounded-full border border-black/25 text-[14px] font-bold uppercase text-black/55 transition hover:border-black hover:text-black">
+            className="flex h-12 flex-1 items-center justify-center rounded-full border border-black/25 text-[14px] font-bold uppercase text-shio-muted transition hover:border-black hover:text-black">
             Cancelar
           </Link>
           <button
             type="submit"
-            disabled={saving}
-            className="flex h-12 flex-1 items-center justify-center gap-3 rounded-full bg-black text-[14px] font-bold uppercase text-white transition hover:bg-black/85 disabled:bg-black/40">
+            aria-disabled={saving || undefined}
+            className="flex h-12 flex-1 items-center justify-center gap-3 rounded-full bg-black text-[14px] font-bold uppercase text-white transition hover:bg-black/85 aria-disabled:bg-black/40">
             <Icon name="save" className="h-5 w-5" />
             {saving ? 'Salvando...' : 'Salvar Endereço'}
           </button>

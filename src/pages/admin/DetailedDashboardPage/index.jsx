@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
-import { AdminPanel, AdminTitle, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
 import DashboardViewToggle from '../../../components/ui/DashboardViewToggle';
 import { DonutChart, HorizontalBars } from './Visualizations';
@@ -100,7 +100,7 @@ function Section({ title, note, views, defaultView = 'list', children }) {
 }
 
 function Empty({ children = 'Nenhum dado no período.' }) {
-  return <p className="rounded-lg bg-black/[0.03] px-4 py-6 text-sm text-black/55">{children}</p>;
+  return <p className="rounded-lg bg-black/[0.03] px-4 py-6 text-sm text-shio-muted">{children}</p>;
 }
 
 function Rows({ rows, getKey, renderRow }) {
@@ -136,40 +136,45 @@ function SeriesChart({ points, granularity, metric, onSelect }) {
             const label = formatSeriesPeriod(point.period, granularity);
             const barHeight = value === 0 ? 0 : Math.max(4, Math.round(Math.abs(value) / max * plotHeight));
             return (
+              // Sem aria-label (#64): o nome é o próprio texto visível do botão (quem usa comando de voz
+              // fala o que vê) e o "ver pedidos" vem no fim, só para leitor de tela.
+              // "relative" segura o sr-only (absolute) dentro da caixa rolável; sem ele a página
+              // ganhava rolagem lateral.
               <button key={point.period} type="button" onClick={() => onSelect(point, metric)}
-                aria-label={`Ver pedidos de ${metric === 'net_revenue' ? 'receita líquida' : 'vendas válidas'} de ${label}: ${metric === 'net_revenue' ? formatMoney(point.net_revenue) : formatSales(point.valid_sales)}`}
-                className="flex w-[108px] shrink-0 flex-col items-center rounded-lg px-1 py-2 text-center transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
-                <span className={`flex min-h-8 items-end justify-center text-[11px] font-bold tabular-nums ${negative ? 'text-[#b42318]' : 'text-black'}`}>
+                className="relative flex w-[108px] shrink-0 flex-col items-center rounded-lg px-1 py-2 text-center transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
+                <span className={`flex min-h-8 items-end justify-center text-[12px] font-bold tabular-nums ${negative ? 'text-[#b42318]' : 'text-black'}`}>
                   {metric === 'net_revenue' ? formatMoney(point.net_revenue) : formatSales(point.valid_sales)}
-                </span>
+                </span>{' '}
                 <div className="mt-2 w-full">
                   <span className={`flex items-end justify-center ${hasNegative ? 'h-[72px]' : 'h-[144px]'}`}>
-                    {!negative && value !== 0 && <span className="w-9 rounded-t-md bg-black" style={{ height: `${barHeight}px` }} />}
+                    {!negative && value !== 0 && <span className="w-9 rounded-t-md bg-black forced-colors:bg-[CanvasText]" style={{ height: `${barHeight}px` }} />}
                   </span>
                   <span className="block h-px w-full bg-black/30" />
                   {hasNegative && <span className="flex h-[72px] items-start justify-center">
-                    {negative && <span className="w-9 rounded-b-md bg-[#b42318]" style={{ height: `${barHeight}px` }} />}
+                    {negative && <span className="w-9 rounded-b-md bg-[#b42318] forced-colors:bg-[CanvasText]" style={{ height: `${barHeight}px` }} />}
                   </span>}
                 </div>
-                <span className="mt-3 text-xs font-bold tabular-nums">{label}</span>
-                <span className="mt-1 text-[11px] leading-tight text-black/60">
+                <span className="mt-3 text-xs font-bold tabular-nums">{label}</span>{' '}
+                <span className="mt-1 text-[12px] leading-tight text-black/60">
                   {metric === 'net_revenue' ? formatSales(point.valid_sales) : formatMoney(point.net_revenue)}
                 </span>
+                <span className="sr-only">. Ver pedidos de {metric === 'net_revenue' ? 'receita líquida' : 'vendas válidas'}</span>
               </button>
             );
           })}
         </div>
       </div>
-      <p className="mt-3 text-xs text-black/55">Altura das barras: {metric === 'net_revenue' ? 'receita líquida' : 'vendas válidas'}. {hasNegative ? 'Barras vermelhas abaixo da linha indicam receita negativa. ' : ''}Toque em um período para ver os pedidos.</p>
+      <p className="mt-3 text-xs text-shio-muted">Altura das barras: {metric === 'net_revenue' ? 'receita líquida' : 'vendas válidas'}. {hasNegative ? 'Barras vermelhas abaixo da linha indicam receita negativa. ' : ''}Toque em um período para ver os pedidos.{points.length > 2 ? ' Role o gráfico para o lado para ver todos os períodos.' : ''}</p>
     </div>
   );
 }
 
 function SeriesTable({ points, granularity, onSelect }) {
   if (!points?.some((point) => Number(point.net_revenue) !== 0 || point.valid_sales > 0)) return <Empty>Nenhuma venda ou receita líquida no período.</Empty>;
-  return <div className="max-h-[420px] overflow-auto">
+  return <div role="region" aria-label="Tabela de receita e vendas por período" tabIndex={0}
+    className="max-h-[420px] overflow-auto rounded-lg outline-offset-[-2px]!">
     <table className="w-full min-w-[560px] text-left text-sm">
-      <thead className="sticky top-0 bg-white text-xs uppercase text-black/55">
+      <thead className="sticky top-0 bg-white text-xs uppercase text-shio-muted">
         <tr><th className="py-2 pr-4">Período</th><th className="py-2 pr-4 text-right">Vendas válidas</th><th className="py-2 pr-4 text-right">Bruto</th><th className="py-2 pr-4 text-right">Reembolsos</th><th className="py-2 pr-4 text-right">Líquido</th><th className="py-2 text-right">Pedidos</th></tr>
       </thead>
       <tbody className="divide-y divide-black/10">
@@ -189,7 +194,7 @@ function SeriesTable({ points, granularity, onSelect }) {
 function ProductRanking({ rows, unit, onSelect }) {
   return <Rows rows={rows} getKey={(row) => row.product_id} renderRow={(row, index) => <>
     <div className="min-w-0 text-sm [overflow-wrap:anywhere]">
-      <span className="mr-2 font-bold text-black/45">{index + 1}.</span>
+      <span className="mr-2 font-bold text-shio-muted">{index + 1}.</span>
       <Link to={`/admin/products/${row.product_id}`} className="font-semibold underline-offset-2 hover:underline">{row.product_name}</Link>
     </div>
     <span className="flex items-center gap-2 text-sm font-bold">{unit === 'units' ? `${row.units} un.` : formatMoney(row.revenue)}<DrillButton onClick={() => onSelect(row)} label={`Ver pedidos de ${row.product_name}`} /></span>
@@ -199,7 +204,7 @@ function ProductRanking({ rows, unit, onSelect }) {
 function RevenueDistribution({ rows, idKey, onSelect }) {
   return <Rows rows={rows} getKey={(row) => row[idKey] ?? 'unclassified'} renderRow={(row) => <>
     <span className="min-w-0 text-sm font-medium [overflow-wrap:anywhere]">{row.name}</span>
-    <span className="flex min-w-0 items-center gap-2 text-right text-sm [overflow-wrap:anywhere]"><span><strong>{formatMoney(row.revenue)}</strong><span className="ml-2 text-black/50">{row.units} un.</span></span><DrillButton onClick={() => onSelect(row)} label={`Ver pedidos de ${row.name}`} /></span>
+    <span className="flex min-w-0 items-center gap-2 text-right text-sm [overflow-wrap:anywhere]"><span><strong>{formatMoney(row.revenue)}</strong><span className="ml-2 text-shio-muted">{row.units} un.</span></span><DrillButton onClick={() => onSelect(row)} label={`Ver pedidos de ${row.name}`} /></span>
   </>} />;
 }
 
@@ -220,6 +225,12 @@ export default function DetailedDashboardPage() {
   const [selection, setSelection] = useState(null);
   const [seriesOrder, setSeriesOrder] = useState('newest');
   const [seriesMetric, setSeriesMetric] = useState('net_revenue');
+  // Botões "Limpar…" e "Tentar novamente" somem depois do clique; o foco vai para um campo que
+  // continua na tela em vez de cair no início da página (#64).
+  const periodRef = useRef(null);
+  const dropRef = useRef(null);
+  const startDateRef = useRef(null);
+  const focusAfterUpdate = useRef(null);
 
   const updateFilters = (changes) => {
     setDateError('');
@@ -298,9 +309,19 @@ export default function DetailedDashboardPage() {
 
   useEffect(() => {
     if (hash === '#estoque' && snapshot.query === requestQuery && snapshot.data) {
-      document.getElementById('estoque')?.scrollIntoView();
+      const stock = document.getElementById('estoque');
+      stock?.scrollIntoView();
+      // Quem chega pelo card de alertas continua o Tab a partir do estoque, não do topo.
+      stock?.focus({ preventScroll: true });
     }
   }, [hash, requestQuery, snapshot]);
+
+  // O formulário de datas é recriado (key) quando as datas mudam; foca depois de recriar.
+  useEffect(() => {
+    const target = focusAfterUpdate.current;
+    focusAfterUpdate.current = null;
+    target?.current?.focus();
+  }, [filters]);
 
   const closeOrders = useCallback(() => setSelection(null), []);
 
@@ -326,7 +347,6 @@ export default function DetailedDashboardPage() {
       periodLabel,
       dateBasis: metric === 'status' ? 'order_created_at' : 'payment.paid_at',
       filterKey: requestQuery,
-      returnFocus: document.activeElement,
     });
   };
 
@@ -347,7 +367,6 @@ export default function DetailedDashboardPage() {
   };
 
   const header = <>
-    <PageMarker name="DetailedDashboardPage" />
     <AdminTitle eyebrow="Análise comercial e operacional" title="Dashboard detalhado" action={(
       <Link to={`/admin/dashboard${urlQuery ? `?${urlQuery}` : ''}`} className="inline-flex min-h-11 items-center rounded-lg border border-black/20 px-5 text-sm font-bold uppercase hover:bg-black/5">
         Voltar ao resumo
@@ -359,20 +378,20 @@ export default function DetailedDashboardPage() {
     <h2 className="text-sm font-black uppercase tracking-wide">Filtros da análise</h2>
     <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <label className="grid gap-1 text-sm font-semibold">Período e agrupamento
-        <select aria-label="Período" value={filters.period} onChange={(event) => updateFilters({ period: event.target.value })} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal">
+        <select ref={periodRef} value={filters.period} onChange={(event) => updateFilters({ period: event.target.value })} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal">
           <option value="monthly">30 dias móveis · diário</option>
           <option value="annual">365 dias móveis · mensal</option>
         </select>
       </label>
       <label className="grid gap-1 text-sm font-semibold">Drop
-        <select aria-label="Drop" value={filters.drop} onChange={(event) => updateFilters({ drop: event.target.value })} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal">
+        <select ref={dropRef} value={filters.drop} onChange={(event) => updateFilters({ drop: event.target.value })} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal">
           <option value="">Todos os drops</option>
           {filters.drop && !catalog.drops.some((row) => row.id === filters.drop) && <option value={filters.drop}>Drop selecionado</option>}
           {catalog.drops.map((drop) => <option key={drop.id} value={drop.id}>{drop.name}</option>)}
         </select>
       </label>
       <label className="grid gap-1 text-sm font-semibold">Categoria
-        <select aria-label="Categoria" value={filters.category} onChange={(event) => updateFilters({ category: event.target.value })} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal">
+        <select value={filters.category} onChange={(event) => updateFilters({ category: event.target.value })} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal">
           <option value="">Todas as categorias</option>
           {filters.category && !catalog.categories.some((row) => row.id === filters.category) && <option value={filters.category}>Categoria selecionada</option>}
           {catalog.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
@@ -381,20 +400,20 @@ export default function DetailedDashboardPage() {
     </div>
     <form key={`${filters.start_date}:${filters.end_date}`} onSubmit={onDateSubmit} className="mt-4 flex flex-wrap items-end gap-3">
       <label className="grid min-w-[150px] flex-1 gap-1 text-sm font-semibold">Data inicial
-        <input name="start_date" type="date" aria-label="Data inicial" defaultValue={filters.start_date} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal" />
+        <input ref={startDateRef} name="start_date" type="date" aria-invalid={Boolean(dateError)} aria-describedby={dateError ? 'dashboard-date-error' : undefined} defaultValue={filters.start_date} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal" />
       </label>
       <label className="grid min-w-[150px] flex-1 gap-1 text-sm font-semibold">Data final
-        <input name="end_date" type="date" aria-label="Data final" defaultValue={filters.end_date} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal" />
+        <input name="end_date" type="date" aria-invalid={Boolean(dateError)} aria-describedby={dateError ? 'dashboard-date-error' : undefined} defaultValue={filters.end_date} className="h-11 min-w-0 rounded-lg border border-black/20 px-3 font-normal" />
       </label>
       <button type="submit" className="h-11 rounded-lg bg-black px-5 text-sm font-semibold text-white hover:bg-black/80">Aplicar datas</button>
-      {(filters.start_date || filters.end_date) && <button type="button" onClick={() => updateFilters({ start_date: '', end_date: '' })} className="h-11 rounded-lg border border-black/20 px-4 text-sm font-semibold hover:bg-black/5">Limpar datas</button>}
-      {(filters.drop || filters.category || filters.start_date || filters.end_date || filters.period !== 'monthly') && <button type="button" onClick={() => updateFilters({ period: 'monthly', start_date: '', end_date: '', drop: '', category: '' })} className="h-11 rounded-lg border border-black/20 px-4 text-sm font-semibold hover:bg-black/5">Limpar filtros</button>}
+      {(filters.start_date || filters.end_date) && <button type="button" onClick={() => { focusAfterUpdate.current = startDateRef; updateFilters({ start_date: '', end_date: '' }); }} className="h-11 rounded-lg border border-black/20 px-4 text-sm font-semibold hover:bg-black/5">Limpar datas</button>}
+      {(filters.drop || filters.category || filters.start_date || filters.end_date || filters.period !== 'monthly') && <button type="button" onClick={() => { focusAfterUpdate.current = periodRef; updateFilters({ period: 'monthly', start_date: '', end_date: '', drop: '', category: '' }); }} className="h-11 rounded-lg border border-black/20 px-4 text-sm font-semibold hover:bg-black/5">Limpar filtros</button>}
     </form>
-    {dateError && <p role="alert" className="mt-2 text-sm text-[#b42318]">{dateError}</p>}
-    <p className="mt-3 text-xs leading-relaxed text-black/55">Datas personalizadas substituem a janela móvel; o período selecionado define o agrupamento. Drop e categoria devem corresponder ao mesmo item do pedido. Cadastros totais e estoque seguem seus próprios critérios.</p>
-    {searchParams.has('search') && <p className="mt-2 text-xs text-black/55">A busca do resumo permanece na URL para a volta. Esta análise usa período, drop e categoria.</p>}
-    {catalog.loading && <p role="status" className="mt-2 text-xs text-black/55">Carregando opções de drop e categoria...</p>}
-    {catalog.error && <p role="alert" className="mt-2 text-xs text-[#b42318]">{catalog.error} <button type="button" onClick={() => setCatalogAttempt((current) => current + 1)} className="font-semibold underline">Tentar novamente</button></p>}
+    {dateError && <p id="dashboard-date-error" role="alert" className="mt-2 text-sm text-[#b42318]">{dateError}</p>}
+    <p className="mt-3 text-xs leading-relaxed text-shio-muted">Datas personalizadas substituem a janela móvel; o período selecionado define o agrupamento. Drop e categoria devem corresponder ao mesmo item do pedido. Cadastros totais e estoque seguem seus próprios critérios.</p>
+    {searchParams.has('search') && <p className="mt-2 text-xs text-shio-muted">A busca do resumo permanece na URL para a volta. Esta análise usa período, drop e categoria.</p>}
+    {catalog.loading && <p role="status" className="mt-2 text-xs text-shio-muted">Carregando opções de drop e categoria...</p>}
+    {catalog.error && <p role="alert" className="mt-2 text-xs text-[#b42318]">{catalog.error} <button type="button" onClick={() => { dropRef.current?.focus(); setCatalogAttempt((current) => current + 1); }} className="font-semibold underline">Tentar novamente</button></p>}
   </AdminPanel>;
 
   const data = snapshot.query === requestQuery ? snapshot.data : null;
@@ -428,7 +447,7 @@ export default function DetailedDashboardPage() {
       <MetricCard label="Vendas válidas" value={financial.valid_sales} icon="bag" onClick={() => openOrders('valid_sales', 'Vendas válidas')} />
       <MetricCard label="Ticket médio" value={formatMoney(financial.average_ticket)} icon="$" onClick={() => openOrders('average_ticket', 'Pedidos do ticket médio')} />
     </div>
-    <p className="mt-3 text-xs leading-relaxed text-black/55">Financeiro usa a data do pagamento. Vendas válidas: pedidos entregues e pagos. Pedido entregue e reembolsado entra na receita bruta e nos reembolsos. Receita líquida = receita bruta − reembolsos; ticket médio = receita líquida ÷ vendas válidas.</p>
+    <p className="mt-3 text-xs leading-relaxed text-shio-muted">Financeiro usa a data do pagamento. Vendas válidas: pedidos entregues e pagos. Pedido entregue e reembolsado entra na receita bruta e nos reembolsos. Receita líquida = receita bruta − reembolsos; ticket médio = receita líquida ÷ vendas válidas.</p>
 
     <div className="mt-8 grid gap-6">
       <Section title="Receita e vendas ao longo do tempo" note="Cada ponto usa a data do pagamento. Vendas válidas são pedidos entregues e pagos; pedidos entregues e reembolsados entram na receita bruta e saem pelos reembolsos. O período mensal cobre 30 dias móveis; o anual, 365 dias móveis."
@@ -444,7 +463,7 @@ export default function DetailedDashboardPage() {
               ))}
             </div>}
             <label className="ml-auto grid gap-1 text-xs font-semibold text-black/65">Ordenar períodos
-              <select aria-label="Ordenar períodos" value={seriesOrder} onChange={(event) => setSeriesOrder(event.target.value)}
+              <select value={seriesOrder} onChange={(event) => setSeriesOrder(event.target.value)}
                 className="h-10 min-w-[160px] rounded-lg border border-black/20 bg-white px-3 text-sm font-medium text-black">
                 <option value="newest">Mais recentes primeiro</option>
                 <option value="oldest">Mais antigos primeiro</option>
@@ -493,7 +512,7 @@ export default function DetailedDashboardPage() {
               : <RevenueDistribution rows={item_revenue.by_category} idKey="category_id" onSelect={openCategoryOrders} />}
         </Section>
       </div>
-      <p className="-mt-3 text-xs leading-relaxed text-black/55">Receita de itens soma quantidade × preço unitário; frete e desconto não são rateados. Drop e categoria seguem os vínculos atuais do catálogo, que podem mudar após a venda. “Sem classificação” reúne itens sem vínculo atual.</p>
+      <p className="-mt-3 text-xs leading-relaxed text-shio-muted">Receita de itens soma quantidade × preço unitário; frete e desconto não são rateados. Drop e categoria seguem os vínculos atuais do catálogo, que podem mudar após a venda. “Sem classificação” reúne itens sem vínculo atual.</p>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Section title="Pedidos por status" note="Inclui todos os pedidos criados no período, inclusive pendentes e cancelados. Usa a data de criação do pedido."
@@ -514,7 +533,7 @@ export default function DetailedDashboardPage() {
             : view === 'donut' ? <DonutChart rows={sales_by_payment_method} getKey={(row) => row.method}
               getLabel={(row) => paymentLabels[row.method] ?? row.method} getValue={(row) => row.valid_sales} formatValue={(row) => `${row.valid_sales} vendas`} totalLabel="vendas por método de pagamento"
               onSelect={(row) => openOrders('payment_method', `Vendas · ${paymentLabels[row.method] ?? row.method}`, { payment_method: row.method })} />
-              : <Rows rows={sales_by_payment_method} getKey={(row) => row.method} renderRow={(row) => <><span className="text-sm font-medium">{paymentLabels[row.method] ?? row.method}</span><span className="flex items-center gap-2 text-right text-sm"><span><strong>{row.valid_sales} vendas</strong><span className="ml-2 text-black/55">{formatMoney(row.gross_revenue)}</span></span><DrillButton onClick={() => openOrders('payment_method', `Vendas · ${paymentLabels[row.method] ?? row.method}`, { payment_method: row.method })} label={`Ver vendas por ${paymentLabels[row.method] ?? row.method}`} /></span></>} />}
+              : <Rows rows={sales_by_payment_method} getKey={(row) => row.method} renderRow={(row) => <><span className="text-sm font-medium">{paymentLabels[row.method] ?? row.method}</span><span className="flex items-center gap-2 text-right text-sm"><span><strong>{row.valid_sales} vendas</strong><span className="ml-2 text-shio-muted">{formatMoney(row.gross_revenue)}</span></span><DrillButton onClick={() => openOrders('payment_method', `Vendas · ${paymentLabels[row.method] ?? row.method}`, { payment_method: row.method })} label={`Ver vendas por ${paymentLabels[row.method] ?? row.method}`} /></span></>} />}
         </Section>
       </div>
 
@@ -534,7 +553,7 @@ export default function DetailedDashboardPage() {
           <Link to="/admin/customers" className="mt-5 inline-block text-sm font-semibold underline underline-offset-2">Ver clientes</Link>
           </>}
         </Section>
-        <div id="estoque" className="min-w-0 scroll-mt-6">
+        <div id="estoque" tabIndex={-1} className="min-w-0 scroll-mt-6">
         <Section title="Estoque atual" note="Saldo de variações no momento da consulta. Baixo: 1 a 9 unidades; esgotado: zero. O período não altera estes totais; drop e categoria usam o vínculo atual do produto.">
           <div className="grid gap-3 sm:grid-cols-2">
             <MetricCard label="Estoque baixo" value={stock.low_count} icon="box" negative={stock.low_count > 0} />
@@ -542,10 +561,10 @@ export default function DetailedDashboardPage() {
           </div>
           <h3 className="mt-6 mb-3 text-sm font-bold uppercase">Variações que exigem atenção</h3>
           <Rows rows={stock.attention} getKey={(row) => row.variation_id} renderRow={(row) => <>
-            <Link to={row.admin_path} className="min-w-0 text-sm font-medium underline-offset-2 hover:underline">{row.product_name} · {row.size}{row.color ? ` · ${row.color}` : ''}<span className="block text-xs text-black/50">{row.sku}</span></Link>
+            <Link to={row.admin_path} className="min-w-0 text-sm font-medium underline-offset-2 hover:underline">{row.product_name} · {row.size}{row.color ? ` · ${row.color}` : ''}<span className="block text-xs text-shio-muted">{row.sku}</span></Link>
             <strong className={`text-sm ${row.stock_quantity === 0 ? 'text-[#b42318]' : ''}`}>{row.stock_quantity} un.</strong>
           </>} />
-          {stock.low_count + stock.out_count > stock.attention.length && <p className="mt-4 text-xs text-black/55">Exibindo as primeiras {stock.attention.length} variações com atenção; os totais consideram todas.</p>}
+          {stock.low_count + stock.out_count > stock.attention.length && <p className="mt-4 text-xs text-shio-muted">Exibindo as primeiras {stock.attention.length} variações com atenção; os totais consideram todas.</p>}
         </Section>
         </div>
       </div>

@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import PublicLayout from '../../../components/layout/public/PublicLayout';
-import { PageMarker, ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
+import { ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
 import ProductReviews from '../../../components/reviews/ProductReviews';
 import SizeGuideTable from '../../../components/product/SizeGuideTable';
+import ProductGallery from '../../../components/product/ProductGallery';
 import { getAccessToken } from '../../../lib/authToken';
+import { EVENT_TYPES, trackEvent } from '../../../lib/analytics';
 import { useCart } from '../../../context/CartContext';
 import {
   createStockAlert, getPendingStockAlertVariationIds, stockAlertErrorMessage,
@@ -30,7 +32,6 @@ const ProductDetailContent = ({ id }) => {
   const [notFound, setNotFound] = useState(false);
   const [selectedVarId, setSelectedVarId] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [activeImage, setActiveImage] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMsg, setCartMsg] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
@@ -67,8 +68,8 @@ const ProductDetailContent = ({ id }) => {
       .then((data) => {
         if (controller.signal.aborted) return;
         setProduct(data);
-        setActiveImage(0);
         if (data.variations?.length > 0) setSelectedVarId(data.variations[0].id);
+        trackEvent(EVENT_TYPES.PRODUCT_VIEW, { productId: data.id });
       })
       .catch(() => {
         if (!controller.signal.aborted) setNotFound(true);
@@ -94,6 +95,8 @@ const ProductDetailContent = ({ id }) => {
 
     return () => controller.abort();
   }, [id]);
+
+  const productId = product?.id;
 
   const handleAddToCart = useCallback(async () => {
     if (!selectedVarId) return;
@@ -127,13 +130,14 @@ const ProductDetailContent = ({ id }) => {
         setCartData(cartData);
       }
       setCartMsg({ type: 'success', text: 'Adicionado ao carrinho!' });
+      trackEvent(EVENT_TYPES.ADD_TO_CART, { productId, variationId: selectedVarId });
     } catch (e) {
       setCartMsg({ type: 'error', text: e.message });
     } finally {
       setAddingToCart(false);
       setTimeout(() => setCartMsg(null), 3000);
     }
-  }, [selectedVarId, quantity, cartItems, setCartData]);
+  }, [selectedVarId, quantity, cartItems, setCartData, productId]);
 
   const handleStockAlert = async () => {
     if (!selectedVarId) return;
@@ -160,7 +164,7 @@ const ProductDetailContent = ({ id }) => {
   if (loading) {
     return (
       <PublicLayout>
-        <div className="flex min-h-[400px] items-center justify-center text-black/40">Carregando produto...</div>
+        <div role="status" className="flex min-h-[400px] items-center justify-center text-shio-muted">Carregando produto...</div>
       </PublicLayout>
     );
   }
@@ -169,64 +173,41 @@ const ProductDetailContent = ({ id }) => {
     return (
       <PublicLayout>
         <div className="mx-auto max-w-[1240px] px-6 py-20 text-center">
-          <p className="text-[24px] font-bold text-black">Produto não encontrado.</p>
+          <h1 className="text-[24px] font-bold text-black">Produto não encontrado.</h1>
           <Link to="/" className="mt-6 inline-block text-black underline">Voltar à loja</Link>
         </div>
       </PublicLayout>
     );
   }
 
-  const images = product.images ?? [];
-  const currentImage = images[activeImage]?.image ?? null;
   const basePrice = Number(product.base_price ?? 0);
   const promoPrice = product.is_promotion_active ? Number(product.effective_price) : null;
   const price = (Number(product.effective_price ?? basePrice)).toFixed(2);
   const discount = promoPrice ? Math.round((1 - promoPrice / basePrice) * 100) : null;
   const selectedVariation = product.variations?.find((v) => v.id === selectedVarId);
-  const totalStock = product.variations?.reduce((s, v) => s + (v.stock_quantity || 0), 0) ?? 0;
+  const anyInStock = product.variations?.some((v) => v.in_stock) ?? false;
   // Um produto pode ser visível (por isso a página carregou) e ainda assim
   // não vendável — drop Rascunho, Programado, Encerrado ou Esgotado (issue
   // #6). Distinto de "Esgotado" (estoque zerado na variação).
   const notSellable = product.is_sellable === false;
-  const variationOutOfStock = Boolean(selectedVariation) && selectedVariation.stock_quantity === 0;
+  const variationOutOfStock = Boolean(selectedVariation) && !selectedVariation.in_stock;
   const showStockAlert = variationOutOfStock && !notSellable;
   const alertPending = showStockAlert && pendingAlertIds.includes(String(selectedVarId));
 
   return (
     <PublicLayout>
-      <PageMarker name="ProductDetailPage" />
 
       <section className="mx-auto max-w-[1240px] px-6 py-16">
-        <div className="grid gap-8 lg:grid-cols-[570px_1fr]">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[570px_minmax(0,1fr)]">
           {/* Image gallery */}
-          <div className="grid gap-5 sm:grid-cols-[132px_1fr]">
-            <div className="grid grid-cols-3 gap-4 sm:grid-cols-1">
-              {images.length > 0 ? images.map((img, i) => (
-                <button key={img.id} onClick={() => setActiveImage(i)}
-                  className={`overflow-hidden rounded-[2px] bg-[#f0efed] ring-2 transition ${i === activeImage ? 'ring-black' : 'ring-transparent'}`}>
-                  <img src={img.image} alt="" className="aspect-square w-full object-cover" />
-                </button>
-              )) : (
-                <div className="overflow-hidden rounded-[2px] bg-[#f0efed]">
-                  <div className="aspect-square w-full" />
-                </div>
-              )}
-            </div>
-            <div className="overflow-hidden rounded-[8px] bg-[#f0efed]">
-              {currentImage ? (
-                <img src={currentImage} alt={product.name} className="h-full min-h-[420px] w-full object-cover" />
-              ) : (
-                <div className="h-full min-h-[420px] w-full bg-[#f0efed]" />
-              )}
-            </div>
-          </div>
+          <ProductGallery images={product.images ?? []} productName={product.name} />
 
           {/* Product info */}
           <div>
             <h1 className="text-[36px] font-black leading-tight text-black md:text-[42px]">{product.name}</h1>
 
             {product.category?.name && (
-              <p className="mt-2 text-[14px] font-semibold uppercase text-black/45">{product.category.name}</p>
+              <p className="mt-2 text-[14px] font-semibold uppercase text-shio-muted">{product.category.name}</p>
             )}
 
             {Number(product.rating_count) > 0 && (
@@ -238,21 +219,21 @@ const ProductDetailContent = ({ id }) => {
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <span className="text-[32px] font-bold text-black">R$ {price}</span>
               {promoPrice && (
-                <span className="text-[22px] font-bold text-black/35 line-through">R$ {basePrice.toFixed(2)}</span>
+                <span className="text-[22px] font-bold text-shio-muted line-through">R$ {basePrice.toFixed(2)}</span>
               )}
               {discount && (
-                <span className="rounded-full bg-[#ffebeb] px-4 py-1 text-sm font-semibold text-[#ff3333]">-{discount}%</span>
+                <span className="rounded-full bg-[#ffebeb] px-4 py-1 text-sm font-semibold text-shio-danger">-{discount}%</span>
               )}
-              {totalStock === 0 && (
-                <span className="rounded-full bg-red-50 px-4 py-1 text-sm font-medium text-[#ff3333]">Esgotado</span>
+              {!anyInStock && (
+                <span className="rounded-full bg-red-50 px-4 py-1 text-sm font-medium text-shio-danger">Esgotado</span>
               )}
               {notSellable && (
-                <span className="rounded-full bg-black/5 px-4 py-1 text-sm font-medium text-black/55">Indisponível para compra</span>
+                <span className="rounded-full bg-black/5 px-4 py-1 text-sm font-medium text-shio-muted">Indisponível para compra</span>
               )}
             </div>
 
             {product.description && (
-              <p className="mt-4 max-w-[620px] border-b border-black/10 pb-6 text-[16px] leading-7 text-black/55">
+              <p className="mt-4 max-w-[620px] border-b border-black/10 pb-6 text-[16px] leading-7 text-shio-muted">
                 {product.description}
               </p>
             )}
@@ -261,29 +242,28 @@ const ProductDetailContent = ({ id }) => {
             {product.variations?.length > 0 && (
               <div className="border-b border-black/10 py-6">
                 <div className="mb-4 flex items-center justify-between gap-4">
-                  <p className="text-[15px] text-black/55">Tamanho e cor</p>
+                  <p id="variacoes-titulo" className="text-[15px] text-shio-muted">Tamanho e cor</p>
                   {product.size_guide && (
                     <a href="#tabela-de-medidas" className="text-[13px] font-semibold text-black underline">
                       Tabela de medidas
                     </a>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div role="group" aria-labelledby="variacoes-titulo" className="flex flex-wrap gap-3">
                   {product.variations.map((v) => (
-                    <button key={v.id} onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
-                      className={`min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-black/55 hover:bg-black/10 ${v.stock_quantity === 0 ? 'opacity-40' : ''}`}`}>
+                    // Esgotado continua clicável (abre o "Avise-me"); a borda tracejada substitui a
+                    // transparência, que deixava o texto sem contraste.
+                    <button key={v.id} type="button" aria-pressed={v.id === selectedVarId}
+                      onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
+                      className={`min-h-11 min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-shio-muted hover:bg-black/10 ${!v.in_stock ? 'border border-dashed border-shio-muted' : ''}`}`}>
                       {v.size}{v.color ? ` / ${v.color}` : ''}
-                      {v.stock_quantity === 0 && ' (esgotado)'}
+                      {!v.in_stock && ' (esgotado)'}
                     </button>
                   ))}
                 </div>
-                {selectedVariation && (
-                  <p className="mt-3 text-[13px] text-black/45">
-                    {selectedVariation.stock_quantity > 0
-                      ? `${selectedVariation.stock_quantity} unidades em estoque`
-                      : 'Sem estoque para este tamanho'}
-                  </p>
-                )}
+                <p aria-live="polite" className="mt-3 text-[13px] text-shio-muted empty:hidden">
+                  {variationOutOfStock ? 'Sem estoque para este tamanho' : ''}
+                </p>
               </div>
             )}
 
@@ -296,22 +276,22 @@ const ProductDetailContent = ({ id }) => {
                     <Link to="/my-stock-alerts" className="text-sm text-black underline">Ver meus avisos</Link>
                   </div>
                 ) : (
-                  <button onClick={handleStockAlert} disabled={alertSaving}
+                  <button type="button" onClick={handleStockAlert} disabled={alertSaving}
                     className="inline-flex h-12 w-full items-center justify-center rounded-full bg-black text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40">
                     Avise-me quando chegar
                   </button>
                 )}
-                {alertError && <p role="alert" className="mt-3 text-sm font-semibold text-[#ff3333]">{alertError}</p>}
+                {alertError && <p role="alert" className="mt-3 text-sm font-semibold text-shio-danger">{alertError}</p>}
               </div>
             ) : (
               <>
             <div className="mt-6 grid gap-4 sm:grid-cols-[160px_1fr]">
-              <div className="flex h-12 items-center justify-between rounded-full bg-[#f0f0f0] px-4">
-                <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10">−</button>
-                <span className="text-[16px] font-semibold">{quantity}</span>
-                <button onClick={() => setQuantity((q) => q + 1)} className="flex h-8 w-8 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10">+</button>
+              <div role="group" aria-label="Quantidade" className="flex h-12 items-center justify-between rounded-full bg-[#f0f0f0] px-1">
+                <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1} aria-label="Diminuir quantidade" className="flex h-11 w-11 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10 disabled:opacity-40"><span aria-hidden="true">−</span></button>
+                <span aria-live="polite" className="text-[16px] font-semibold">{quantity}</span>
+                <button type="button" onClick={() => setQuantity((q) => q + 1)} aria-label="Aumentar quantidade" className="flex h-11 w-11 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10"><span aria-hidden="true">+</span></button>
               </div>
-              <button onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || totalStock === 0 || notSellable}
+              <button type="button" onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || !anyInStock || notSellable}
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40">
                 {addingToCart ? 'Adicionando...' : notSellable ? 'Indisponível' : 'Adicionar ao Carrinho'}
               </button>
@@ -320,14 +300,17 @@ const ProductDetailContent = ({ id }) => {
               </>
             )}
 
-            {cartMsg && (
-              <p className={`mt-3 text-sm font-semibold ${cartMsg.type === 'success' ? 'text-[#10a545]' : 'text-[#ff3333]'}`}>
-                {cartMsg.text}
-              </p>
-            )}
+            {/* Região sempre montada: o leitor de tela só anuncia mudanças numa região que já existia. */}
+            <div role="status" className={cartMsg ? 'mt-3' : ''}>
+              {cartMsg && (
+                <p className={`text-sm font-semibold ${cartMsg.type === 'success' ? 'text-shio-success' : 'text-shio-danger'}`}>
+                  {cartMsg.text}
+                </p>
+              )}
+            </div>
 
             {product.drop?.name && (
-              <Link to={`/drop/${product.drop.slug}`} className="mt-4 inline-block text-[14px] text-black/40 underline hover:text-black/70">
+              <Link to={`/drop/${product.drop.slug}`} className="mt-4 inline-block text-[14px] text-shio-muted underline hover:text-black/70">
                 Drop: {product.drop.name}
               </Link>
             )}
@@ -342,11 +325,11 @@ const ProductDetailContent = ({ id }) => {
       <section className="mx-auto max-w-[1240px] border-t border-black/10 px-6 py-16">
         <SectionTitle>Recomendações para você</SectionTitle>
         {recommendationsLoading ? (
-          <p role="status" className="mt-10 text-center text-black/50">Carregando recomendações...</p>
+          <p role="status" className="mt-10 text-center text-shio-muted">Carregando recomendações...</p>
         ) : recommendationsError ? (
-          <p role="alert" className="mt-10 text-center text-black/50">Não foi possível carregar as recomendações.</p>
+          <p role="alert" className="mt-10 text-center text-shio-muted">Não foi possível carregar as recomendações.</p>
         ) : recommendations.length === 0 ? (
-          <p className="mt-10 text-center text-black/50">Nenhuma recomendação disponível no momento.</p>
+          <p className="mt-10 text-center text-shio-muted">Nenhuma recomendação disponível no momento.</p>
         ) : (
           <div className="mt-10 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {recommendations.map(toCardShape).map((p) => <ProductCard key={p.id} product={p} />)}

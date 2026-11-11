@@ -8,7 +8,7 @@ export default function ExchangeItemsList({ items }) {
           {item.quantity}× {item.product_name}: {variationLabel(item.variation)}
           {' → '}
           <strong className="text-black">{variationLabel(item.replacement_variation)}</strong>
-          {item.condition_label && <span className="text-black/45"> ({item.condition_label})</span>}
+          {item.condition_label && <span className="text-shio-muted"> ({item.condition_label})</span>}
         </li>
       ))}
     </ul>

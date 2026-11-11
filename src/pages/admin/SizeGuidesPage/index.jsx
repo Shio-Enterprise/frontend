@@ -17,6 +17,8 @@ const measureSpan = (guide, key) => {
   return first && last ? `${first[0]}–${last[1]} cm` : '—';
 };
 
+const productCountLabel = (count) => (count === 1 ? '1 produto' : `${count} produtos`);
+
 function RangeInput({ form, setForm, row, column, index }) {
   return (
     <input
@@ -52,6 +54,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
 
   const handleSave = async (event) => {
     event.preventDefault();
+    if (saving) return;
     const problem = formProblem(form);
     if (problem) {
       setError(problem);
@@ -107,7 +110,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
                 {form.columns.map((column) => (
                   <span key={column.key} className="inline-flex items-center gap-2 rounded-full bg-[#f0f0f0] px-3 py-1 text-sm">
                     {column.label}
-                    <button type="button" aria-label={`Remover ${column.label}`} onClick={() => setForm(removeColumn(form, column.key))} className="text-black/50 hover:text-black">×</button>
+                    <button type="button" aria-label={`Remover ${column.label}`} onClick={() => setForm(removeColumn(form, column.key))} className="text-shio-muted hover:text-black">×</button>
                   </span>
                 ))}
               </div>
@@ -145,7 +148,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
             {form.rows.length > 0 && form.columns.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="border-b text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                  <thead className="border-b text-[12px] font-semibold uppercase tracking-wider text-gray-500">
                     <tr>
                       <th className="py-2 pr-4">Tamanho</th>
                       {form.columns.map((column) => <th key={column.key} className="py-2 pr-4">{column.label} (mín–máx)</th>)}
@@ -174,6 +177,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
 
             <fieldset>
               <legend className="mb-1 text-sm font-semibold">Categorias que usam este guia</legend>
+              <p className="mb-2 text-xs text-shio-muted">Opcional. Sem categoria, o guia pode ser escolhido em cada produto.</p>
               {categories.length === 0 && <p className="text-sm text-gray-500">Nenhuma categoria cadastrada.</p>}
               <div className="space-y-1">
                 {categories.map((category) => {
@@ -198,7 +202,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
 
         <div className="flex shrink-0 justify-end gap-3 border-t bg-gray-50 p-4">
           <button type="button" onClick={onClose} className="rounded-md border px-4 py-2 text-sm font-bold hover:bg-gray-100">Cancelar</button>
-          <BlackButton type="submit" form="guide-form" disabled={saving}>{saving ? 'Salvando...' : 'Salvar guia'}</BlackButton>
+          <BlackButton type="submit" form="guide-form" aria-disabled={saving || undefined}>{saving ? 'Salvando...' : 'Salvar guia'}</BlackButton>
         </div>
       </div>
     </div>,
@@ -215,7 +219,10 @@ export default function SizeGuidesPage() {
   const handleDelete = async (guide) => {
     const linked = guide.category_details.map((c) => c.name).join(', ');
     const warning = linked ? ` As categorias ${linked} ficarão sem tabela de medidas na loja.` : '';
-    if (!window.confirm(`Excluir o guia “${guide.name}”?${warning}`)) return;
+    const products = guide.product_count
+      ? ` Produtos que usam este guia (${productCountLabel(guide.product_count)}) voltam a usar o guia da categoria.`
+      : '';
+    if (!window.confirm(`Excluir o guia “${guide.name}”?${warning}${products}`)) return;
     setActionError(null);
     try {
       const response = await fetch(`${API_BASE_URL}/api/catalog/size-guides/${guide.id}/`, {
@@ -236,26 +243,27 @@ export default function SizeGuidesPage() {
         title="Guias de medidas"
         action={<BlackButton onClick={() => setDrawer({ guide: null })}>+ Novo guia</BlackButton>}
       />
-      <p className="-mt-4 mb-6 text-sm text-black/55">A tabela de medidas aparece na página dos produtos das categorias ligadas a cada guia.</p>
+      <p className="-mt-4 mb-6 text-sm text-shio-muted">Cada produto usa o guia escolhido nele ou, se não tiver, o guia da sua categoria.</p>
       {actionError && <p role="alert" className="mb-4 text-sm font-semibold text-red-600">{actionError}</p>}
 
       <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+            <thead className="border-b bg-gray-50 text-[12px] font-semibold uppercase tracking-wider text-gray-500">
               <tr>
                 <th className="px-6 py-4">Guia</th>
                 <th className="px-6 py-4">Tamanhos</th>
                 <th className="px-6 py-4">Medidas</th>
                 <th className="px-6 py-4">Categorias</th>
+                <th className="px-6 py-4">Produtos</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
-              {loading && <tr><td colSpan="5" className="p-6 text-center text-gray-500">Carregando...</td></tr>}
-              {!loading && error && <tr><td colSpan="5" className="p-6 text-center text-red-600">Não foi possível carregar os guias.</td></tr>}
+              {loading && <tr><td colSpan="6" className="p-6 text-center text-gray-500">Carregando...</td></tr>}
+              {!loading && error && <tr><td colSpan="6" className="p-6 text-center text-red-600">Não foi possível carregar os guias.</td></tr>}
               {!loading && !error && guides.length === 0 && (
-                <tr><td colSpan="5" className="p-6 text-center text-gray-500">Nenhum guia cadastrado.</td></tr>
+                <tr><td colSpan="6" className="p-6 text-center text-gray-500">Nenhum guia cadastrado.</td></tr>
               )}
               {guides.map((guide) => (
                 <tr key={guide.id} className="transition hover:bg-gray-50">
@@ -269,7 +277,10 @@ export default function SizeGuidesPage() {
                     ))}
                   </td>
                   <td className="px-6 py-4 text-gray-700">
-                    {guide.category_details.length ? guide.category_details.map((c) => c.name).join(', ') : <span className="text-gray-400">Nenhuma</span>}
+                    {guide.category_details.length ? guide.category_details.map((c) => c.name).join(', ') : <span className="text-shio-muted">Nenhuma</span>}
+                  </td>
+                  <td className="px-6 py-4 text-gray-700">
+                    {guide.product_count ? productCountLabel(guide.product_count) : <span className="text-shio-muted">Nenhum</span>}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <ActionMenu

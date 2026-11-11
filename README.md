@@ -78,18 +78,20 @@ O painel administrativo utiliza a mesma rota de autenticação `/login`. O acess
 
 ## Como Executar
 
-1. **Instale as dependências:**
+1. **Configure a URL do backend:** copie `.env.example` para `.env.local` e ajuste `VITE_API_URL` se a API não estiver em `http://localhost:8000`. O backend precisa estar ativo para o login funcionar.
+
+2. **Instale as dependências:**
    ```sh
    npm install
    ```
 
-2. **Execute o servidor de desenvolvimento:**
+3. **Execute o servidor de desenvolvimento:**
    ```sh
    npm run dev
    ```
    Disponível em `http://localhost:5173`.
 
-3. **Build de produção:**
+4. **Build de produção:**
    ```sh
    npm run build
    ```

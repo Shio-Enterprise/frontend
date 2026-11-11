@@ -195,7 +195,7 @@ describe('ProductDetailPage', () => {
     const withGuide = (extra = {}) => ({
       ...product('1'),
       is_sellable: true,
-      variations: [{ id: 'vM', size: 'M', color: '', stock_quantity: 2 }],
+      variations: [{ id: 'vM', size: 'M', color: '', in_stock: true }],
       size_guide: sizeGuide,
       ...extra,
     });
@@ -233,8 +233,8 @@ describe('ProductDetailPage', () => {
       ...product('1'),
       is_sellable: true,
       variations: [
-        { id: 'vM', size: 'M', color: '', stock_quantity: 0 },
-        { id: 'vG', size: 'G', color: '', stock_quantity: 2 },
+        { id: 'vM', size: 'M', color: '', in_stock: false },
+        { id: 'vG', size: 'G', color: '', in_stock: true },
       ],
       ...extra,
     });
@@ -326,6 +326,132 @@ describe('ProductDetailPage', () => {
       fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
       expect(screen.getByRole('button', { name: 'Adicionar ao Carrinho' })).toBeEnabled();
       expect(screen.queryByRole('button', { name: 'Avise-me quando chegar' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('estoque sem quantidade (#85)', () => {
+    const mountWith = (data, cartResponse) => {
+      fetch.mockImplementation((url) => {
+        if (url.includes('/recommendations/')) return Promise.resolve(recommendations([]));
+        if (url.includes('/cart/items/')) return Promise.resolve(cartResponse);
+        return Promise.resolve(response(data));
+      });
+      return mount();
+    };
+    const withVariations = (variations) => ({ ...product('1'), is_sellable: true, variations });
+
+    it('tamanho com estoque não mostra quantidade, mesmo se a API mandar o número', async () => {
+      mountWith(withVariations([{ id: 'vG', size: 'G', color: '', in_stock: true, stock_quantity: 12 }]));
+      fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
+
+      expect(screen.queryByText(/unidades/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/12/)).not.toBeInTheDocument();
+      expect(screen.queryByText('Sem estoque para este tamanho')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Adicionar ao Carrinho' })).not.toBeDisabled();
+    });
+
+    it('tamanho esgotado continua marcado e com Avise-me', async () => {
+      mountWith(withVariations([
+        { id: 'vM', size: 'M', color: '', in_stock: false },
+        { id: 'vG', size: 'G', color: '', in_stock: true },
+      ]));
+      const m = await screen.findByRole('button', { name: 'M (esgotado)' });
+      expect(screen.getByRole('button', { name: 'G' })).toBeInTheDocument();
+
+      fireEvent.click(m);
+      expect(screen.getByText('Sem estoque para este tamanho')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Avise-me quando chegar' })).toBeInTheDocument();
+      expect(screen.queryByText('Esgotado')).not.toBeInTheDocument();
+    });
+
+    it('produto sem nenhum tamanho em estoque mostra o selo Esgotado', async () => {
+      mountWith(withVariations([
+        { id: 'vM', size: 'M', color: '', in_stock: false },
+        { id: 'vG', size: 'G', color: '', in_stock: false },
+      ]));
+      expect(await screen.findByText('Esgotado')).toBeInTheDocument();
+    });
+
+    it('recusa do servidor por estoque aparece para o cliente', async () => {
+      mountWith(
+        withVariations([{ id: 'vG', size: 'G', color: '', in_stock: true }]),
+        { ok: false, json: async () => ({ message: 'Estoque insuficiente para Produto 1.' }) },
+      );
+      fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Aumentar quantidade' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Adicionar ao Carrinho' }));
+
+      await waitFor(() => expect(
+        screen.getAllByRole('status').some((el) => el.textContent === 'Estoque insuficiente para Produto 1.'),
+      ).toBe(true));
+    });
+  });
+
+  describe('acessibilidade (#64)', () => {
+    const full = {
+      ...product('1'),
+      is_sellable: true,
+      images: [{ id: 'i1', image: '/1.png' }, { id: 'i2', image: '/2.png' }],
+      variations: [
+        { id: 'vM', size: 'M', color: 'Preto', in_stock: false },
+        { id: 'vG', size: 'G', color: 'Preto', in_stock: true },
+      ],
+    };
+    const mountFull = () => {
+      fetch.mockImplementation((url) => {
+        if (url.includes('/recommendations/')) return Promise.resolve(recommendations([]));
+        if (url.includes('/cart/items/')) return Promise.resolve(response({ items: [{ variation_id: 'vG', quantity: 1 }] }));
+        return Promise.resolve(response(full));
+      });
+      return mount();
+    };
+
+    it('miniaturas têm nome e marcam a foto mostrada', async () => {
+      mountFull();
+      const segunda = await screen.findByRole('button', { name: 'Ver foto 2 de 2' });
+      expect(screen.getByRole('button', { name: 'Ver foto 1 de 2' })).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(segunda);
+      expect(segunda).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('volta para a primeira foto ao trocar de produto', async () => {
+      const { router } = mountFull();
+      fireEvent.click(await screen.findByRole('button', { name: 'Ver foto 2 de 2' }));
+      fetch.mockImplementation((url) => Promise.resolve(url.includes('/recommendations/')
+        ? recommendations([])
+        : response({ ...full, id: '2', name: 'Produto 2', images: [{ id: 'j1', image: '/a.png' }, { id: 'j2', image: '/b.png' }] })));
+      await act(async () => router.navigate('/product/2'));
+      expect(await screen.findByRole('img', { name: 'Produto 2' })).toHaveAttribute('src', '/a.png');
+      expect(screen.getByRole('button', { name: 'Ver foto 1 de 2' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('tamanho e cor ficam num grupo e anunciam o selecionado', async () => {
+      mountFull();
+      const group = await screen.findByRole('group', { name: 'Tamanho e cor' });
+      const m = within(group).getByRole('button', { name: /^M \/ Preto/ });
+      const g = within(group).getByRole('button', { name: /^G \/ Preto/ });
+      expect(m).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(g);
+      expect(g).toHaveAttribute('aria-pressed', 'true');
+      expect(m).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('botões de quantidade têm nome e o mínimo é 1', async () => {
+      mountFull();
+      fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
+      const menos = screen.getByRole('button', { name: 'Diminuir quantidade' });
+      expect(menos).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Aumentar quantidade' }));
+      expect(within(screen.getByRole('group', { name: 'Quantidade' })).getByText('2')).toBeInTheDocument();
+      expect(menos).not.toBeDisabled();
+    });
+
+    it('anuncia "Adicionado ao carrinho!" numa região que já existia', async () => {
+      mountFull();
+      fireEvent.click(await screen.findByRole('button', { name: /^G/ }));
+      const status = screen.getAllByRole('status').find((el) => el.textContent === '');
+      fireEvent.click(screen.getByRole('button', { name: 'Adicionar ao Carrinho' }));
+      await waitFor(() => expect(status).toHaveTextContent('Adicionado ao carrinho!'));
     });
   });
 });

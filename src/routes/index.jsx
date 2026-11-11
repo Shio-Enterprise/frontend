@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import AdminLayout from "../components/layout/admin/AdminLayout";
 import { ADMIN_PERMISSIONS } from "../lib/adminPermissions";
+import { institutionalPages } from "../data/institutionalContent";
 
 // Public pages
 const HomePage = lazy(() => import("../pages/public/HomePage"));
@@ -11,6 +12,7 @@ const CategoryPage = lazy(() => import("../pages/public/CategoryPage"));
 const CartPage = lazy(() => import("../pages/public/CartPage"));
 const DropPage = lazy(() => import("../pages/public/DropPage"));
 const UnsubscribePage = lazy(() => import("../pages/public/UnsubscribePage"));
+const InstitutionalPage = lazy(() => import("../pages/public/InstitutionalPage"));
 
 // User pages
 const LoginPage = lazy(() => import("../pages/user/LoginPage"));
@@ -30,6 +32,7 @@ const DashboardPage = lazy(() => import("../pages/admin/DashboardPage"));
 const DetailedDashboardPage = lazy(() => import("../pages/admin/DetailedDashboardPage"));
 const ProductsPage = lazy(() => import("../pages/admin/ProductsPage"));
 const NewProductPage = lazy(() => import("../pages/admin/NewProductPage"));
+const EditProductPage = lazy(() => import("../pages/admin/EditProductPage"));
 const OrdersPage = lazy(() => import("../pages/admin/OrdersPage"));
 const NewDropPage = lazy(() => import("../pages/admin/NewDropPage"));
 const EditDropPage = lazy(() => import("../pages/admin/EditDropPage"));
@@ -37,12 +40,19 @@ const DropsPage = lazy(() => import("../pages/admin/DropsPage"));
 const DropDetailsPage = lazy(() => import("../pages/admin/DropDetailsPage"));
 const CustomersPage = lazy(() => import("../pages/admin/CustomersPage"));
 const AdminPermissionsPage = lazy(() => import("../pages/admin/AdminPermissionsPage"));
+const HomepagePage = lazy(() => import("../pages/admin/HomepagePage"));
 const ReviewsPage = lazy(() => import("../pages/admin/ReviewsPage"));
 const CouponsPage = lazy(() => import("../pages/admin/CouponsPage"));
 const SizeGuidesPage = lazy(() => import("../pages/admin/SizeGuidesPage"));
+const NewsletterPage = lazy(() => import("../pages/admin/NewsletterPage"));
 
 const routes = [
   // Public routes
+  ...Object.entries(institutionalPages).map(([pageKey, page]) => ({
+    path: page.path,
+    component: <InstitutionalPage pageKey={pageKey} />,
+    isPrivate: false,
+  })),
   {
     path: "/",
     component: <HomePage />,
@@ -161,7 +171,7 @@ const routes = [
   },
   {
     path: "/admin/edit-product/:id",
-    component: <AdminLayout><ProductsPage /></AdminLayout>,
+    component: <AdminLayout><EditProductPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.CATALOG,
   },
@@ -248,6 +258,18 @@ const routes = [
     component: <AdminLayout><AdminPermissionsPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.ADMIN_PERMISSIONS,
+  },
+  {
+    path: "/admin/homepage",
+    component: <AdminLayout><HomepagePage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.HOMEPAGE,
+  },
+  {
+    path: "/admin/newsletter",
+    component: <AdminLayout><NewsletterPage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CUSTOMERS,
   },
 ];
 

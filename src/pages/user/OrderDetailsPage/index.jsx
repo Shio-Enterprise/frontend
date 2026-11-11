@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
-import { Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { Icon } from '../../../components/ui/ShioDesign';
 import { getAccessToken } from '../../../lib/authToken';
 import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from '../../../lib/payment';
 import ReviewModal from '../../../components/reviews/ReviewModal';
@@ -11,6 +11,7 @@ import { hasCustomerRefundPanel, refundTimelineEvents } from '../../../lib/refun
 import CustomerRefundPanel from '../../../components/refunds/CustomerRefundPanel';
 import RefundRequestModal from '../../../components/refunds/RefundRequestModal';
 import { exchangeTimelineEvents, hasCustomerExchangePanel } from '../../../lib/exchanges';
+import { formatDeliveryDate } from '../../../lib/deliveryDate';
 import CustomerExchangePanel from '../../../components/exchanges/CustomerExchangePanel';
 import ExchangeRequestModal from '../../../components/exchanges/ExchangeRequestModal';
 
@@ -18,10 +19,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const STATUS_LABEL = {
   AWAITING_PAYMENT: { label: 'Aguardando Pagamento', color: 'bg-[#fff3cd] text-[#856404]' },
-  PAID: { label: 'Pago', color: 'bg-[#d4f7e2] text-[#1da64a]' },
+  PAID: { label: 'Pago', color: 'bg-[#d4f7e2] text-shio-success' },
   PREPARING: { label: 'Em Preparação', color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
   SHIPPED: { label: 'Enviado', color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
-  DELIVERED: { label: 'Entregue', color: 'bg-[#d4f7e2] text-[#1da64a]' },
+  DELIVERED: { label: 'Entregue', color: 'bg-[#d4f7e2] text-shio-success' },
   CANCELED: { label: 'Cancelado', color: 'bg-[#ffe0e0] text-[#cc0000]' },
 };
 
@@ -33,9 +34,9 @@ const formatDate = (iso) =>
     })
     : '—';
 
-const Section = ({ title, children }) => (
+const Section = ({ title, titleId, children }) => (
   <div className="rounded-[18px] border border-black/10 p-6">
-    <h2 className="mb-4 text-[18px] font-bold text-black">{title}</h2>
+    <h2 id={titleId} className="mb-4 text-[18px] font-bold text-black">{title}</h2>
     {children}
   </div>
 );
@@ -128,8 +129,7 @@ const OrderDetailsPage = () => {
   if (loading) {
     return (
       <AccountLayout>
-        <PageMarker name="OrderDetailsPage" />
-        <p className="text-black/40">Carregando pedido...</p>
+        <p className="text-shio-muted">Carregando pedido...</p>
       </AccountLayout>
     );
   }
@@ -137,7 +137,6 @@ const OrderDetailsPage = () => {
   if (error || !order) {
     return (
       <AccountLayout>
-        <PageMarker name="OrderDetailsPage" />
         <div className="flex flex-col items-center justify-center rounded-[18px] border border-black/10 px-8 py-20 text-center">
           <Icon name="bag" className="h-16 w-16 text-black/20" />
           <p className="mt-6 text-[22px] font-bold text-black">Pedido não encontrado</p>
@@ -151,7 +150,7 @@ const OrderDetailsPage = () => {
     );
   }
 
-  const s = STATUS_LABEL[order.status] ?? { label: order.status, color: 'bg-black/5 text-black/50' };
+  const s = STATUS_LABEL[order.status] ?? { label: order.status, color: 'bg-black/5 text-shio-muted' };
   const hasTracking = !!order.tracking_code;
   const history = [
     ...(order.status_logs ?? []).map((log) => ({
@@ -164,20 +163,19 @@ const OrderDetailsPage = () => {
 
   return (
     <AccountLayout>
-      <PageMarker name="OrderDetailsPage" />
 
       {/* Header */}
       <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
         <div>
           <Link to="/my-orders"
-            className="mb-3 inline-flex items-center gap-2 text-[13px] text-black/40 transition hover:text-black">
+            className="mb-3 inline-flex items-center gap-2 text-[13px] text-shio-muted transition hover:text-black">
             <Icon name="arrowLeft" className="h-4 w-4" />
             Meus Pedidos
           </Link>
           <h1 className="text-[34px] font-black uppercase text-black">
             Pedido #{String(order.id).slice(0, 8).toUpperCase()}
           </h1>
-          <p className="mt-1 text-[14px] text-black/40">{formatDate(order.created_at)}</p>
+          <p className="mt-1 text-[14px] text-shio-muted">{formatDate(order.created_at)}</p>
         </div>
         <span className={`rounded-full px-4 py-2 text-[13px] font-semibold ${s.color}`}>
           {s.label}
@@ -195,14 +193,14 @@ const OrderDetailsPage = () => {
                 <div key={item.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
                   <div>
                     <p className="text-[15px] font-semibold text-black">{item.product_name}</p>
-                    <p className="text-[13px] text-black/40">SKU: {item.sku_snapshot}</p>
+                    <p className="text-[13px] text-shio-muted">SKU: {item.sku_snapshot}</p>
                     <ReviewAction item={item} review={reviewFor(item)} onOpen={() => setReviewItem(item)} />
                   </div>
                   <div className="shrink-0 whitespace-nowrap text-right">
                     <p className="text-[14px] font-semibold text-black">
                       {item.quantity}× R$ {Number(item.unit_price).toFixed(2)}
                     </p>
-                    <p className="text-[13px] text-black/40">
+                    <p className="text-[13px] text-shio-muted">
                       R$ {(item.quantity * Number(item.unit_price)).toFixed(2)}
                     </p>
                   </div>
@@ -214,7 +212,7 @@ const OrderDetailsPage = () => {
           {/* Rastreio Correios */}
           <Section title="Rastreamento">
             {!hasTracking ? (
-              <div className="flex items-center gap-3 text-black/40">
+              <div className="flex items-center gap-3 text-shio-muted">
                 <Icon name="bag" className="h-5 w-5 shrink-0" />
                 <p className="text-[14px]">
                   {order.status === 'AWAITING_PAYMENT' || order.status === 'PAID' || order.status === 'PREPARING'
@@ -223,59 +221,60 @@ const OrderDetailsPage = () => {
                 </p>
               </div>
             ) : trackingLoading ? (
-              <p className="text-[14px] text-black/40">Consultando Correios...</p>
+              <p className="text-[14px] text-shio-muted">Consultando Correios...</p>
             ) : tracking && tracking.status !== 'not_shipped' ? (
               <div>
                 <div className="mb-4 flex flex-wrap items-center gap-4">
                   <div>
-                    <p className="text-[12px] font-semibold uppercase tracking-wider text-black/40">Código</p>
+                    <p className="text-[12px] font-semibold uppercase tracking-wider text-shio-muted">Código</p>
                     <p className="font-mono text-[15px] font-bold text-black">{tracking.tracking_code}</p>
                   </div>
-                  {tracking.previsao_entrega && (
+                  {formatDeliveryDate(tracking.previsao_entrega) && (
                     <div>
-                      <p className="text-[12px] font-semibold uppercase tracking-wider text-black/40">Previsão</p>
+                      <p className="text-[12px] font-semibold uppercase tracking-wider text-shio-muted">Previsão</p>
                       <p className="text-[15px] font-semibold text-black">
-                        {new Date(tracking.previsao_entrega).toLocaleDateString('pt-BR', {
-                          day: '2-digit', month: 'short', year: 'numeric',
-                        })}
+                        {formatDeliveryDate(tracking.previsao_entrega)}
                       </p>
                     </div>
                   )}
                   {tracking.status_atual && (
                     <div>
-                      <p className="text-[12px] font-semibold uppercase tracking-wider text-black/40">Status</p>
+                      <p className="text-[12px] font-semibold uppercase tracking-wider text-shio-muted">Status</p>
                       <p className="text-[14px] font-semibold text-black">{tracking.status_atual}</p>
                     </div>
                   )}
                 </div>
 
                 {tracking.eventos?.length > 0 && (
-                  <div className="relative ml-1 space-y-0">
+                  <ol className="relative ml-1 space-y-0">
                     {tracking.eventos.map((ev, i) => (
-                      <div key={i} className="flex gap-4">
+                      <li key={i} className="flex gap-4">
                         {/* Timeline dot */}
-                        <div className="flex flex-col items-center">
+                        <div aria-hidden="true" className="flex flex-col items-center">
                           <div className={`mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${i === 0 ? 'border-black bg-black' : 'border-black/30 bg-white'}`} />
                           {i < tracking.eventos.length - 1 && (
                             <div className="w-px flex-1 bg-black/10" />
                           )}
                         </div>
                         {/* Event content */}
-                        <div className="pb-5">
-                          <p className="text-[14px] font-semibold text-black">{ev.descricao}</p>
-                          {ev.detalhe && <p className="text-[13px] text-black/50">{ev.detalhe}</p>}
-                          <p className="mt-1 text-[12px] text-black/40">
+                        <div className="min-w-0 pb-5 break-words">
+                          <p className="text-[14px] font-semibold text-black">
+                            {ev.descricao}
+                            {i === 0 && <span className="sr-only"> (mais recente)</span>}
+                          </p>
+                          {ev.detalhe && <p className="text-[13px] text-shio-muted">{ev.detalhe}</p>}
+                          <p className="mt-1 text-[12px] text-shio-muted">
                             {ev.local && <span>{ev.local} · </span>}
                             {formatDate(ev.data)}
                           </p>
                         </div>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ol>
                 )}
               </div>
             ) : (
-              <p className="text-[14px] text-black/40">
+              <p className="text-[14px] text-shio-muted">
                 Código de rastreio: <span className="font-mono font-semibold text-black">{order.tracking_code}</span>
                 <br />Ainda sem eventos disponíveis nos Correios.
               </p>
@@ -283,16 +282,22 @@ const OrderDetailsPage = () => {
           </Section>
 
           {/* Histórico do Pedido */}
-          <Section title="Histórico do Pedido">
+          <Section title="Histórico do Pedido" titleId="historico-pedido">
             {history.length > 0 ? (
-              <div className="max-h-[20vh] overflow-y-auto pr-2">
-                <div className="relative ml-1 space-y-0">
+              // Rola por dentro: tabIndex deixa a área alcançável pelo teclado.
+              <div
+                role="region"
+                aria-labelledby="historico-pedido"
+                tabIndex={0}
+                className="max-h-[20vh] overflow-y-auto pr-2"
+              >
+                <ol className="relative ml-1 space-y-0">
                   {history
                     .map((log, i, logs) => {
                       return (
-                        <div key={log.id} className="flex gap-4">
+                        <li key={log.id} className="flex gap-4">
                           {/* Timeline dot */}
-                          <div className="flex flex-col items-center">
+                          <div aria-hidden="true" className="flex flex-col items-center">
                             <div
                               className={`mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${i === 0
                                 ? 'border-black bg-black'
@@ -306,27 +311,27 @@ const OrderDetailsPage = () => {
                           </div>
 
                           {/* Conteúdo do histórico */}
-                          <div className="pb-5">
+                          <div className="min-w-0 pb-5 break-words">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-[14px] font-semibold text-black">
                                 {log.label}
                               </p>
 
                               {i === 0 && (
-                                <span className="text-[11px] font-semibold uppercase text-black/40">
+                                <span className="text-[12px] font-semibold uppercase text-shio-muted">
                                   Atual
                                 </span>
                               )}
                             </div>
 
                             {log.comment && (
-                              <p className="mt-1 text-[13px] text-black/50">
+                              <p className="mt-1 text-[13px] text-shio-muted">
                                 {log.comment}
                               </p>
                             )}
 
                             {log.tracking_code && (
-                              <p className="mt-1 text-[13px] text-black/50">
+                              <p className="mt-1 text-[13px] text-shio-muted">
                                 Código de rastreio:{' '}
                                 <span className="font-mono font-semibold text-black">
                                   {log.tracking_code}
@@ -334,17 +339,17 @@ const OrderDetailsPage = () => {
                               </p>
                             )}
 
-                            <p className="mt-1 text-[12px] text-black/40">
+                            <p className="mt-1 text-[12px] text-shio-muted">
                               {formatDate(log.created_at)}
                             </p>
                           </div>
-                        </div>
+                        </li>
                       );
                     })}
-                </div>
+                </ol>
               </div>
             ) : (
-              <div className="flex items-center gap-3 text-black/40">
+              <div className="flex items-center gap-3 text-shio-muted">
                 <Icon
                   name="bag"
                   className="h-5 w-5 shrink-0"
@@ -371,7 +376,7 @@ const OrderDetailsPage = () => {
                 <span>R$ {Number(order.shipping_cost).toFixed(2)}</span>
               </div>
               {Number(order.discount_amount) > 0 && (
-                <div className="flex justify-between text-[#1da64a]">
+                <div className="flex justify-between text-shio-success">
                   <span>Desconto</span>
                   <span>− R$ {Number(order.discount_amount).toFixed(2)}</span>
                 </div>

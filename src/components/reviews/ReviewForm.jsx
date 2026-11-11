@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { COMMENT_MAX, FIT_OPTIONS } from '../../lib/reviewLabels';
 import RatingInput from './RatingInput';
 
-const optional = <span className="font-normal text-black/45">(opcional)</span>;
+const optional = <span className="font-normal text-shio-muted">(opcional)</span>;
 
 export default function ReviewForm({
   initialReview = null,
@@ -61,7 +61,7 @@ export default function ReviewForm({
           onChange={(event) => setComment(event.target.value)}
           className="w-full rounded-[12px] border border-black/15 px-4 py-3 text-[14px] text-black outline-none focus:border-black"
         />
-        <p className="mt-1 text-right text-[12px] text-black/45">{comment.length}/{COMMENT_MAX}</p>
+        <p className="mt-1 text-right text-[12px] text-shio-muted">{comment.length}/{COMMENT_MAX}</p>
       </div>
 
       {error && <p role="alert" className="text-[13px] text-[#cc0000]">{error}</p>}
@@ -78,8 +78,9 @@ export default function ReviewForm({
         )}
         <button
           type="submit"
-          disabled={!rating || submitting}
-          className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40"
+          disabled={!rating}
+          aria-disabled={submitting || undefined}
+          className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40 aria-disabled:bg-black/40"
         >
           {submitting ? 'Enviando...' : submitLabel}
         </button>

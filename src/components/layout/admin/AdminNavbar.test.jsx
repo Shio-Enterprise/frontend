@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminNavbar from './AdminNavbar';
@@ -55,6 +55,7 @@ describe('AdminNavbar', () => {
     ['/admin/edit-drop/9', 'Drops'],
     ['/admin/orders/42', 'Pedidos'],
     ['/admin/customers/7', 'Clientes'],
+    ['/admin/newsletter', 'Newsletter'],
   ])('mantém a seção correta ativa em %s', (path, section) => {
     renderNavbar(path);
 
@@ -92,6 +93,23 @@ describe('AdminNavbar', () => {
     expect(screen.getAllByRole('link', { name: /voltar para loja/i }).length).toBeGreaterThan(1);
     expect(screen.getAllByRole('button', { name: 'Sair' }).length).toBeGreaterThan(1);
   });
+  it('só a lista de seções rola; conta e sair ficam fixos embaixo', () => {
+    renderNavbar();
+
+    const nav = screen.getByTestId('admin-sidebar-nav');
+    const footer = screen.getByTestId('admin-sidebar-footer');
+    const aside = nav.closest('aside');
+
+    // jsdom não calcula layout: confere a estrutura e as classes que fazem a rolagem.
+    expect(nav).toHaveClass('flex-1', 'min-h-0', 'overflow-y-auto');
+    expect(aside).toHaveClass('lg:overflow-hidden');
+    expect(aside).not.toHaveClass('lg:overflow-y-auto');
+    expect(footer).toHaveClass('shrink-0');
+    expect(nav).not.toContainElement(footer);
+    expect(footer).toContainElement(screen.getByTestId('admin-user-summary'));
+    expect(within(footer).getByRole('button', { name: /Sair/i })).toBeInTheDocument();
+  });
+
   it('exibe apenas as seções permitidas para o administrador', () => {
     useAuth.mockReturnValue({
       user: {
@@ -110,7 +128,50 @@ describe('AdminNavbar', () => {
     expect(screen.getAllByRole('link', { name: 'Permissões' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Produtos' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Drops' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Página inicial' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Clientes' })).not.toBeInTheDocument();
   });
 
+  describe('menu do celular', () => {
+    const menuButton = () => screen.getByRole('button', { name: 'Menu administrativo' });
+    const mobileMenu = () => document.getElementById(menuButton().getAttribute('aria-controls'));
+
+    it('mostra a seção atual no topo', () => {
+      renderNavbar('/admin/products');
+      expect(screen.getByTestId('admin-mobile-section')).toHaveTextContent('Produtos');
+    });
+
+    it('avisa se o menu está aberto ou fechado', () => {
+      renderNavbar();
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(menuButton());
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('lista todas as seções permitidas dentro do menu', () => {
+      renderNavbar();
+      fireEvent.click(menuButton());
+      const menu = within(mobileMenu());
+      ['Dashboard', 'Drops', 'Página inicial', 'Produtos', 'Guias de medidas', 'Pedidos', 'Cupons', 'Clientes', 'Avaliações', 'Permissões']
+        .forEach((name) => expect(menu.getByRole('link', { name })).toBeInTheDocument());
+    });
+
+    it('fecha com Esc e devolve o foco ao botão do menu', () => {
+      renderNavbar();
+      fireEvent.click(menuButton());
+      const link = within(mobileMenu()).getByRole('link', { name: 'Pedidos' });
+      link.focus();
+      fireEvent.keyDown(link, { key: 'Escape' });
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+      expect(menuButton()).toHaveFocus();
+    });
+
+    it('fecha ao escolher uma seção', () => {
+      const router = renderNavbar();
+      fireEvent.click(menuButton());
+      fireEvent.click(within(mobileMenu()).getByRole('link', { name: 'Pedidos' }));
+      expect(router.state.location.pathname).toBe('/admin/orders');
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+    });
+  });
 });

@@ -22,14 +22,43 @@ describe('ProductCard', () => {
   });
 
   it('marks products with no positive variation stock as unavailable', () => {
-    render(<BrowserRouter><ProductCard product={{ id: 'empty', name: 'Sem estoque', price: 'R$ 10,00', variations: [{ stock_quantity: 0 }] }} /></BrowserRouter>);
+    render(<BrowserRouter><ProductCard product={{ id: 'empty', name: 'Sem estoque', price: 'R$ 10,00', variations: [{ in_stock: false }] }} /></BrowserRouter>);
     expect(screen.getByText('Indisponível')).toBeInTheDocument();
+  });
+
+  it('product with one size in stock is available without the exact quantity (#85)', () => {
+    render(<BrowserRouter><ProductCard product={{ id: 'ok', name: 'Com estoque', price: 'R$ 10,00', variations: [{ in_stock: false }, { in_stock: true }] }} /></BrowserRouter>);
+    expect(screen.queryByText('Indisponível')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Com estoque' })).toBeInTheDocument();
   });
 
   it('sends anonymous users to login from the accessible favorite control', () => {
     render(<MemoryRouter initialEntries={['/category/all']}><ProductCard product={{ id: 'p1', name: 'Camiseta', price: 'R$ 10,00' }} /><LocationProbe /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /adicionar camiseta/i }));
     expect(screen.getByTestId('location')).toHaveTextContent('/login');
+  });
+
+  it('o link do card tem o nome do produto, com ou sem foto (#64)', () => {
+    render(
+      <MemoryRouter>
+        <ProductCard product={{ id: 'a', name: 'Com foto', price: 'R$ 10,00', image: '/a.png' }} />
+        <ProductCard product={{ id: 'b', name: 'Sem foto', price: 'R$ 10,00', image: null }} />
+        <ProductCard product={{ id: 'c', name: 'Esgotada', price: 'R$ 10,00', unavailable: true }} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('link', { name: 'Com foto' })).toHaveAttribute('href', '/product/a');
+    expect(screen.getByRole('link', { name: 'Sem foto' })).toHaveAttribute('href', '/product/b');
+    expect(screen.getByRole('link', { name: 'Esgotada (indisponível)' })).toBeInTheDocument();
+  });
+
+  it('produto indisponível apaga só a foto, não o selo (contraste, #64)', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <ProductCard product={{ id: 'c', name: 'Esgotada', price: 'R$ 10,00', image: '/c.png', unavailable: true }} />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector('img')).toHaveClass('opacity-60');
+    expect(screen.getByText('Indisponível').closest('.opacity-60')).toBeNull();
   });
 });
 
@@ -90,6 +119,11 @@ describe('ProductCard rating', () => {
 });
 
 describe('NewsletterBand', () => {
+  it('o campo de e-mail tem rótulo para leitor de tela', () => {
+    render(<NewsletterBand />);
+    expect(screen.getByRole('textbox', { name: 'E-mail para receber novidades' })).toBeInTheDocument();
+  });
+
   it('should keep the submit button disabled until consent is checked', () => {
     render(<NewsletterBand />);
     const submit = screen.getByRole('button', { name: /inscrever-se/i });

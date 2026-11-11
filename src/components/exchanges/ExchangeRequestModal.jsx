@@ -39,12 +39,11 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
   const canSubmit = Boolean(reason)
     && chosen.length > 0
     && chosen.every(([, row]) => row.replacement)
-    && (!commentRequired || comment.trim() !== '')
-    && !submitting;
+    && (!commentRequired || comment.trim() !== '');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -81,7 +80,7 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
         className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[18px] bg-white p-6 outline-none"
       >
         <h2 id="exchange-request-title" className="text-[20px] font-bold text-black">Solicitar troca</h2>
-        <p className="mt-2 text-[13px] text-black/55">
+        <p className="mt-2 text-[13px] text-shio-muted">
           A troca é por outra variação do mesmo produto, sem custo. Se for aprovada, a nova peça fica
           reservada e você recebe por e-mail as instruções para enviar a peça.
         </p>
@@ -91,7 +90,7 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
           {EXCHANGE_REASONS.map((option) => {
             const disabled = option.value === 'SIZE_OR_COLOR' && !sizeWindowOpen;
             return (
-              <label key={option.value} className={`flex items-center gap-3 text-[14px] ${disabled ? 'text-black/35' : 'text-black'}`}>
+              <label key={option.value} className={`flex items-center gap-3 text-[14px] ${disabled ? 'text-shio-muted' : 'text-black'}`}>
                 <input
                   type="radio"
                   name="exchange-reason"
@@ -102,12 +101,12 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
                 />
                 {option.label}
                 {option.value === 'SIZE_OR_COLOR' && (
-                  <span className="text-[12px] text-black/40">
+                  <span className="text-[12px] text-shio-muted">
                     {disabled ? 'prazo encerrado' : `até ${formatRefundDate(eligibility.size_or_color_deadline)}`}
                   </span>
                 )}
                 {option.value === 'DEFECT' && (
-                  <span className="text-[12px] text-black/40">até {formatRefundDate(eligibility.defect_deadline)}</span>
+                  <span className="text-[12px] text-shio-muted">até {formatRefundDate(eligibility.defect_deadline)}</span>
                 )}
               </label>
             );
@@ -133,7 +132,7 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
                 </label>
                 {row.selected && (
                   <div className="mt-3 grid gap-3 sm:grid-cols-[96px_1fr]">
-                    <label className="grid gap-1 text-[12px] text-black/55">
+                    <label className="grid gap-1 text-[12px] text-shio-muted">
                       Quantidade
                       <select
                         value={row.quantity ?? 1}
@@ -145,7 +144,7 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
                         ))}
                       </select>
                     </label>
-                    <label className="grid gap-1 text-[12px] text-black/55">
+                    <label className="grid gap-1 text-[12px] text-shio-muted">
                       Trocar por
                       <select
                         value={row.replacement ?? ''}
@@ -161,7 +160,7 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
                       </select>
                     </label>
                     {entry.options.length === 0 && (
-                      <p className="text-[12px] text-black/50 sm:col-span-2">Este produto não tem outra variação.</p>
+                      <p className="text-[12px] text-shio-muted sm:col-span-2">Este produto não tem outra variação.</p>
                     )}
                   </div>
                 )}
@@ -195,7 +194,8 @@ export default function ExchangeRequestModal({ order, onClose, onRequested }) {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/80 disabled:opacity-40"
+            aria-disabled={submitting || undefined}
+            className="h-11 whitespace-nowrap rounded-full bg-black px-6 text-sm font-medium text-white transition hover:bg-black/80 disabled:opacity-40 aria-disabled:opacity-40"
           >
             {submitting ? 'Enviando...' : 'Solicitar troca'}
           </button>

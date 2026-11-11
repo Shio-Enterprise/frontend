@@ -4,6 +4,7 @@ import logo from '../../../assets/logo/logo.svg';
 import { Icon } from '../../ui/ShioDesign';
 import { useCart } from '../../../context/CartContext';
 import { useAuth } from '../../../context/AuthContext';
+import { institutionalPages } from '../../../data/institutionalContent';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -35,7 +36,7 @@ export default function Navbar() {
               Cadastre-se agora
             </Link>
           </p>
-          <button onClick={() => setShowBanner(false)} className="absolute right-5 top-1/2 -translate-y-1/2 cursor-pointer text-white" aria-label="Fechar promoção">
+          <button onClick={() => setShowBanner(false)} className="absolute right-2 top-1/2 flex h-9 w-11 -translate-y-1/2 cursor-pointer items-center justify-center text-white" aria-label="Fechar promoção">
             <Icon name="close" className="h-5 w-5" />
           </button>
         </div>
@@ -48,9 +49,10 @@ export default function Navbar() {
         <div className="flex items-center gap-2 lg:gap-10">
           {/* Hamburger / X — mobile only */}
           <button
-            className="lg:hidden"
+            className="-ml-2.5 flex h-11 w-11 items-center justify-center lg:hidden"
             onClick={() => setIsMenuOpen((v) => !v)}
             aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={isMenuOpen}
           >
             <Icon name={isMenuOpen ? 'close' : 'menu'} className="h-6 w-6" />
           </button>
@@ -66,31 +68,31 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop nav links */}
-          <nav className="hidden items-center gap-8 text-[16px] lg:flex">
+          <nav aria-label="Principal" className="hidden items-center gap-8 text-[16px] lg:flex">
             <Link to="/" className="transition hover:text-black/60">Início</Link>
             <Link to="/category/all" className="transition hover:text-black/60">Produtos</Link>
-            <button onClick={() => document.getElementById('contato')?.scrollIntoView({ behavior: 'smooth' })} className="transition hover:text-black/60">Contato</button>
+            <Link to={institutionalPages.contact.path} className="transition hover:text-black/60">Contato</Link>
           </nav>
         </div>
 
         {/* Desktop search bar */}
-        <form onSubmit={handleSearch} className="hidden h-12 max-w-[610px] flex-1 items-center gap-3 rounded-full bg-[#f0f0f0] px-5 text-black/45 lg:flex">
+        <form onSubmit={handleSearch} className="hidden h-12 max-w-[610px] flex-1 items-center gap-3 rounded-full bg-[#f0f0f0] px-5 text-shio-muted lg:flex">
           <Icon name="search" className="h-5 w-5 shrink-0" />
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="O que você está buscando?"
-            className="w-full bg-transparent text-[15px] outline-none placeholder:text-black/35"
+            className="w-full bg-transparent text-[15px] outline-none placeholder:text-shio-placeholder"
           />
         </form>
 
         {/* Right icons */}
-        <div className="flex items-center gap-4">
+        <div className="-mr-2.5 flex items-center lg:gap-1">
           {isAdmin && (
             <Link
               to={adminHomePath || "/admin/dashboard"}
-              className="hidden h-10 items-center gap-2 rounded-full border border-black/20 px-4 text-[13px] font-semibold transition hover:bg-black hover:text-white lg:flex"
+              className="hidden h-10 items-center gap-2 rounded-full border border-black/20 px-4 text-[13px] font-semibold transition hover:bg-black hover:text-white lg:mr-3 lg:flex"
               aria-label="Painel administrativo"
               data-testid="admin-panel-link"
             >
@@ -101,7 +103,7 @@ export default function Navbar() {
 
           {/* Search icon — mobile only */}
           <button
-            className="lg:hidden"
+            className="flex h-11 w-11 items-center justify-center lg:hidden"
             onClick={() => { setShowSearch((v) => !v); setIsMenuOpen(false); }}
             aria-label="Buscar"
           >
@@ -109,17 +111,23 @@ export default function Navbar() {
           </button>
 
           {/* Cart */}
-          <Link to="/cart" className="relative transition hover:text-black/60" aria-label="Carrinho" data-testid="cart-link">
+          {/* Nome = "Carrinho" + número visível do selo (WCAG 2.5.3) */}
+          <Link to="/cart" className="relative flex h-11 w-11 items-center justify-center transition hover:text-black/60" data-testid="cart-link">
             <Icon name="cart" className="h-6 w-6" />
+            <span className="sr-only">
+              {cartCount > 0
+                ? `Carrinho ${cartCount > 99 ? '99+' : cartCount} ${cartCount === 1 ? 'item' : 'itens'}`
+                : 'Carrinho'}
+            </span>
             {cartCount > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-black text-[10px] font-bold text-white">
+              <span aria-hidden="true" className="absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-[12px] font-bold text-white">
                 {cartCount > 99 ? '99+' : cartCount}
               </span>
             )}
           </Link>
 
           {/* User */}
-          <Link to="/my-account" className="transition hover:text-black/60" aria-label="Minha conta" data-testid="my-account-link">
+          <Link to="/my-account" className="flex h-11 w-11 items-center justify-center transition hover:text-black/60" aria-label="Minha conta" data-testid="my-account-link">
             <Icon name="user" className="h-6 w-6" />
           </Link>
         </div>
@@ -129,17 +137,17 @@ export default function Navbar() {
       {showSearch && (
         <div className="border-b border-black/10 bg-white px-5 py-3 lg:hidden">
           <form onSubmit={handleSearch} className="flex h-11 items-center gap-3 rounded-full bg-[#f0f0f0] px-5">
-            <Icon name="search" className="h-4 w-4 shrink-0 text-black/45" />
+            <Icon name="search" className="h-4 w-4 shrink-0 text-shio-muted" />
             <input
               autoFocus
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="O que você está buscando?"
-              className="w-full bg-transparent text-[15px] outline-none placeholder:text-black/35"
+              className="w-full bg-transparent text-[15px] outline-none placeholder:text-shio-placeholder"
             />
             {searchQuery && (
-              <button type="button" onClick={() => setSearchQuery('')} className="text-black/40">
+              <button type="button" onClick={() => setSearchQuery('')} className="text-shio-muted">
                 <Icon name="close" className="h-4 w-4" />
               </button>
             )}
@@ -150,7 +158,8 @@ export default function Navbar() {
       {/* ── Mobile menu ── */}
       {isMenuOpen && (
         <div className="border-b border-black/10 bg-white lg:hidden">
-          <nav>
+          {/* Nomes diferentes: se o menu ficar aberto e a janela alargar, os dois aparecem juntos. */}
+          <nav aria-label="Menu">
             <Link
               to="/"
               onClick={closeMenu}
@@ -175,15 +184,13 @@ export default function Navbar() {
                 Painel administrativo
               </Link>
             )}
-            <button
-              onClick={() => {
-                closeMenu();
-                document.getElementById('contato')?.scrollIntoView({ behavior: 'smooth' });
-              }}
+            <Link
+              to={institutionalPages.contact.path}
+              onClick={closeMenu}
               className="flex h-14 w-full items-center px-6 text-left text-[16px] text-black"
             >
               Contato
-            </button>
+            </Link>
           </nav>
         </div>
       )}

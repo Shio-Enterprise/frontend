@@ -4,9 +4,9 @@ export const EXCHANGE_STATUS = {
   REQUESTED: { label: 'Troca solicitada', color: 'bg-[#fff3cd] text-[#856404]' },
   APPROVED: { label: 'Troca aprovada', color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
   RECEIVED: { label: 'Peça recebida', color: 'bg-[#e0f0ff] text-[#0a6bc4]' },
-  COMPLETED: { label: 'Troca concluída', color: 'bg-[#d4f7e2] text-[#1da64a]' },
+  COMPLETED: { label: 'Troca concluída', color: 'bg-[#d4f7e2] text-shio-success' },
   REJECTED: { label: 'Troca recusada', color: 'bg-[#ffe0e0] text-[#cc0000]' },
-  CANCELED: { label: 'Troca cancelada', color: 'bg-black/5 text-black/50' },
+  CANCELED: { label: 'Troca cancelada', color: 'bg-black/5 text-shio-muted' },
 };
 
 export const EXCHANGE_REASONS = [

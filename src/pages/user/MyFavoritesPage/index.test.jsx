@@ -11,8 +11,7 @@ vi.mock('../../../context/WishlistContext', () => ({
 }));
 vi.mock('../../../components/ui/ShioDesign', () => ({
   Icon: () => null,
-  PageMarker: () => null,
-  ProductCard: ({ product }) => <button>{product.name}</button>,
+  ProductCard: ({ product }) => <button data-unavailable={String(product.unavailable)}>{product.name}</button>,
 }));
 vi.mock('../../../components/layout/user/AccountLayout', () => ({ default: ({ children }) => <main>{children}</main> }));
 
@@ -36,6 +35,16 @@ describe('MyFavoritesPage', () => {
     render(<MemoryRouter><MyFavoritesPage /></MemoryRouter>);
     expect(await screen.findByRole('button', { name: 'Camiseta' })).toBeInTheDocument();
     expect(reconcileWishlist).toHaveBeenCalledWith(['p1'], 0);
+  });
+
+  it('marca indisponível só o favorito sem nenhum tamanho em estoque (#85)', async () => {
+    apiClient.get.mockResolvedValueOnce(response([
+      { id: 'f1', product: { ...product('p1', 'Camiseta'), variations: [{ in_stock: false }, { in_stock: true }] } },
+      { id: 'f2', product: { ...product('p2', 'Boné'), variations: [{ in_stock: false }] } },
+    ]));
+    render(<MemoryRouter><MyFavoritesPage /></MemoryRouter>);
+    expect(await screen.findByRole('button', { name: 'Camiseta' })).toHaveAttribute('data-unavailable', 'false');
+    expect(screen.getByRole('button', { name: 'Boné' })).toHaveAttribute('data-unavailable', 'true');
   });
 
   it('corrects pagination when the current page becomes empty', async () => {

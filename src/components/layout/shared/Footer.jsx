@@ -1,23 +1,24 @@
 import { Link } from 'react-router-dom';
 import logo from '../../../assets/logo/logo.svg';
 import { NewsletterBand } from '../../ui/ShioDesign';
+import { institutionalPages, socialLinks } from '../../../data/institutionalContent';
 
 const columns = [
   {
     title: 'Shio',
     links: [
-      { label: 'Sobre nós', to: '/' },
-      { label: 'Nossa história', to: '/' },
+      { label: 'Sobre nós', to: institutionalPages.about.path },
+      { label: 'Nossa história', to: institutionalPages.history.path },
       { label: 'Drops', to: '/category/all' },
-      { label: 'Contato', to: '/' },
+      { label: 'Contato', to: institutionalPages.contact.path },
     ],
   },
   {
     title: 'Ajuda',
     links: [
-      { label: 'Suporte ao cliente', to: '/' },
-      { label: 'Prazo de entrega', to: '/' },
-      { label: 'Trocas e devoluções', to: '/' },
+      { label: 'Suporte ao cliente', to: institutionalPages.support.path },
+      { label: 'Prazo de entrega', to: institutionalPages.delivery.path },
+      { label: 'Trocas e devoluções', to: institutionalPages.exchanges.path },
     ],
   },
   {
@@ -31,20 +32,15 @@ const columns = [
   },
   {
     title: 'Redes sociais',
-    links: [
-      { label: 'Instagram', to: '/' },
-      { label: 'WhatsApp', to: '/' },
-      { label: 'TikTok', to: '/' },
-    ],
+    links: socialLinks,
   },
 ];
 
 function PaymentBadges() {
   return (
     <div className="flex flex-wrap justify-center gap-3 md:justify-end">
-      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[11px] font-bold text-[#10a545] shadow-sm">Pix</span>
-      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[11px] font-bold text-black shadow-sm">Cartão</span>
-      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[11px] font-bold text-black shadow-sm">Boleto</span>
+      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[12px] font-bold text-shio-success shadow-sm">Pix</span>
+      <span className="flex h-7 items-center justify-center rounded bg-white px-3 text-[12px] font-bold text-black shadow-sm">Cartão</span>
     </div>
   );
 }
@@ -65,13 +61,17 @@ export default function Footer({ showNewsletter = true }) {
           </div>
 
           <div className="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-4">
-            {columns.map((column) => (
+            {columns.filter((column) => column.links.length > 0).map((column) => (
               <div key={column.title}>
-                <h3 className="mb-6 text-[13px] font-bold uppercase tracking-[0.22em]">{column.title}</h3>
-                <ul className="space-y-4 text-[14px] text-black/50">
+                <h2 className="mb-6 text-[13px] font-bold uppercase tracking-[0.22em]">{column.title}</h2>
+                <ul className="space-y-4 text-[14px] text-shio-muted">
                   {column.links.map((link) => (
                     <li key={link.label}>
-                      <Link to={link.to} className="transition hover:text-black">{link.label}</Link>
+                      {link.href ? (
+                        <a href={link.href} target="_blank" rel="noopener noreferrer" className="transition hover:text-black">{link.label}{' '}<span className="sr-only">(abre em nova aba)</span></a>
+                      ) : (
+                        <Link to={link.to} className="transition hover:text-black">{link.label}</Link>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -81,7 +81,7 @@ export default function Footer({ showNewsletter = true }) {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-black/10 pt-5 sm:flex-row">
-          <p className="text-[13px] text-black/40">© 2026 Shio Company. Todos os direitos reservados.</p>
+          <p className="text-[13px] text-shio-muted">© 2026 Shio Company. Todos os direitos reservados.</p>
           <PaymentBadges />
         </div>
       </div>

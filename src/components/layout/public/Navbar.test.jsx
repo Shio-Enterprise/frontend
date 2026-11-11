@@ -3,15 +3,22 @@ import { BrowserRouter, createMemoryRouter, RouterProvider } from 'react-router-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Navbar from './Navbar';
 import { useAuth } from '../../../context/AuthContext';
+import { useCart } from '../../../context/CartContext';
+import { axe } from 'vitest-axe';
 
 vi.mock('../../../context/AuthContext', () => ({
   useAuth: vi.fn(),
+}));
+
+vi.mock('../../../context/CartContext', () => ({
+  useCart: vi.fn(),
 }));
 
 describe('Navbar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuth.mockReturnValue({ isAdmin: false });
+    useCart.mockReturnValue({ cartCount: 0 });
   });
 
   it.each(['desktop', 'mobile'])('envia search codificado pela busca %s', async (viewport) => {
@@ -60,14 +67,22 @@ describe('Navbar', () => {
     const produtosLink = screen.getByRole('link', { name: 'Produtos' });
     expect(produtosLink).toHaveAttribute('href', '/category/all');
 
-    const contatoButton = screen.getByRole('button', { name: 'Contato' });
-    expect(contatoButton).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Contato' })).toHaveAttribute('href', '/contato');
 
     const cartLink = screen.getByTestId('cart-link');
     expect(cartLink).toBeInTheDocument();
 
     const myAccountLink = screen.getByTestId('my-account-link');
     expect(myAccountLink).toBeInTheDocument();
+  });
+
+  it('opens the contact page and closes the mobile menu', () => {
+    const router = createMemoryRouter([{ path: '*', element: <Navbar /> }], { initialEntries: ['/sobre-nos'] });
+    render(<RouterProvider router={router} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir menu' }));
+    fireEvent.click(screen.getAllByRole('link', { name: 'Contato' }).at(-1));
+    expect(router.state.location.pathname).toBe('/contato');
+    expect(screen.getByRole('button', { name: 'Abrir menu' })).toHaveAttribute('aria-expanded', 'false');
   });
 
 
@@ -105,5 +120,62 @@ describe('Navbar', () => {
       </BrowserRouter>
     );
     expect(screen.getByText(/10% de desconto/i)).toBeInTheDocument();
+  });
+
+  it.each([
+    [0, 'Carrinho'],
+    [1, 'Carrinho 1 item'],
+    [3, 'Carrinho 3 itens'],
+    [120, 'Carrinho 99+ itens'],
+  ])('nome do carrinho inclui o número visível (%i)', (count, name) => {
+    useCart.mockReturnValue({ cartCount: count });
+    render(
+      <BrowserRouter>
+        <Navbar />
+      </BrowserRouter>
+    );
+    expect(screen.getByRole('link', { name })).toHaveAttribute('href', '/cart');
+  });
+
+  it('avisa se o menu do celular está aberto ou fechado', () => {
+    render(
+      <BrowserRouter>
+        <Navbar />
+      </BrowserRouter>
+    );
+    const button = screen.getByRole('button', { name: 'Abrir menu' });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(button);
+    expect(screen.getByRole('button', { name: 'Fechar menu' })).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
+// Testes mínimos da #64: vitest-axe sem violações.
+describe('Navbar — acessibilidade (axe)', () => {
+  beforeEach(() => {
+    useAuth.mockReturnValue({ isAdmin: false });
+  });
+
+  it('sem violações fechado, com o menu aberto e com a busca do celular aberta', async () => {
+    const { container } = render(<BrowserRouter><Navbar /></BrowserRouter>);
+    expect(await axe(container)).toHaveNoViolations();
+    expect(screen.getByRole('navigation', { name: 'Principal' })).toBeInTheDocument();
+
+    const menuButton = screen.getByRole('button', { name: 'Abrir menu' });
+    fireEvent.click(menuButton);
+    expect(screen.getByRole('button', { name: 'Fechar menu' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('navigation', { name: 'Menu' })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar menu' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('sem violações para admin (atalho do painel)', async () => {
+    useAuth.mockReturnValue({ isAdmin: true });
+    const { container } = render(<BrowserRouter><Navbar /></BrowserRouter>);
+    expect(screen.getByRole('link', { name: 'Painel administrativo' })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

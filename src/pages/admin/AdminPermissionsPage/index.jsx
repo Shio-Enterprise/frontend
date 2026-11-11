@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { getAccessToken } from '../../../lib/authToken';
-import { AdminPanel, AdminTitle, BlackButton, Icon, PageMarker } from '../../../components/ui/ShioDesign';
+import { removeAdminAccess } from '../../../lib/adminAccounts';
+import NewAdminModal from '../../../components/admin/NewAdminModal';
+import AdminModal from '../../../components/ui/AdminModal';
+import { AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -17,6 +20,21 @@ function normalizeResults(payload) {
   return payload?.results ?? [];
 }
 
+function sortAdmins(list) {
+  return [...list].sort((a, b) =>
+    (a.name || a.email || '').localeCompare(b.name || b.email || '', 'pt-BR'),
+  );
+}
+
+function savedAdminMessage(saved) {
+  const who = saved.name || saved.email;
+  if (saved.action === 'promoted') return `${who} agora é administrador.`;
+  if (saved.invite_sent === false) {
+    return `Conta de ${who} criada, mas o e-mail não foi enviado. Peça para a pessoa usar "Esqueci minha senha" no login.`;
+  }
+  return `Conta de ${who} criada. Enviamos para ${saved.email} o e-mail para criar a senha.`;
+}
+
 export default function AdminPermissionsPage() {
   const { user, refreshUser } = useAuth();
   const [admins, setAdmins] = useState([]);
@@ -28,6 +46,16 @@ export default function AdminPermissionsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // Erro ao carregar fica fora do painel da conta: sem dados, aquele painel nem aparece.
+  const [loadError, setLoadError] = useState('');
+  const [showNewAdmin, setShowNewAdmin] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState('');
+  const lockHintId = useId();
+  const superHintId = useId();
+  const removeTitleId = useId();
+  const listHeadingRef = useRef(null);
 
   const selectedAdmin = useMemo(
     () => admins.find((admin) => String(admin.id) === String(selectedId)) ?? null,
@@ -62,7 +90,7 @@ export default function AdminPermissionsPage() {
         setSelectedPermissions(initialAdmin?.admin_permissions ?? []);
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || 'Não foi possível carregar as permissões administrativas.');
+          setLoadError(err.message || 'Não foi possível carregar as permissões administrativas.');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -80,6 +108,52 @@ export default function AdminPermissionsPage() {
     setSelectedPermissions(admin.admin_permissions ?? []);
     setSuccess('');
     setError('');
+  };
+
+  const handleAdminSaved = (saved) => {
+    // action e invite_sent só servem para a mensagem; não ficam na lista.
+    const admin = { ...saved };
+    delete admin.action;
+    delete admin.invite_sent;
+    setShowNewAdmin(false);
+    setAdmins((current) =>
+      sortAdmins([...current.filter((item) => String(item.id) !== String(admin.id)), admin]),
+    );
+    setSearch('');
+    setSelectedId(admin.id);
+    setSelectedPermissions(admin.admin_permissions ?? []);
+    setError('');
+    setSuccess(savedAdminMessage(saved));
+  };
+
+  const closeRemove = () => {
+    if (removing) return;
+    setConfirmRemove(false);
+    setRemoveError('');
+  };
+
+  const removeSelectedAdmin = async (event) => {
+    event.preventDefault();
+    if (!selectedAdmin || removing) return;
+    setRemoving(true);
+    setRemoveError('');
+    try {
+      await removeAdminAccess(selectedAdmin.id);
+      const remaining = admins.filter((admin) => String(admin.id) !== String(selectedAdmin.id));
+      const next = remaining[0] ?? null;
+      setAdmins(remaining);
+      setSelectedId(next?.id ?? null);
+      setSelectedPermissions(next?.admin_permissions ?? []);
+      setError('');
+      setSuccess(
+        `${selectedAdmin.name || selectedAdmin.email} não é mais administrador e voltou a ser cliente.`,
+      );
+      setConfirmRemove(false);
+    } catch (err) {
+      setRemoveError(err.message);
+    } finally {
+      setRemoving(false);
+    }
   };
 
   const filteredAdmins = useMemo(() => {
@@ -109,7 +183,7 @@ export default function AdminPermissionsPage() {
   };
 
   const savePermissions = async () => {
-    if (!selectedAdmin || !hasChanges || isSuperuser) return;
+    if (!selectedAdmin || !hasChanges || isSuperuser || saving) return;
     if (selectedPermissions.length === 0) {
       setError('Selecione ao menos uma permissão para esta conta administrativa.');
       return;
@@ -151,83 +225,116 @@ export default function AdminPermissionsPage() {
 
   return (
     <div>
-      <PageMarker name="AdminPermissionsPage" />
       <AdminTitle
         eyebrow="Controle de acesso"
         title="Permissões administrativas"
+        action={
+          !loading && !loadError ? (
+            <BlackButton onClick={() => setShowNewAdmin(true)}>
+              <Icon name="plus" className="h-4 w-4" />
+              Novo administrador
+            </BlackButton>
+          ) : null
+        }
       />
+
+      {loadError && (
+        <p role="alert" className="mb-6 rounded-[12px] bg-[#fff0f0] px-4 py-3 text-sm text-[#b00020]">{loadError}</p>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <AdminPanel className="overflow-hidden">
           <div className="border-b border-black/10 p-5">
-            <h2 className="text-[18px] font-bold text-black">Administradores</h2>
-            <p className="mt-1 text-[13px] text-black/55">
+            <h2 ref={listHeadingRef} className="text-[18px] font-bold text-black">Administradores</h2>
+            <p className="mt-1 text-[13px] text-shio-muted">
               Selecione uma conta para revisar o acesso ao painel.
             </p>
-            <label className="mt-4 flex h-11 items-center gap-3 rounded-full bg-[#f0f0f0] px-4 text-black/45">
-              <Icon name="search" className="h-4 w-4" />
+            <label className="mt-4 flex h-11 items-center gap-3 rounded-full bg-[#f0f0f0] px-4 text-shio-muted">
+              <Icon name="search" className="h-4 w-4 shrink-0" />
               <input
+                type="search"
+                aria-label="Buscar administrador"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar administrador..."
-                className="w-full bg-transparent text-sm text-black outline-none placeholder:text-black/35"
+                className="h-full w-full min-w-0 bg-transparent text-[16px] text-black outline-none placeholder:text-shio-placeholder md:text-sm"
               />
             </label>
           </div>
 
+          {/* Resultado da busca anunciado sem tirar o foco do campo (WCAG 4.1.3). */}
+          <p role="status" className="sr-only">
+            {!loading && search.trim()
+              ? filteredAdmins.length === 0
+                ? 'Nenhum administrador encontrado.'
+                : `${filteredAdmins.length} ${filteredAdmins.length === 1 ? 'administrador encontrado' : 'administradores encontrados'}.`
+              : ''}
+          </p>
           {loading ? (
-            <p className="p-5 text-sm text-black/55">Carregando administradores...</p>
+            <p role="status" className="p-5 text-sm text-shio-muted">Carregando administradores...</p>
           ) : filteredAdmins.length === 0 ? (
-            <p className="p-5 text-sm text-black/55">Nenhum administrador encontrado.</p>
+            <p className="p-5 text-sm text-shio-muted">Nenhum administrador encontrado.</p>
           ) : (
-            <div className="max-h-[560px] overflow-y-auto p-2">
+            <ul aria-label="Administradores" className="max-h-[560px] overflow-y-auto p-2">
               {filteredAdmins.map((admin) => {
                 const active = String(admin.id) === String(selectedId);
                 return (
+                  <li key={admin.id}>
                   <button
-                    key={admin.id}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => selectAdmin(admin)}
-                    className={`w-full rounded-[14px] px-4 py-3 text-left transition ${
-                      active ? 'bg-black text-white' : 'hover:bg-black/5'
+                    className={`w-full rounded-[14px] px-4 py-3 text-left transition forced-colors:border-2 ${
+                      active ? 'bg-black text-white forced-colors:border-[Highlight]' : 'hover:bg-black/5 forced-colors:border-transparent'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{admin.name || admin.email}</p>
-                        <p className={`mt-0.5 truncate text-xs ${active ? 'text-white/65' : 'text-black/50'}`}>
+                        <p className={`mt-0.5 truncate text-xs ${active ? 'text-white/65' : 'text-shio-muted'}`}>
                           {admin.email}
                         </p>
                       </div>
                       {admin.is_superuser && (
-                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${active ? 'bg-white/15 text-white' : 'bg-black/10 text-black/65'}`}>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[12px] font-bold uppercase ${active ? 'bg-white/15 text-white' : 'bg-black/10 text-black/65'}`}>
                           Superuser
                         </span>
                       )}
                     </div>
                   </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
         </AdminPanel>
 
         <AdminPanel className="overflow-hidden">
           {!selectedAdmin ? (
-            <div className="p-8 text-sm text-black/55">Selecione um administrador.</div>
+            <div className="p-8 text-sm text-shio-muted">Selecione um administrador.</div>
           ) : (
             <>
               <div className="flex flex-col gap-4 border-b border-black/10 p-6 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-[13px] font-semibold uppercase tracking-wide text-black/45">
+                  <p className="text-[13px] font-semibold uppercase tracking-wide text-shio-muted">
                     Conta selecionada
                   </p>
                   <h2 className="mt-1 text-[22px] font-bold text-black">
                     {selectedAdmin.name || selectedAdmin.email}
                   </h2>
-                  <p className="mt-1 text-sm text-black/55">{selectedAdmin.email}</p>
+                  <p className="mt-1 text-sm text-shio-muted">{selectedAdmin.email}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {!isCurrentUser && !isSuperuser && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRemove(true)}
+                      className="inline-flex h-11 items-center gap-2 rounded-full border border-black/15 px-4 text-sm font-semibold text-[#b00020] transition hover:border-[#b00020]"
+                    >
+                      <Icon name="trash" className="h-4 w-4" />
+                      Remover acesso
+                    </button>
+                  )}
                   {isCurrentUser && (
                     <span className="rounded-full bg-[#f0f0f0] px-3 py-1.5 text-xs font-semibold text-black/65">
                       Sua conta
@@ -243,15 +350,17 @@ export default function AdminPermissionsPage() {
 
               <div className="p-6">
                 {isSuperuser && (
-                  <div className="mb-5 rounded-[14px] border border-black/10 bg-[#f7f7f7] px-4 py-3 text-sm text-black/65">
+                  <div id={superHintId} className="mb-5 rounded-[14px] border border-black/10 bg-[#f7f7f7] px-4 py-3 text-sm text-black/65">
                     Superusuários possuem todas as permissões automaticamente. Para segurança, elas não podem ser alteradas por esta tela.
                   </div>
                 )}
 
-                <div className="divide-y divide-black/10 rounded-[16px] border border-black/10">
+                <fieldset className="divide-y divide-black/10 rounded-[16px] border border-black/10">
+                  <legend className="sr-only">Permissões de {selectedAdmin.name || selectedAdmin.email}</legend>
                   {permissionOptions.map((permission) => {
                     const checked = isSuperuser || selectedPermissions.includes(permission.code);
-                    const locked = isSuperuser || (isCurrentUser && permission.code === 'manage_admin_permissions');
+                    const lockedSelf = !isSuperuser && isCurrentUser && permission.code === 'manage_admin_permissions';
+                    const locked = isSuperuser || lockedSelf;
                     return (
                       <label
                         key={permission.code}
@@ -261,6 +370,7 @@ export default function AdminPermissionsPage() {
                           type="checkbox"
                           checked={checked}
                           disabled={locked}
+                          aria-describedby={isSuperuser ? superHintId : lockedSelf ? lockHintId : undefined}
                           onChange={() => togglePermission(permission.code)}
                           className="mt-1 h-4 w-4 accent-black"
                         />
@@ -268,17 +378,17 @@ export default function AdminPermissionsPage() {
                           <span className="block text-[15px] font-semibold text-black">
                             {permission.label}
                           </span>
-                          <span className="mt-1 block text-[13px] leading-5 text-black/55">
+                          <span className="mt-1 block text-[13px] leading-5 text-shio-muted">
                             {permission.description}
                           </span>
                         </span>
                       </label>
                     );
                   })}
-                </div>
+                </fieldset>
 
                 {isCurrentUser && !isSuperuser && (
-                  <p className="mt-3 text-xs text-black/45">
+                  <p id={lockHintId} className="mt-3 text-xs text-shio-muted">
                     A permissão de gerenciar administradores não pode ser removida da própria conta nesta tela.
                   </p>
                 )}
@@ -288,16 +398,22 @@ export default function AdminPermissionsPage() {
                     {error}
                   </p>
                 )}
+                {/* Sempre montado: região viva inserida junto com o texto às vezes não é lida. */}
+                <div role="status">
                 {success && (
                   <p className="mt-5 rounded-[12px] bg-[#eef9f1] px-4 py-3 text-sm text-[#176b35]">
                     {success}
                   </p>
                 )}
+                </div>
 
                 <div className="mt-6 flex justify-end">
+                  {/* aria-disabled e não disabled: ao salvar o botão fica inativo e, com disabled,
+                      o foco cairia no início da página (#64). */}
                   <BlackButton
                     onClick={savePermissions}
-                    disabled={!hasChanges || saving || isSuperuser}
+                    aria-disabled={!hasChanges || saving || isSuperuser}
+                    className="aria-disabled:cursor-not-allowed aria-disabled:bg-black/45"
                   >
                     <Icon name="save" className="h-4 w-4" />
                     {saving ? 'Salvando...' : 'Salvar permissões'}
@@ -308,6 +424,33 @@ export default function AdminPermissionsPage() {
           )}
         </AdminPanel>
       </div>
+
+      {showNewAdmin && (
+        <NewAdminModal
+          permissionOptions={permissionOptions}
+          onClose={() => setShowNewAdmin(false)}
+          onSaved={handleAdminSaved}
+        />
+      )}
+
+      {confirmRemove && selectedAdmin && (
+        <AdminModal
+          title="Remover acesso de administrador"
+          titleId={removeTitleId}
+          onClose={closeRemove}
+          onSubmit={removeSelectedAdmin}
+          error={removeError}
+          submitLabel={removing ? 'Removendo...' : 'Remover acesso'}
+          canSubmit
+          submitting={removing}
+          danger
+          fallbackFocus={() => listHeadingRef.current}
+        >
+          <p className="mt-3 text-[14px] text-black">
+            <strong>{selectedAdmin.name || selectedAdmin.email}</strong> ({selectedAdmin.email}) perde o acesso ao painel e volta a ser cliente comum. A conta e os pedidos continuam.
+          </p>
+        </AdminModal>
+      )}
     </div>
   );
 }
