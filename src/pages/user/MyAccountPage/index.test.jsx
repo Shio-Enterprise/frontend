@@ -91,11 +91,48 @@ describe('MyAccountPage', () => {
     fetchMock.mockRestore();
   });
 
+  it('aplica a máscara no telefone e no CPF, inclusive em dados antigos', async () => {
+    localStorage.setItem('accessToken', 'test-token');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, options) => ({
+      ok: true,
+      json: async () => options?.method === 'PATCH'
+        ? { phone_number: '(11) 3333-4444', cpf: '529.982.247-25' }
+        : { name: 'Cliente', phone_number: '+55 61 99999 9999', cpf: '52998224725' },
+    }));
+    try {
+      renderPage();
+      const tel = await screen.findByLabelText('Telefone');
+      const cpf = screen.getByLabelText('CPF');
+      await waitFor(() => expect(tel).toHaveValue('(61) 99999-9999'));
+      expect(cpf).toHaveValue('529.982.247-25');
+
+      fireEvent.change(tel, { target: { value: '11a3333 4444 99' } });
+      expect(tel).toHaveValue('(11) 33334-4449');
+      fireEvent.change(tel, { target: { value: '1133334444' } });
+      expect(tel).toHaveValue('(11) 3333-4444');
+      fireEvent.change(cpf, { target: { value: '529982' } });
+      expect(cpf).toHaveValue('529.982');
+      fireEvent.change(cpf, { target: { value: '5299822472599' } });
+      expect(cpf).toHaveValue('529.982.247-25');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
+      expect(await screen.findByRole('status')).toHaveTextContent('Dados salvos com sucesso!');
+      const patchCall = fetchMock.mock.calls.find(([, options]) => options?.method === 'PATCH');
+      expect(JSON.parse(patchCall[1].body)).toMatchObject({
+        phone_number: '(11) 3333-4444',
+        cpf: '529.982.247-25',
+      });
+    } finally {
+      fetchMock.mockRestore();
+      localStorage.removeItem('accessToken');
+    }
+  });
+
   it.each([
-    ['09675623330', '096.756.233-30'],
-    ['096.756.233-30', '096.756.233-30'],
-    ['', null],
-  ])('envia %s e exibe o CPF devolvido pela API depois de salvar', async (typed, saved) => {
+    ['09675623330', '096.756.233-30', '096.756.233-30'],
+    ['096.756.233-30', '096.756.233-30', '096.756.233-30'],
+    ['', '', null],
+  ])('envia %s e exibe o CPF devolvido pela API depois de salvar', async (typed, shown, saved) => {
     localStorage.setItem('accessToken', 'test-token');
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, options) => ({
       ok: true,
@@ -108,12 +145,12 @@ describe('MyAccountPage', () => {
       const field = await screen.findByLabelText('CPF');
       await waitFor(() => expect(field).toHaveValue('529.982.247-25'));
       fireEvent.change(field, { target: { value: typed } });
-      expect(field).toHaveValue(typed);
+      expect(field).toHaveValue(shown);
       fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
       expect(await screen.findByRole('status')).toHaveTextContent('Dados salvos com sucesso!');
       expect(field).toHaveValue(saved ?? '');
       const patchCall = fetchMock.mock.calls.find(([, options]) => options?.method === 'PATCH');
-      expect(JSON.parse(patchCall[1].body).cpf).toBe(typed);
+      expect(JSON.parse(patchCall[1].body).cpf).toBe(shown);
     } finally {
       fetchMock.mockRestore();
       localStorage.removeItem('accessToken');

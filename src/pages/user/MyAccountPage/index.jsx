@@ -3,6 +3,7 @@ import AccountLayout from '../../../components/layout/user/AccountLayout';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import apiClient from '../../../lib/axios';
+import { maskCpf, maskPhone } from '../../../lib/masks';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -74,12 +75,13 @@ const MyAccountPage = () => {
   useEffect(() => {
     if (!me) return;
     setName(me.name ?? '');
-    setPhone(me.phone_number ?? '');
-    setCpf(me.cpf ?? '');
+    // Dados antigos podem ter vindo em qualquer formato; a máscara padroniza na tela.
+    setPhone(maskPhone(me.phone_number));
+    setCpf(maskCpf(me.cpf));
   }, [me]);
 
-  const editField = (field, setter) => (e) => {
-    setter(e.target.value);
+  const editField = (field, setter, mask = (v) => v) => (e) => {
+    setter(mask(e.target.value));
     if (fieldErrors[field]) {
       setFieldErrors((errors) => {
         const next = { ...errors };
@@ -126,7 +128,7 @@ const MyAccountPage = () => {
         return;
       }
       const data = await res.json();
-      setCpf(data.cpf ?? '');
+      setCpf(maskCpf(data.cpf));
       setSaveMsg({ type: 'success', text: 'Dados salvos com sucesso!' });
       // Só o sucesso some sozinho; o erro fica até a pessoa corrigir.
       setTimeout(() => setSaveMsg((msg) => (msg?.type === 'success' ? null : msg)), 4000);
@@ -169,7 +171,7 @@ const MyAccountPage = () => {
                   type="tel"
                   autoComplete="tel"
                   value={phone}
-                  onChange={editField('phone_number', setPhone)}
+                  onChange={editField('phone_number', setPhone, maskPhone)}
                   placeholder="(11) 99999-9999"
                   {...fieldProps('phone_number')}
                 />
@@ -197,7 +199,7 @@ const MyAccountPage = () => {
                 <input
                   inputMode="numeric"
                   value={cpf}
-                  onChange={editField('cpf', setCpf)}
+                  onChange={editField('cpf', setCpf, maskCpf)}
                   placeholder="000.000.000-00"
                   {...fieldProps('cpf')}
                 />
