@@ -22,4 +22,4 @@ O usuário pediu que as novas páginas mantenham o layout e a identidade das pá
 
 ## Evidence on Hand
 
-Identidade existente em `src/index.css`, `src/components/ui/ShioDesign.jsx` e `src/components/layout/`. Campanhas existentes em `public/images/shio/`. Escopo e pendências de conteúdo em `docs/issue-83-conteudo.md`.
+Identidade existente em `src/index.css`, `src/components/ui/ShioDesign.jsx` e `src/components/layout/`. Campanhas existentes em `public/images/shio/`. Conteúdo provisório em `src/data/institutionalContent.js`.
