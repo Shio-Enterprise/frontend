@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import AdminLayout from "../components/layout/admin/AdminLayout";
 import { ADMIN_PERMISSIONS } from "../lib/adminPermissions";
+import { institutionalPages } from "../data/institutionalContent";
 
 // Public pages
 const HomePage = lazy(() => import("../pages/public/HomePage"));
@@ -11,6 +12,7 @@ const CategoryPage = lazy(() => import("../pages/public/CategoryPage"));
 const CartPage = lazy(() => import("../pages/public/CartPage"));
 const DropPage = lazy(() => import("../pages/public/DropPage"));
 const UnsubscribePage = lazy(() => import("../pages/public/UnsubscribePage"));
+const InstitutionalPage = lazy(() => import("../pages/public/InstitutionalPage"));
 
 // User pages
 const LoginPage = lazy(() => import("../pages/user/LoginPage"));
@@ -45,6 +47,11 @@ const NewsletterPage = lazy(() => import("../pages/admin/NewsletterPage"));
 
 const routes = [
   // Public routes
+  ...Object.entries(institutionalPages).map(([pageKey, page]) => ({
+    path: page.path,
+    component: <InstitutionalPage pageKey={pageKey} />,
+    isPrivate: false,
+  })),
   {
     path: "/",
     component: <HomePage />,

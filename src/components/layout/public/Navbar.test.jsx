@@ -67,14 +67,22 @@ describe('Navbar', () => {
     const produtosLink = screen.getByRole('link', { name: 'Produtos' });
     expect(produtosLink).toHaveAttribute('href', '/category/all');
 
-    const contatoButton = screen.getByRole('button', { name: 'Contato' });
-    expect(contatoButton).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Contato' })).toHaveAttribute('href', '/contato');
 
     const cartLink = screen.getByTestId('cart-link');
     expect(cartLink).toBeInTheDocument();
 
     const myAccountLink = screen.getByTestId('my-account-link');
     expect(myAccountLink).toBeInTheDocument();
+  });
+
+  it('opens the contact page and closes the mobile menu', () => {
+    const router = createMemoryRouter([{ path: '*', element: <Navbar /> }], { initialEntries: ['/sobre-nos'] });
+    render(<RouterProvider router={router} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir menu' }));
+    fireEvent.click(screen.getAllByRole('link', { name: 'Contato' }).at(-1));
+    expect(router.state.location.pathname).toBe('/contato');
+    expect(screen.getByRole('button', { name: 'Abrir menu' })).toHaveAttribute('aria-expanded', 'false');
   });
 
 

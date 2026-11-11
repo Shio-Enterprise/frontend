@@ -4,6 +4,7 @@ import logo from '../../../assets/logo/logo.svg';
 import { Icon } from '../../ui/ShioDesign';
 import { useCart } from '../../../context/CartContext';
 import { useAuth } from '../../../context/AuthContext';
+import { institutionalPages } from '../../../data/institutionalContent';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -70,7 +71,7 @@ export default function Navbar() {
           <nav aria-label="Principal" className="hidden items-center gap-8 text-[16px] lg:flex">
             <Link to="/" className="transition hover:text-black/60">Início</Link>
             <Link to="/category/all" className="transition hover:text-black/60">Produtos</Link>
-            <button onClick={() => document.getElementById('contato')?.scrollIntoView({ behavior: 'smooth' })} className="transition hover:text-black/60">Contato</button>
+            <Link to={institutionalPages.contact.path} className="transition hover:text-black/60">Contato</Link>
           </nav>
         </div>
 
@@ -183,15 +184,13 @@ export default function Navbar() {
                 Painel administrativo
               </Link>
             )}
-            <button
-              onClick={() => {
-                closeMenu();
-                document.getElementById('contato')?.scrollIntoView({ behavior: 'smooth' });
-              }}
+            <Link
+              to={institutionalPages.contact.path}
+              onClick={closeMenu}
               className="flex h-14 w-full items-center px-6 text-left text-[16px] text-black"
             >
               Contato
-            </button>
+            </Link>
           </nav>
         </div>
       )}
