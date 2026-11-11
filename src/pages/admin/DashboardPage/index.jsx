@@ -8,6 +8,7 @@ import {
 import { clearAuthTokens, getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, AdminTitle } from '../../../components/ui/ShioDesign';
 import MetricCard from '../../../components/ui/MetricCard';
+import SiteBehaviorSection from './SiteBehaviorSection';
 import DashboardViewToggle from '../../../components/ui/DashboardViewToggle';
 import OrderDrilldown from '../../../components/dashboard/OrderDrilldown';
 
@@ -330,6 +331,8 @@ const DashboardPage = () => {
           <p className="mt-4 text-[14px] text-black/60">Nenhum pedido recente encontrado.</p>
         )}
       </AdminPanel>
+
+      <SiteBehaviorSection />
     </div>
   );
 };

@@ -1,6 +1,9 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { getAccessToken } from '../../../lib/authToken';
+import { removeAdminAccess } from '../../../lib/adminAccounts';
+import NewAdminModal from '../../../components/admin/NewAdminModal';
+import AdminModal from '../../../components/ui/AdminModal';
 import { AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -17,6 +20,21 @@ function normalizeResults(payload) {
   return payload?.results ?? [];
 }
 
+function sortAdmins(list) {
+  return [...list].sort((a, b) =>
+    (a.name || a.email || '').localeCompare(b.name || b.email || '', 'pt-BR'),
+  );
+}
+
+function savedAdminMessage(saved) {
+  const who = saved.name || saved.email;
+  if (saved.action === 'promoted') return `${who} agora é administrador.`;
+  if (saved.invite_sent === false) {
+    return `Conta de ${who} criada, mas o e-mail não foi enviado. Peça para a pessoa usar "Esqueci minha senha" no login.`;
+  }
+  return `Conta de ${who} criada. Enviamos para ${saved.email} o e-mail para criar a senha.`;
+}
+
 export default function AdminPermissionsPage() {
   const { user, refreshUser } = useAuth();
   const [admins, setAdmins] = useState([]);
@@ -30,8 +48,14 @@ export default function AdminPermissionsPage() {
   const [success, setSuccess] = useState('');
   // Erro ao carregar fica fora do painel da conta: sem dados, aquele painel nem aparece.
   const [loadError, setLoadError] = useState('');
+  const [showNewAdmin, setShowNewAdmin] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState('');
   const lockHintId = useId();
   const superHintId = useId();
+  const removeTitleId = useId();
+  const listHeadingRef = useRef(null);
 
   const selectedAdmin = useMemo(
     () => admins.find((admin) => String(admin.id) === String(selectedId)) ?? null,
@@ -84,6 +108,52 @@ export default function AdminPermissionsPage() {
     setSelectedPermissions(admin.admin_permissions ?? []);
     setSuccess('');
     setError('');
+  };
+
+  const handleAdminSaved = (saved) => {
+    // action e invite_sent só servem para a mensagem; não ficam na lista.
+    const admin = { ...saved };
+    delete admin.action;
+    delete admin.invite_sent;
+    setShowNewAdmin(false);
+    setAdmins((current) =>
+      sortAdmins([...current.filter((item) => String(item.id) !== String(admin.id)), admin]),
+    );
+    setSearch('');
+    setSelectedId(admin.id);
+    setSelectedPermissions(admin.admin_permissions ?? []);
+    setError('');
+    setSuccess(savedAdminMessage(saved));
+  };
+
+  const closeRemove = () => {
+    if (removing) return;
+    setConfirmRemove(false);
+    setRemoveError('');
+  };
+
+  const removeSelectedAdmin = async (event) => {
+    event.preventDefault();
+    if (!selectedAdmin || removing) return;
+    setRemoving(true);
+    setRemoveError('');
+    try {
+      await removeAdminAccess(selectedAdmin.id);
+      const remaining = admins.filter((admin) => String(admin.id) !== String(selectedAdmin.id));
+      const next = remaining[0] ?? null;
+      setAdmins(remaining);
+      setSelectedId(next?.id ?? null);
+      setSelectedPermissions(next?.admin_permissions ?? []);
+      setError('');
+      setSuccess(
+        `${selectedAdmin.name || selectedAdmin.email} não é mais administrador e voltou a ser cliente.`,
+      );
+      setConfirmRemove(false);
+    } catch (err) {
+      setRemoveError(err.message);
+    } finally {
+      setRemoving(false);
+    }
   };
 
   const filteredAdmins = useMemo(() => {
@@ -158,6 +228,14 @@ export default function AdminPermissionsPage() {
       <AdminTitle
         eyebrow="Controle de acesso"
         title="Permissões administrativas"
+        action={
+          !loading && !loadError ? (
+            <BlackButton onClick={() => setShowNewAdmin(true)}>
+              <Icon name="plus" className="h-4 w-4" />
+              Novo administrador
+            </BlackButton>
+          ) : null
+        }
       />
 
       {loadError && (
@@ -167,7 +245,7 @@ export default function AdminPermissionsPage() {
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <AdminPanel className="overflow-hidden">
           <div className="border-b border-black/10 p-5">
-            <h2 className="text-[18px] font-bold text-black">Administradores</h2>
+            <h2 ref={listHeadingRef} className="text-[18px] font-bold text-black">Administradores</h2>
             <p className="mt-1 text-[13px] text-shio-muted">
               Selecione uma conta para revisar o acesso ao painel.
             </p>
@@ -246,7 +324,17 @@ export default function AdminPermissionsPage() {
                   </h2>
                   <p className="mt-1 text-sm text-shio-muted">{selectedAdmin.email}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {!isCurrentUser && !isSuperuser && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRemove(true)}
+                      className="inline-flex h-11 items-center gap-2 rounded-full border border-black/15 px-4 text-sm font-semibold text-[#b00020] transition hover:border-[#b00020]"
+                    >
+                      <Icon name="trash" className="h-4 w-4" />
+                      Remover acesso
+                    </button>
+                  )}
                   {isCurrentUser && (
                     <span className="rounded-full bg-[#f0f0f0] px-3 py-1.5 text-xs font-semibold text-black/65">
                       Sua conta
@@ -336,6 +424,33 @@ export default function AdminPermissionsPage() {
           )}
         </AdminPanel>
       </div>
+
+      {showNewAdmin && (
+        <NewAdminModal
+          permissionOptions={permissionOptions}
+          onClose={() => setShowNewAdmin(false)}
+          onSaved={handleAdminSaved}
+        />
+      )}
+
+      {confirmRemove && selectedAdmin && (
+        <AdminModal
+          title="Remover acesso de administrador"
+          titleId={removeTitleId}
+          onClose={closeRemove}
+          onSubmit={removeSelectedAdmin}
+          error={removeError}
+          submitLabel={removing ? 'Removendo...' : 'Remover acesso'}
+          canSubmit
+          submitting={removing}
+          danger
+          fallbackFocus={() => listHeadingRef.current}
+        >
+          <p className="mt-3 text-[14px] text-black">
+            <strong>{selectedAdmin.name || selectedAdmin.email}</strong> ({selectedAdmin.email}) perde o acesso ao painel e volta a ser cliente comum. A conta e os pedidos continuam.
+          </p>
+        </AdminModal>
+      )}
     </div>
   );
 }

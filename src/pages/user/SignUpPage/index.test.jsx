@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe';
 vi.mock('../../../context/AuthContext');
 vi.mock('@react-oauth/google', () => ({
   GoogleLogin: () => <div data-testid="google-login-mock" />,
+  useGoogleLogin: () => vi.fn(),
 }));
 
 let registerWithPassword;

@@ -4,7 +4,9 @@ import PublicLayout from '../../../components/layout/public/PublicLayout';
 import { ProductCard, Rating, SectionTitle } from '../../../components/ui/ShioDesign';
 import ProductReviews from '../../../components/reviews/ProductReviews';
 import SizeGuideTable from '../../../components/product/SizeGuideTable';
+import ProductGallery from '../../../components/product/ProductGallery';
 import { getAccessToken } from '../../../lib/authToken';
+import { EVENT_TYPES, trackEvent } from '../../../lib/analytics';
 import { useCart } from '../../../context/CartContext';
 import {
   createStockAlert, getPendingStockAlertVariationIds, stockAlertErrorMessage,
@@ -30,7 +32,6 @@ const ProductDetailContent = ({ id }) => {
   const [notFound, setNotFound] = useState(false);
   const [selectedVarId, setSelectedVarId] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [activeImage, setActiveImage] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMsg, setCartMsg] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
@@ -67,8 +68,8 @@ const ProductDetailContent = ({ id }) => {
       .then((data) => {
         if (controller.signal.aborted) return;
         setProduct(data);
-        setActiveImage(0);
         if (data.variations?.length > 0) setSelectedVarId(data.variations[0].id);
+        trackEvent(EVENT_TYPES.PRODUCT_VIEW, { productId: data.id });
       })
       .catch(() => {
         if (!controller.signal.aborted) setNotFound(true);
@@ -94,6 +95,8 @@ const ProductDetailContent = ({ id }) => {
 
     return () => controller.abort();
   }, [id]);
+
+  const productId = product?.id;
 
   const handleAddToCart = useCallback(async () => {
     if (!selectedVarId) return;
@@ -127,13 +130,14 @@ const ProductDetailContent = ({ id }) => {
         setCartData(cartData);
       }
       setCartMsg({ type: 'success', text: 'Adicionado ao carrinho!' });
+      trackEvent(EVENT_TYPES.ADD_TO_CART, { productId, variationId: selectedVarId });
     } catch (e) {
       setCartMsg({ type: 'error', text: e.message });
     } finally {
       setAddingToCart(false);
       setTimeout(() => setCartMsg(null), 3000);
     }
-  }, [selectedVarId, quantity, cartItems, setCartData]);
+  }, [selectedVarId, quantity, cartItems, setCartData, productId]);
 
   const handleStockAlert = async () => {
     if (!selectedVarId) return;
@@ -176,19 +180,17 @@ const ProductDetailContent = ({ id }) => {
     );
   }
 
-  const images = product.images ?? [];
-  const currentImage = images[activeImage]?.image ?? null;
   const basePrice = Number(product.base_price ?? 0);
   const promoPrice = product.is_promotion_active ? Number(product.effective_price) : null;
   const price = (Number(product.effective_price ?? basePrice)).toFixed(2);
   const discount = promoPrice ? Math.round((1 - promoPrice / basePrice) * 100) : null;
   const selectedVariation = product.variations?.find((v) => v.id === selectedVarId);
-  const totalStock = product.variations?.reduce((s, v) => s + (v.stock_quantity || 0), 0) ?? 0;
+  const anyInStock = product.variations?.some((v) => v.in_stock) ?? false;
   // Um produto pode ser visível (por isso a página carregou) e ainda assim
   // não vendável — drop Rascunho, Programado, Encerrado ou Esgotado (issue
   // #6). Distinto de "Esgotado" (estoque zerado na variação).
   const notSellable = product.is_sellable === false;
-  const variationOutOfStock = Boolean(selectedVariation) && selectedVariation.stock_quantity === 0;
+  const variationOutOfStock = Boolean(selectedVariation) && !selectedVariation.in_stock;
   const showStockAlert = variationOutOfStock && !notSellable;
   const alertPending = showStockAlert && pendingAlertIds.includes(String(selectedVarId));
 
@@ -198,29 +200,7 @@ const ProductDetailContent = ({ id }) => {
       <section className="mx-auto max-w-[1240px] px-6 py-16">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[570px_minmax(0,1fr)]">
           {/* Image gallery */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-[132px_minmax(0,1fr)]">
-            <div role={images.length > 0 ? 'group' : undefined} aria-label={images.length > 0 ? 'Fotos do produto' : undefined} className="grid grid-cols-3 gap-4 sm:grid-cols-1">
-              {images.length > 0 ? images.map((img, i) => (
-                <button key={img.id} type="button" onClick={() => setActiveImage(i)}
-                  aria-label={`Ver foto ${i + 1} de ${images.length}`}
-                  aria-pressed={i === activeImage}
-                  className={`overflow-hidden rounded-[2px] bg-[#f0efed] ring-2 transition ${i === activeImage ? 'ring-black' : 'ring-transparent'}`}>
-                  <img src={img.image} alt="" className="aspect-square w-full object-cover" />
-                </button>
-              )) : (
-                <div className="overflow-hidden rounded-[2px] bg-[#f0efed]">
-                  <div className="aspect-square w-full" />
-                </div>
-              )}
-            </div>
-            <div className="overflow-hidden rounded-[8px] bg-[#f0efed]">
-              {currentImage ? (
-                <img src={currentImage} alt={product.name} className="h-full min-h-[420px] w-full object-cover" />
-              ) : (
-                <div className="h-full min-h-[420px] w-full bg-[#f0efed]" />
-              )}
-            </div>
-          </div>
+          <ProductGallery images={product.images ?? []} productName={product.name} />
 
           {/* Product info */}
           <div>
@@ -244,7 +224,7 @@ const ProductDetailContent = ({ id }) => {
               {discount && (
                 <span className="rounded-full bg-[#ffebeb] px-4 py-1 text-sm font-semibold text-shio-danger">-{discount}%</span>
               )}
-              {totalStock === 0 && (
+              {!anyInStock && (
                 <span className="rounded-full bg-red-50 px-4 py-1 text-sm font-medium text-shio-danger">Esgotado</span>
               )}
               {notSellable && (
@@ -275,19 +255,15 @@ const ProductDetailContent = ({ id }) => {
                     // transparência, que deixava o texto sem contraste.
                     <button key={v.id} type="button" aria-pressed={v.id === selectedVarId}
                       onClick={() => { setSelectedVarId(v.id); setAlertError(null); }}
-                      className={`min-h-11 min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-shio-muted hover:bg-black/10 ${v.stock_quantity === 0 ? 'border border-dashed border-shio-muted' : ''}`}`}>
+                      className={`min-h-11 min-w-[80px] rounded-full px-6 py-3 text-sm font-medium transition ${v.id === selectedVarId ? 'bg-black text-white' : `bg-[#f0f0f0] text-shio-muted hover:bg-black/10 ${!v.in_stock ? 'border border-dashed border-shio-muted' : ''}`}`}>
                       {v.size}{v.color ? ` / ${v.color}` : ''}
-                      {v.stock_quantity === 0 && ' (esgotado)'}
+                      {!v.in_stock && ' (esgotado)'}
                     </button>
                   ))}
                 </div>
-                {selectedVariation && (
-                  <p aria-live="polite" className="mt-3 text-[13px] text-shio-muted">
-                    {selectedVariation.stock_quantity > 0
-                      ? `${selectedVariation.stock_quantity} unidades em estoque`
-                      : 'Sem estoque para este tamanho'}
-                  </p>
-                )}
+                <p aria-live="polite" className="mt-3 text-[13px] text-shio-muted empty:hidden">
+                  {variationOutOfStock ? 'Sem estoque para este tamanho' : ''}
+                </p>
               </div>
             )}
 
@@ -315,7 +291,7 @@ const ProductDetailContent = ({ id }) => {
                 <span aria-live="polite" className="text-[16px] font-semibold">{quantity}</span>
                 <button type="button" onClick={() => setQuantity((q) => q + 1)} aria-label="Aumentar quantidade" className="flex h-11 w-11 items-center justify-center rounded-full text-[20px] font-bold hover:bg-black/10"><span aria-hidden="true">+</span></button>
               </div>
-              <button type="button" onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || totalStock === 0 || notSellable}
+              <button type="button" onClick={handleAddToCart} disabled={addingToCart || !selectedVarId || !anyInStock || notSellable}
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black text-sm font-medium text-white transition hover:bg-black/85 disabled:bg-black/40">
                 {addingToCart ? 'Adicionando...' : notSellable ? 'Indisponível' : 'Adicionar ao Carrinho'}
               </button>

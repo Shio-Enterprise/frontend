@@ -176,3 +176,5 @@ describe('ProductsPage — acessibilidade (#64, área 6)', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+// Os testes do guia de medidas na edição (#55) foram para EditProductPage/index.test.jsx,
+// junto com a edição do produto.

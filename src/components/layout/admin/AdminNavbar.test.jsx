@@ -55,6 +55,7 @@ describe('AdminNavbar', () => {
     ['/admin/edit-drop/9', 'Drops'],
     ['/admin/orders/42', 'Pedidos'],
     ['/admin/customers/7', 'Clientes'],
+    ['/admin/newsletter', 'Newsletter'],
   ])('mantém a seção correta ativa em %s', (path, section) => {
     renderNavbar(path);
 
@@ -92,6 +93,23 @@ describe('AdminNavbar', () => {
     expect(screen.getAllByRole('link', { name: /voltar para loja/i }).length).toBeGreaterThan(1);
     expect(screen.getAllByRole('button', { name: 'Sair' }).length).toBeGreaterThan(1);
   });
+  it('só a lista de seções rola; conta e sair ficam fixos embaixo', () => {
+    renderNavbar();
+
+    const nav = screen.getByTestId('admin-sidebar-nav');
+    const footer = screen.getByTestId('admin-sidebar-footer');
+    const aside = nav.closest('aside');
+
+    // jsdom não calcula layout: confere a estrutura e as classes que fazem a rolagem.
+    expect(nav).toHaveClass('flex-1', 'min-h-0', 'overflow-y-auto');
+    expect(aside).toHaveClass('lg:overflow-hidden');
+    expect(aside).not.toHaveClass('lg:overflow-y-auto');
+    expect(footer).toHaveClass('shrink-0');
+    expect(nav).not.toContainElement(footer);
+    expect(footer).toContainElement(screen.getByTestId('admin-user-summary'));
+    expect(within(footer).getByRole('button', { name: /Sair/i })).toBeInTheDocument();
+  });
+
   it('exibe apenas as seções permitidas para o administrador', () => {
     useAuth.mockReturnValue({
       user: {
@@ -110,6 +128,7 @@ describe('AdminNavbar', () => {
     expect(screen.getAllByRole('link', { name: 'Permissões' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Produtos' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Drops' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Página inicial' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Clientes' })).not.toBeInTheDocument();
   });
 
@@ -133,7 +152,7 @@ describe('AdminNavbar', () => {
       renderNavbar();
       fireEvent.click(menuButton());
       const menu = within(mobileMenu());
-      ['Dashboard', 'Drops', 'Produtos', 'Guias de medidas', 'Pedidos', 'Cupons', 'Clientes', 'Avaliações', 'Permissões']
+      ['Dashboard', 'Drops', 'Página inicial', 'Produtos', 'Guias de medidas', 'Pedidos', 'Cupons', 'Clientes', 'Avaliações', 'Permissões']
         .forEach((name) => expect(menu.getByRole('link', { name })).toBeInTheDocument());
     });
 

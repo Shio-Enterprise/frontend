@@ -15,6 +15,7 @@ import {
 } from "../lib/authToken";
 import apiClient from "../lib/axios";
 import { firstAllowedAdminRoute, resolveAdminPermissions } from '../lib/adminPermissions';
+import { linkAnonymousEvents, resetAnonymousId } from '../lib/analytics';
 
 const AuthContext = createContext(null);
 const getStoredUser = () => {
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }) => {
     const refresh = getRefreshToken();
     const access = getAccessToken();
     clearSession();
+    resetAnonymousId();
     if (refresh && access) {
       try {
         await apiClient.post(
@@ -115,6 +117,7 @@ export const AuthProvider = ({ children }) => {
     setIsAdmin(
       userData.is_admin || userData.is_staff || userData.is_superuser || false,
     );
+    linkAnonymousEvents();
   };
 
   const refreshUser = async () => {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 import AdminPermissionsPage from './index';
@@ -154,6 +154,167 @@ describe('AdminPermissionsPage', () => {
     expect(screen.getAllByRole('status').some((el) => el.textContent === 'Nenhum administrador encontrado.')).toBe(true);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar administrador' }), { target: { value: 'pedidos' } });
     expect(screen.getAllByRole('status').some((el) => el.textContent === '1 administrador encontrado.')).toBe(true);
+  });
+
+  describe('novo administrador (#81)', () => {
+    it('botão abre o diálogo de novo administrador', async () => {
+      render(<AdminPermissionsPage />);
+      fireEvent.click(await screen.findByRole('button', { name: /Novo administrador/i }));
+      expect(screen.getByRole('dialog', { name: 'Novo administrador' })).toBeInTheDocument();
+    });
+
+    it('botão não aparece se a tela não carregou', async () => {
+      globalThis.fetch = vi.fn(() => jsonResponse({}, false));
+      render(<AdminPermissionsPage />);
+      await screen.findByRole('alert');
+      expect(screen.queryByRole('button', { name: /Novo administrador/i })).not.toBeInTheDocument();
+    });
+
+    it('conta criada entra na lista, fica selecionada e avisa do e-mail', async () => {
+      globalThis.fetch
+        .mockImplementationOnce(() => jsonResponse({ exists: false, email: 'nova@shio.com' }))
+        .mockImplementationOnce(() =>
+          jsonResponse({
+            id: 3,
+            name: 'Ana Nova',
+            email: 'nova@shio.com',
+            is_superuser: false,
+            admin_permissions: ['manage_orders'],
+            action: 'created',
+            invite_sent: true,
+          }),
+        );
+      render(<AdminPermissionsPage />);
+      fireEvent.click(await screen.findByRole('button', { name: /Novo administrador/i }));
+      fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'nova@shio.com' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+      fireEvent.change(await screen.findByLabelText('Nome'), { target: { value: 'Ana Nova' } });
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Pedidos' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cadastrar e enviar convite' }));
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /Ana Nova/i })).toHaveAttribute('aria-pressed', 'true');
+      expect(
+        screen.getAllByRole('status').some((el) =>
+          el.textContent === 'Conta de Ana Nova criada. Enviamos para nova@shio.com o e-mail para criar a senha.',
+        ),
+      ).toBe(true);
+      expect(screen.getByRole('checkbox', { name: /Pedidos/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /Produtos e estoque/i })).not.toBeChecked();
+    });
+
+    it('cliente promovido avisa que virou administrador', async () => {
+      globalThis.fetch
+        .mockImplementationOnce(() =>
+          jsonResponse({ exists: true, id: 4, email: 'cli@shio.com', name: 'Cli', is_active: true, is_admin: false, is_superuser: false }),
+        )
+        .mockImplementationOnce(() =>
+          jsonResponse({ id: 4, name: 'Cli', email: 'cli@shio.com', is_superuser: false, admin_permissions: ['manage_catalog'], action: 'promoted' }),
+        );
+      render(<AdminPermissionsPage />);
+      fireEvent.click(await screen.findByRole('button', { name: /Novo administrador/i }));
+      fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'cli@shio.com' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+      await screen.findByText(/Conta de cliente encontrada/);
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('checkbox', { name: 'Produtos e estoque' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Promover a administrador' }));
+
+      await waitFor(() =>
+        expect(screen.getAllByRole('status').some((el) => el.textContent === 'Cli agora é administrador.')).toBe(true),
+      );
+    });
+
+    it('avisa quando a conta foi criada mas o e-mail falhou', async () => {
+      globalThis.fetch
+        .mockImplementationOnce(() => jsonResponse({ exists: false, email: 'nova@shio.com' }))
+        .mockImplementationOnce(() =>
+          jsonResponse({ id: 3, name: 'Ana', email: 'nova@shio.com', admin_permissions: ['manage_orders'], action: 'created', invite_sent: false }),
+        );
+      render(<AdminPermissionsPage />);
+      fireEvent.click(await screen.findByRole('button', { name: /Novo administrador/i }));
+      fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'nova@shio.com' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+      fireEvent.change(await screen.findByLabelText('Nome'), { target: { value: 'Ana' } });
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('checkbox', { name: 'Pedidos' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cadastrar e enviar convite' }));
+
+      await waitFor(() =>
+        expect(screen.getAllByRole('status').some((el) => /o e-mail não foi enviado/.test(el.textContent))).toBe(true),
+      );
+    });
+  });
+
+  describe('remover acesso (#81)', () => {
+    it('não aparece na própria conta nem em superusuário', async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          jsonResponse({ results: [...admins, { id: 5, name: 'Root', email: 'root@shio.com', is_superuser: true, admin_permissions: [] }] }),
+        )
+        .mockImplementationOnce(() => jsonResponse({ results: permissionOptions }));
+      render(<AdminPermissionsPage />);
+      await screen.findByRole('button', { name: /Admin Principal/i });
+      expect(screen.queryByRole('button', { name: /Remover acesso/i })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Root/i }));
+      expect(screen.queryByRole('button', { name: /Remover acesso/i })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Admin Pedidos/i }));
+      expect(screen.getByRole('button', { name: /Remover acesso/i })).toBeInTheDocument();
+    });
+
+    it('confirma, remove da lista e avisa', async () => {
+      globalThis.fetch.mockImplementationOnce(() =>
+        Promise.resolve({ ok: true, status: 204, json: () => Promise.reject(new Error('sem corpo')) }),
+      );
+      render(<AdminPermissionsPage />);
+      fireEvent.click(await screen.findByRole('button', { name: /Admin Pedidos/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Remover acesso/i }));
+
+      const dialog = screen.getByRole('dialog', { name: 'Remover acesso de administrador' });
+      expect(dialog).toHaveTextContent('pedidos@shio.com');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Remover acesso' }));
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(globalThis.fetch).toHaveBeenLastCalledWith(
+        expect.stringContaining('/api/auth/admins/2/'),
+        expect.objectContaining({ method: 'DELETE' }),
+      );
+      expect(screen.queryByRole('button', { name: /Admin Pedidos/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Admin Principal/i })).toHaveAttribute('aria-pressed', 'true');
+      expect(
+        screen.getAllByRole('status').some((el) => el.textContent === 'Admin Pedidos não é mais administrador e voltou a ser cliente.'),
+      ).toBe(true);
+      // O botão que abriu o diálogo sumiu: o foco vai para o título da lista.
+      expect(screen.getByRole('heading', { name: 'Administradores' })).toHaveFocus();
+    });
+
+    it('cancelar não remove', async () => {
+      render(<AdminPermissionsPage />);
+      fireEvent.click(await screen.findByRole('button', { name: /Admin Pedidos/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Remover acesso/i }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole('button', { name: /Admin Pedidos/i })).toBeInTheDocument();
+    });
+
+    it('erro da API fica no diálogo', async () => {
+      globalThis.fetch.mockImplementationOnce(() =>
+        jsonResponse({ detail: 'Superusuários não podem ser alterados pelo painel.' }, false),
+      );
+      render(<AdminPermissionsPage />);
+      fireEvent.click(await screen.findByRole('button', { name: /Admin Pedidos/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Remover acesso/i }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remover acesso' }));
+
+      expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent(
+        'Superusuários não podem ser alterados pelo painel.',
+      );
+      expect(screen.getByRole('button', { name: /Admin Pedidos/i })).toBeInTheDocument();
+    });
   });
 
   it('erro ao carregar aparece como alerta (#64)', async () => {

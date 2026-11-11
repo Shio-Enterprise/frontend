@@ -32,6 +32,8 @@ const initialForm = (product) => ({
   promo_end: toSaoPauloInput(product.promo_end),
   drop: product.drop?.id ?? '',
   category: product.category?.id ?? '',
+  // own_size_guide é só o guia escolhido no produto; size_guide já vem com o da categoria (#55).
+  size_guide: product.own_size_guide ?? '',
   is_active: product.is_active,
 });
 
@@ -39,6 +41,7 @@ const EditProductForm = ({ productId, product }) => {
   const navigate = useNavigate();
   const { data: dropsResponse } = useApi('/api/catalog/drops/');
   const { data: categoriesResponse } = useApi('/api/catalog/categories/');
+  const { data: guidesResponse } = useApi('/api/catalog/size-guides/');
   const [form, setForm] = useState(() => initialForm(product));
   const [images, setImages] = useState(() => (product.images ?? []).map((image) => ({ key: image.id, id: image.id, url: image.image })));
   const [removedImageIds, setRemovedImageIds] = useState([]);
@@ -52,6 +55,7 @@ const EditProductForm = ({ productId, product }) => {
 
   const drops = getResults(dropsResponse);
   const categories = getResults(categoriesResponse);
+  const guides = getResults(guidesResponse);
   const set = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }));
   const detailUrl = `/admin/products/${productId}`;
 
@@ -81,6 +85,7 @@ const EditProductForm = ({ productId, product }) => {
           ...pricePayload(form),
           drop: form.drop || null,
           category: form.category || null,
+          size_guide: form.size_guide || null,
           is_active: form.is_active,
         }),
       });
@@ -183,6 +188,18 @@ const EditProductForm = ({ productId, product }) => {
                 {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
             </label>
+          </div>
+
+          {/* Mesmo campo da criação (#55): sem escolha, vale o guia da categoria. */}
+          <div>
+            <label>
+              <span className={labelClass}>Guia de medidas</span>
+              <select value={form.size_guide} onChange={set('size_guide')} aria-describedby="guia-ajuda" className={selectClass}>
+                <option value="">Usar o guia da categoria</option>
+                {guides.map((guide) => <option key={guide.id} value={guide.id}>{guide.name}</option>)}
+              </select>
+            </label>
+            <span id="guia-ajuda" className="mt-2 block text-[13px] text-shio-muted">Escolha um guia só se este produto tiver uma modelagem diferente da categoria.</span>
           </div>
 
           <label>

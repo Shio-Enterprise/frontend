@@ -1,12 +1,13 @@
 import Dialog from './Dialog';
 
 // Diálogo dos painéis de pedido no admin (reembolso, troca).
-export default function AdminModal({ title, titleId, onClose, onSubmit, children, error, submitLabel, canSubmit, submitting = false, danger }) {
+export default function AdminModal({ title, titleId, onClose, onSubmit, children, error, submitLabel, canSubmit, submitting = false, danger, fallbackFocus }) {
   return (
     <Dialog
       as="form"
       labelledBy={titleId}
       onClose={onClose}
+      fallbackFocus={fallbackFocus}
       onSubmit={onSubmit}
       className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[18px] bg-white p-6"
     >

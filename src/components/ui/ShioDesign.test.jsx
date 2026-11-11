@@ -22,8 +22,14 @@ describe('ProductCard', () => {
   });
 
   it('marks products with no positive variation stock as unavailable', () => {
-    render(<BrowserRouter><ProductCard product={{ id: 'empty', name: 'Sem estoque', price: 'R$ 10,00', variations: [{ stock_quantity: 0 }] }} /></BrowserRouter>);
+    render(<BrowserRouter><ProductCard product={{ id: 'empty', name: 'Sem estoque', price: 'R$ 10,00', variations: [{ in_stock: false }] }} /></BrowserRouter>);
     expect(screen.getByText('Indisponível')).toBeInTheDocument();
+  });
+
+  it('product with one size in stock is available without the exact quantity (#85)', () => {
+    render(<BrowserRouter><ProductCard product={{ id: 'ok', name: 'Com estoque', price: 'R$ 10,00', variations: [{ in_stock: false }, { in_stock: true }] }} /></BrowserRouter>);
+    expect(screen.queryByText('Indisponível')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Com estoque' })).toBeInTheDocument();
   });
 
   it('sends anonymous users to login from the accessible favorite control', () => {
