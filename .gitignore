@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+.impeccable/review/
+.impeccable/briefs/
 
 # Environment variables
 .env
