@@ -1,7 +1,10 @@
 import { useId, useRef } from 'react';
 import { Icon } from '../ui/ShioDesign';
-import { sizeOptionsFor } from './productForm';
-import { newVariationRow, needsStockNote, stockDelta, stockEditable, variationLabel } from './productVariations';
+import { ONE_SIZE, SIZE_OPTIONS, sizeOptionsFor } from './productForm';
+import { isDefaultVariation, newVariationRow, needsStockNote, stockDelta, stockEditable, variationLabel } from './productVariations';
+
+// Tamanhos reais para converter a variação padrão.
+const REAL_SIZES = SIZE_OPTIONS.filter((size) => size !== ONE_SIZE);
 
 const fieldClass = 'mt-2 h-11 w-full rounded-full border border-black/25 bg-white px-5 text-[15px] outline-none focus:border-black';
 const actionClass = 'inline-flex min-h-11 items-center rounded-full border border-black/25 px-4 text-[13px] font-semibold text-black transition hover:border-black';
@@ -119,8 +122,58 @@ export default function ProductVariationsEditor({ rows, onChange, note, onNoteCh
               )}
               {row.reactivate && <p className="text-[13px] font-semibold text-shio-success">Será reativado ao salvar.</p>}
 
+              {isDefaultVariation(row) && !row.convert && !row.remove && (
+                <p className="text-[13px] text-shio-muted">
+                  Tamanho único. Para vender em tamanhos (P, M, G…), converta esta linha em um tamanho real e depois adicione os outros.
+                </p>
+              )}
+              {row.convert && (
+                <div className="grid gap-3 rounded-[12px] bg-[#f5f5f5] p-3 sm:grid-cols-2">
+                  <label className="text-[13px] text-shio-muted">Novo tamanho
+                    <select
+                      ref={elementRef(row.key, 'convertSize')}
+                      aria-label={`Novo tamanho de ${label}`}
+                      required
+                      value={row.convertSize}
+                      onChange={(e) => update(row.key, { convertSize: e.target.value })}
+                      className={fieldClass}
+                    >
+                      {!row.convertSize && <option value="">Selecione</option>}
+                      {REAL_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-[13px] text-shio-muted">Cor (opcional)
+                    <input
+                      aria-label={`Cor (opcional) de ${label}`}
+                      placeholder="#RRGGBB ou nome"
+                      value={row.convertColor}
+                      onChange={(e) => update(row.key, { convertColor: e.target.value })}
+                      className={fieldClass}
+                    />
+                  </label>
+                  <p className="text-[13px] font-semibold text-black sm:col-span-2">
+                    Será convertido ao salvar. Pedidos, SKU e histórico de estoque continuam ligados a este tamanho.
+                  </p>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2">
-                {row.isActive && !row.remove && (
+                {isDefaultVariation(row) && !row.convert && !row.remove && (
+                  <button type="button" ref={elementRef(row.key, 'convert')} aria-label={`Converter em tamanho real: ${label}`} className={actionClass}
+                    onClick={() => { update(row.key, { convert: true }); focusLater(row.key, 'convertSize'); }}>
+                    Converter em tamanho real
+                  </button>
+                )}
+                {row.convert && (
+                  <button type="button" ref={elementRef(row.key, 'undoConvert')} aria-label={`Desfazer conversão: ${label}`} className={actionClass}
+                    onClick={() => {
+                      update(row.key, { convert: false, convertSize: '', convertColor: '' });
+                      focusLater(row.key, 'convert');
+                    }}>
+                    Desfazer conversão
+                  </button>
+                )}
+                {row.isActive && !row.remove && !row.convert && (
                   <button type="button" ref={elementRef(row.key, 'remove')} aria-label={`Remover tamanho ${label}`} className={`${actionClass} text-shio-danger`}
                     onClick={() => { update(row.key, { remove: true }); focusLater(row.key, 'undo'); }}>
                     Remover

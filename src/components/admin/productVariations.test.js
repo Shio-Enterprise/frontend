@@ -123,3 +123,44 @@ describe('syncProductVariations', () => {
     expect(error.state.map((row) => row.current)).toEqual([4, 1]);
   });
 });
+
+describe('converter a variação padrão “Único”', () => {
+  const unico = { id: 'vu', size: 'Único', color: '', sku: 'CAM-U', stock_quantity: 2, is_active: true };
+  const newRow = { key: 'new-1', size: 'M', color: '', sku: '', final: '3' };
+
+  it('não deixa adicionar tamanho sem converter o Único, nem converter sem escolher o tamanho', () => {
+    const rows = toVariationRows([unico]);
+    expect(validateVariations([...rows, newRow], '')).toBe(
+      'Para adicionar tamanhos, converta antes o “Único” em um tamanho real (botão “Converter em tamanho real”).',
+    );
+    expect(validateVariations([{ ...rows[0], convert: true, convertSize: '' }, newRow], '')).toBe('Escolha o tamanho real para converter “Único”.');
+    expect(validateVariations([{ ...rows[0], convert: true, convertSize: 'P' }, newRow], '')).toBeNull();
+    expect(variationsChanged([{ ...rows[0], convert: true, convertSize: 'P' }])).toBe(true);
+  });
+
+  it('converte o Único (mesma variação) antes de criar os outros tamanhos', async () => {
+    const fetchMock = vi.fn((url, options = {}) => {
+      if (!options.method) return ok({ variations: [unico] });
+      if (options.method === 'PUT') return ok({ ...unico, size: 'P' });
+      if (url.endsWith('/products/p1/variations/')) return ok({ id: 'vm', size: 'M', color: '', sku: 'SH-M', stock_quantity: 3, is_active: true }, 201);
+      return ok({}, 201);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const [row] = toVariationRows([unico]);
+    const rows = [{ ...row, convert: true, convertSize: 'P', convertColor: ' ', final: '5' }, newRow];
+
+    const result = await syncProductVariations({ productId: 'p1', rows, note: 'Grade nova', token: 't', keyFor });
+
+    expect(calls(fetchMock)).toEqual([
+      'GET /products/p1/',
+      'PUT /variations/vu/',
+      'POST /products/p1/variations/',
+      'POST /variations/vu/stock-movements/',
+    ]);
+    expect(bodyOf(fetchMock, 1)).toEqual({ size: 'P', color: '' });
+    // O ajuste de estoque fica na mesma variação (o histórico dela continua).
+    expect(bodyOf(fetchMock, 3)).toMatchObject({ kind: 'ENTRADA', reason: 'AJUSTE', quantity: 3 });
+    expect(result[0]).toMatchObject({ id: 'vu', sku: 'CAM-U', size: 'P', convert: false, current: 5 });
+    expect(fetchMock.mock.calls.some(([, options = {}]) => options.method === 'DELETE')).toBe(false);
+  });
+});

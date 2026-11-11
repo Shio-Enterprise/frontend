@@ -365,6 +365,89 @@ describe('EditProductPage — tamanhos e estoque', () => {
     );
   });
 
+  describe('produto com a variação padrão “Único”', () => {
+    const unicoProduct = {
+      ...product,
+      images: [],
+      variations: [{ id: 'vu', size: 'Único', color: '', sku: 'CAM-U', stock_quantity: 2, is_active: true }],
+    };
+
+    beforeEach(() => {
+      useApiMock.mockImplementation((url) => ({
+        data: url === '/api/catalog/products/p1/' ? unicoProduct : apiData[url] ?? null,
+        loading: false, error: null, refetch: vi.fn(),
+      }));
+    });
+
+    it('adicionar tamanho sem converter o Único avisa antes de salvar', async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Adicionar tamanho' }));
+      fireEvent.change(screen.getByRole('combobox', { name: 'Tamanho do novo tamanho 1' }), { target: { value: 'M' } });
+      save();
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('converta antes o “Único” em um tamanho real');
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('converte o Único em P, adiciona M e salva tudo pela edição, sem apagar a variação', async () => {
+      const fetchMock = vi.fn((url, options = {}) => {
+        if (!options.method) return Promise.resolve({ ok: true, json: async () => unicoProduct });
+        if (options.method === 'PUT' && url.endsWith('/variations/vu/')) {
+          return Promise.resolve({ ok: true, json: async () => ({ ...unicoProduct.variations[0], size: 'P' }) });
+        }
+        if (options.method === 'POST' && url.endsWith('/variations/')) {
+          return Promise.resolve({ ok: true, json: async () => ({ id: 'vm', size: 'M', color: '', sku: 'SH-M', stock_quantity: 3, is_active: true }) });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Converter em tamanho real: Único' }));
+      const newSize = screen.getByRole('combobox', { name: 'Novo tamanho de Único' });
+      await waitFor(() => expect(newSize).toHaveFocus());
+      expect(screen.getByText(/Pedidos, SKU e histórico de estoque continuam ligados a este tamanho/)).toBeInTheDocument();
+      fireEvent.change(newSize, { target: { value: 'P' } });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Adicionar tamanho' }));
+      fireEvent.change(screen.getByRole('combobox', { name: 'Tamanho do novo tamanho 1' }), { target: { value: 'M' } });
+      fireEvent.change(screen.getByRole('spinbutton', { name: 'Estoque inicial do novo tamanho 1' }), { target: { value: '3' } });
+      fireEvent.change(quantity('Único'), { target: { value: '5' } });
+      fireEvent.change(screen.getByRole('textbox', { name: /Justificativa do ajuste/ }), { target: { value: 'Grade nova' } });
+      save();
+
+      expect(await screen.findByText('Detalhe do produto')).toBeInTheDocument();
+      // A conversão vai antes da criação; o Único não é apagado nem recriado.
+      expect(fetchMock.mock.calls.map(route)).toEqual([
+        'PUT /products/p1/',
+        'GET /products/p1/',
+        'PUT /variations/vu/',
+        'POST /products/p1/variations/',
+        'POST /variations/vu/stock-movements/',
+      ]);
+      const bodies = fetchMock.mock.calls.map(([, options = {}]) => options.body);
+      expect(JSON.parse(bodies[2])).toEqual({ size: 'P', color: '' });
+      expect(JSON.parse(bodies[3])).toEqual({ size: 'M', color: '', sku: '', stock_quantity: 3 });
+      expect(JSON.parse(bodies[4])).toMatchObject({ kind: 'ENTRADA', reason: 'AJUSTE', quantity: 3, note: 'Grade nova' });
+    });
+
+    it('desfazer a conversão devolve o foco ao botão de converter', async () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Converter em tamanho real: Único' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Desfazer conversão: Único' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Converter em tamanho real: Único' })).toHaveFocus());
+      expect(screen.queryByRole('combobox', { name: 'Novo tamanho de Único' })).not.toBeInTheDocument();
+    });
+
+    it('conversão sem violações de acessibilidade', async () => {
+      const { container } = renderPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Converter em tamanho real: Único' }));
+      expect(await axe(container)).toHaveNoViolations();
+    });
+  });
+
   it('tamanhos sem violações de acessibilidade (com tamanho novo)', async () => {
     const { container } = renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar tamanho' }));

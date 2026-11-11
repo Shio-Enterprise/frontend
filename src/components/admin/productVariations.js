@@ -1,11 +1,13 @@
 // Tamanhos e estoque na tela de edição do produto (issue #79).
 // Cada linha da lista:
-//   - existente: { key, id, size, color, sku, isActive, current, final, remove, reactivate }
+//   - existente: { key, id, size, color, sku, isActive, current, final, remove, reactivate,
+//                  convert, convertSize, convertColor }
 //     current = estoque no servidor; final = quantidade final digitada (texto do input);
+//     convert = converter a variação padrão "Único" em convertSize/convertColor;
 //   - nova: { key, size, color, sku, final } (sem id; final = estoque inicial).
 // O estoque nunca é gravado direto: a diferença vira uma movimentação de AJUSTE
 // com justificativa, para o histórico continuar batendo.
-import { apiError } from './productForm';
+import { apiError, ONE_SIZE } from './productForm';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -22,7 +24,15 @@ export const toVariationRows = (variations = []) => variations.map((v) => ({
   final: String(v.stock_quantity ?? 0),
   remove: false,
   reactivate: false,
+  convert: false,
+  convertSize: '',
+  convertColor: '',
 }));
+
+// Variação padrão do produto ("Único" sem cor). Enquanto ela existir, o backend
+// não aceita tamanhos reais: ela precisa ser convertida (a mesma variação muda de
+// tamanho, então pedidos e movimentações continuam ligados a ela).
+export const isDefaultVariation = (row) => Boolean(row.id) && row.size === ONE_SIZE && !row.color;
 
 let newRowCount = 0;
 export const newVariationRow = () => {
@@ -54,17 +64,23 @@ export const needsStockNote = (rows) => rows.some((row) => {
   return delta !== null && delta !== 0;
 });
 
-export const variationsChanged = (rows) => rows.some((row) => !row.id || row.remove || row.reactivate || stockDelta(row) !== 0);
+export const variationsChanged = (rows) => rows.some((row) => !row.id || row.remove || row.reactivate || row.convert || stockDelta(row) !== 0);
 
 // Mesmas regras do backend, conferidas antes de salvar qualquer coisa.
 export const validateVariations = (rows, note) => {
   for (const row of rows) {
     if (!row.id && !row.size) return 'Escolha o tamanho da nova linha.';
+    if (row.convert && (!row.convertSize || row.convertSize === ONE_SIZE)) {
+      return `Escolha o tamanho real para converter “${ONE_SIZE}”.`;
+    }
     if (stockEditable(row) && parseQuantity(row.final) === null) {
       return String(row.final).trim().startsWith('-')
         ? `O estoque de ${variationLabel(row)} não pode ficar negativo.`
         : `Estoque de ${variationLabel(row)}: informe um número inteiro.`;
     }
+  }
+  if (rows.some((row) => !row.id) && rows.some((row) => isDefaultVariation(row) && !row.convert)) {
+    return `Para adicionar tamanhos, converta antes o “${ONE_SIZE}” em um tamanho real (botão “Converter em tamanho real”).`;
   }
   if (!rows.some((row) => !row.id || (!row.remove && (row.isActive || row.reactivate)))) {
     return 'O produto precisa de pelo menos um tamanho ativo.';
@@ -129,7 +145,19 @@ export async function syncProductVariations({ productId, rows, note, token, keyF
     update(row.key, { isActive: true, reactivate: false });
   }
 
-  // 3. Tamanhos novos antes das remoções: o produto nunca fica sem tamanho ativo.
+  // 3. Converter o "Único" antes de criar os outros tamanhos (o backend recusa a
+  //    criação enquanto ele existe). É um PUT na mesma variação: pedidos antigos e
+  //    movimentações continuam ligados a ela; o SKU não muda.
+  for (const row of current.filter((r) => r.id && r.convert)) {
+    const response = await fetch(`${API_BASE_URL}/api/catalog/variations/${row.id}/`, {
+      method: 'PUT', headers: json, body: JSON.stringify({ size: row.convertSize, color: row.convertColor.trim() }),
+    });
+    if (!response.ok) throw stop(await failure(response, `Falha ao converter ${variationLabel(row)}`));
+    const saved = await response.json();
+    update(row.key, { size: saved.size, color: saved.color || '', convert: false, convertSize: '', convertColor: '' });
+  }
+
+  // 4. Tamanhos novos antes das remoções: o produto nunca fica sem tamanho ativo.
   //    O estoque inicial é registrado pelo backend ("Estoque inicial" no histórico).
   for (const row of current.filter((r) => !r.id)) {
     const response = await fetch(`${API_BASE_URL}/api/catalog/products/${productId}/variations/`, {
@@ -145,13 +173,13 @@ export async function syncProductVariations({ productId, rows, note, token, keyF
     });
   }
 
-  // 4. Ajustes de estoque pela quantidade final.
+  // 5. Ajustes de estoque pela quantidade final.
   for (const row of current.filter((r) => r.id && !r.remove && stockDelta(r) !== 0)) {
     await moveStock(row, stockDelta(row));
     update(row.key, { current: plannedStock(row) });
   }
 
-  // 5. Remover: zera o estoque (saída por ajuste) e pede a remoção. Com histórico
+  // 6. Remover: zera o estoque (saída por ajuste) e pede a remoção. Com histórico
   //    o backend só desativa (200); sem histórico apaga (204).
   for (const row of current.filter((r) => r.id && r.remove)) {
     if (row.current > 0) {
