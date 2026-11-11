@@ -29,14 +29,15 @@ export default function Navbar() {
   return (
     <header className="w-full bg-white font-inter text-black">
       {showBanner && (
-        <div className="relative flex h-9 items-center justify-center bg-black px-10 text-center text-[13px] text-white">
-          <p>
-            Cadastre-se e ganhe 10% de desconto no seu primeiro pedido.{' '}
-            <Link to="/signup" className="font-semibold underline underline-offset-2">
-              Cadastre-se agora
-            </Link>
-          </p>
-          <button onClick={() => setShowBanner(false)} className="absolute right-2 top-1/2 flex h-9 w-11 -translate-y-1/2 cursor-pointer items-center justify-center text-white" aria-label="Fechar promoção">
+        <div className="relative h-9 bg-black text-center text-[13px] text-white">
+          {/* A faixa inteira é o link; o X fica fora dele (irmão), senão o clique no X navegaria. */}
+          <Link to="/signup" className="flex h-full w-full items-center justify-center px-12">
+            <span>
+              Cadastre-se e ganhe 10% de desconto no seu primeiro pedido.{' '}
+              <span className="font-semibold underline underline-offset-2">Cadastre-se agora</span>
+            </span>
+          </Link>
+          <button onClick={() => setShowBanner(false)} className="absolute right-2 top-1/2 z-10 flex h-9 w-11 -translate-y-1/2 cursor-pointer items-center justify-center text-white" aria-label="Fechar promoção">
             <Icon name="close" className="h-5 w-5" />
           </button>
         </div>

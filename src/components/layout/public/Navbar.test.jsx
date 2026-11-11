@@ -122,6 +122,23 @@ describe('Navbar', () => {
     expect(screen.getByText(/10% de desconto/i)).toBeInTheDocument();
   });
 
+  it('clicar em qualquer ponto da faixa de desconto leva ao cadastro', () => {
+    const router = createMemoryRouter([{ path: '*', element: <Navbar /> }], { initialEntries: ['/'] });
+    render(<RouterProvider router={router} />);
+    const bannerLink = screen.getByRole('link', { name: /ganhe 10% de desconto/i });
+    expect(bannerLink).toHaveAttribute('href', '/signup');
+    fireEvent.click(screen.getByText(/ganhe 10% de desconto/i));
+    expect(router.state.location.pathname).toBe('/signup');
+  });
+
+  it('o X fecha a faixa de desconto sem levar ao cadastro', () => {
+    const router = createMemoryRouter([{ path: '*', element: <Navbar /> }], { initialEntries: ['/'] });
+    render(<RouterProvider router={router} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar promoção' }));
+    expect(router.state.location.pathname).toBe('/');
+    expect(screen.queryByText(/ganhe 10% de desconto/i)).not.toBeInTheDocument();
+  });
+
   it.each([
     [0, 'Carrinho'],
     [1, 'Carrinho 1 item'],
