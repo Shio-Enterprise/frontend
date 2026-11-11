@@ -3,7 +3,7 @@ import AccountLayout from '../../../components/layout/user/AccountLayout';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import apiClient from '../../../lib/axios';
-import { displayPhone, maskCpf, maskPhone, phoneError } from '../../../lib/masks';
+import { displayCpf, displayPhone, maskCpf, maskPhone, phoneError } from '../../../lib/masks';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -37,9 +37,10 @@ const MyAccountPage = () => {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
-  // Telefone como veio da API. Se a pessoa não mexer no campo, ele não vai no PATCH:
+  // Telefone e CPF como vieram da API. Campo que a pessoa não mexeu não vai no PATCH:
   // cadastro antigo fora do padrão não é apagado nem trava quem só quer mudar o nome.
   const savedPhone = useRef('');
+  const savedCpf = useRef('');
 
   const [receives, setReceives] = useState(null);
   const [savingMarketing, setSavingMarketing] = useState(false);
@@ -79,9 +80,14 @@ const MyAccountPage = () => {
     if (!me) return;
     setName(me.name ?? '');
     showSavedPhone(me.phone_number);
-    // Dados antigos podem ter vindo em qualquer formato; a máscara padroniza na tela.
-    setCpf(maskCpf(me.cpf));
+    showSavedCpf(me.cpf);
   }, [me]);
+
+  function showSavedCpf(value) {
+    const shown = displayCpf(value);
+    savedCpf.current = shown;
+    setCpf(shown);
+  }
 
   function showSavedPhone(value) {
     const shown = displayPhone(value);
@@ -137,7 +143,7 @@ const MyAccountPage = () => {
         },
         body: JSON.stringify({
           name,
-          cpf,
+          ...(cpf !== savedCpf.current && { cpf }),
           ...(phone !== savedPhone.current && { phone_number: phone }),
         }),
       });
@@ -149,7 +155,7 @@ const MyAccountPage = () => {
         return;
       }
       const data = await res.json();
-      setCpf(maskCpf(data.cpf));
+      if ('cpf' in data) showSavedCpf(data.cpf);
       if ('phone_number' in data) showSavedPhone(data.phone_number);
       setSaveMsg({ type: 'success', text: 'Dados salvos com sucesso!' });
       // Só o sucesso some sozinho; o erro fica até a pessoa corrigir.

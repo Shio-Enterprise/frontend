@@ -168,6 +168,34 @@ describe('MyAccountPage', () => {
     });
   });
 
+  describe('CPF antigo fora do padrão', () => {
+    beforeEach(() => localStorage.setItem('accessToken', 'test-token'));
+    afterEach(() => {
+      vi.restoreAllMocks();
+      localStorage.removeItem('accessToken');
+    });
+
+    it.each([
+      ['sem número', 'não informado'],
+      ['com dígitos a mais', '123.456.789-0012'],
+      ['duplicado preservado pela migração', '096.756.233-30'],
+    ])('%s aparece como está e não vai no PATCH ao salvar só o nome', async (_caso, legacy) => {
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, options) => ({
+        ok: true,
+        json: async () => ({ name: options?.method === 'PATCH' ? 'Nome Novo' : 'Cliente', phone_number: null, cpf: legacy }),
+      }));
+      renderPage();
+      const cpf = await screen.findByLabelText('CPF');
+      await waitFor(() => expect(cpf).toHaveValue(legacy));
+      fireEvent.change(screen.getByLabelText('Nome Completo'), { target: { value: 'Nome Novo' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
+      expect(await screen.findByRole('status')).toHaveTextContent('Dados salvos com sucesso!');
+      const call = fetchMock.mock.calls.find(([, options]) => options?.method === 'PATCH');
+      expect(JSON.parse(call[1].body)).toEqual({ name: 'Nome Novo' });
+      expect(cpf).toHaveValue(legacy);
+    });
+  });
+
   it('aplica a máscara no telefone e no CPF, inclusive em dados antigos', async () => {
     localStorage.setItem('accessToken', 'test-token');
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, options) => ({
@@ -189,15 +217,15 @@ describe('MyAccountPage', () => {
       expect(tel).toHaveValue('(11) 3333-4444');
       fireEvent.change(cpf, { target: { value: '529982' } });
       expect(cpf).toHaveValue('529.982');
-      fireEvent.change(cpf, { target: { value: '5299822472599' } });
-      expect(cpf).toHaveValue('529.982.247-25');
+      fireEvent.change(cpf, { target: { value: '0967562333099' } });
+      expect(cpf).toHaveValue('096.756.233-30');
 
       fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
       expect(await screen.findByRole('status')).toHaveTextContent('Dados salvos com sucesso!');
       const patchCall = fetchMock.mock.calls.find(([, options]) => options?.method === 'PATCH');
       expect(JSON.parse(patchCall[1].body)).toMatchObject({
         phone_number: '(11) 3333-4444',
-        cpf: '529.982.247-25',
+        cpf: '096.756.233-30',
       });
     } finally {
       fetchMock.mockRestore();

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MOBILE_NINE_DIGITS_MESSAGE, PHONE_INVALID_MESSAGE,
-  displayPhone, maskCpf, maskPhone, onlyDigits, phoneError,
+  displayCpf, displayPhone, maskCpf, maskPhone, onlyDigits, phoneError,
 } from './masks';
 
 describe('onlyDigits', () => {
@@ -78,5 +78,15 @@ describe('displayPhone', () => {
     expect(displayPhone('99999-9999')).toBe('99999-9999');
     expect(displayPhone(null)).toBe('');
     expect(displayPhone('  ')).toBe('');
+  });
+});
+
+describe('displayCpf', () => {
+  it('mascara 11 dígitos e mostra o resto como está', () => {
+    expect(displayCpf('52998224725')).toBe('529.982.247-25');
+    expect(displayCpf('529.982.247-25')).toBe('529.982.247-25');
+    expect(displayCpf('não informado')).toBe('não informado');
+    expect(displayCpf('123.456.789-0012')).toBe('123.456.789-0012');
+    expect(displayCpf(null)).toBe('');
   });
 });

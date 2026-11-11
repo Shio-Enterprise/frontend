@@ -50,3 +50,10 @@ export const displayPhone = (value) => {
   if (!String(value ?? '').trim()) return '';
   return phoneError(value) ? String(value) : maskPhone(value);
 };
+
+// CPF vindo da API: com 11 dígitos ganha a máscara; cadastro antigo fora do padrão aparece
+// como está (a máscara cortaria dígitos ou apagaria um texto sem números).
+export const displayCpf = (value) => {
+  if (!String(value ?? '').trim()) return '';
+  return onlyDigits(value).length === 11 ? maskCpf(value) : String(value);
+};
