@@ -171,3 +171,40 @@ describe('ProductsPage — acessibilidade (#64, área 6)', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('ProductsPage — guia de medidas na edição', () => {
+  const guides = [
+    { id: 'g-normal', name: 'Camiseta normal' },
+    { id: 'g-over', name: 'Camiseta oversized' },
+  ];
+
+  const setup = (product) => {
+    useApiMock.mockImplementation((url) => ({
+      data: url === '/api/catalog/products/p1/' ? product : url === '/api/catalog/size-guides/' ? guides : [],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    }));
+    render(<MemoryRouter initialEntries={['/admin/edit-product/p1']}><ProductsPage /></MemoryRouter>);
+    return screen.getByRole('combobox', { name: 'Guia de medidas' });
+  };
+
+  const base = { id: 'p1', name: 'Camiseta', base_price: '99.90', is_active: true, images: [], variations: [] };
+
+  it('produto sem guia próprio não aparece com o guia da categoria selecionado', () => {
+    // size_guide já vem com o fallback da categoria; o select precisa ler own_size_guide.
+    const select = setup({ ...base, size_guide: guides[0], own_size_guide: null });
+    expect(select).toHaveValue('');
+  });
+
+  it('mostra o guia próprio e envia a troca ao salvar', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: async () => ({}) }));
+    vi.stubGlobal('fetch', fetchMock);
+    const select = setup({ ...base, size_guide: guides[0], own_size_guide: 'g-normal' });
+    expect(select).toHaveValue('g-normal');
+    fireEvent.change(select, { target: { value: 'g-over' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).size_guide).toBe('g-over');
+  });
+});

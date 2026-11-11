@@ -22,6 +22,13 @@ const navItems = [
     permission: ADMIN_PERMISSIONS.DROPS,
   },
   {
+    label: 'Página inicial',
+    to: '/admin/homepage',
+    icon: 'grid',
+    matches: ['/admin/homepage'],
+    permission: ADMIN_PERMISSIONS.HOMEPAGE,
+  },
+  {
     label: 'Produtos',
     to: '/admin/products',
     icon: 'box',
@@ -59,6 +66,13 @@ const navItems = [
     to: '/admin/customers',
     icon: 'users',
     matches: ['/admin/customers'],
+    permission: ADMIN_PERMISSIONS.CUSTOMERS,
+  },
+  {
+    label: 'Newsletter',
+    to: '/admin/newsletter',
+    icon: 'mail',
+    matches: ['/admin/newsletter'],
     permission: ADMIN_PERMISSIONS.CUSTOMERS,
   },
   {

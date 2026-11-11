@@ -5,7 +5,11 @@ import NewProductPage from './index';
 
 vi.mock('../../../hooks/useApi', () => ({
   useApi: (url) => ({
-    data: url.includes('/categories/') ? [{ id: 'cat-1', name: 'Camisetas' }] : null,
+    data: url.includes('/categories/')
+      ? [{ id: 'cat-1', name: 'Camisetas' }]
+      : url.includes('/size-guides/')
+        ? [{ id: 'guia-1', name: 'Camiseta oversized' }]
+        : null,
     loading: false, error: null, refetch: vi.fn(),
   }),
 }));
@@ -49,11 +53,30 @@ it('envia a categoria escolhida no cadastro', async () => {
   fireEvent.change(screen.getByPlaceholderText('Ex: Moletom'), { target: { value: 'Camisa' } });
   fireEvent.change(screen.getByLabelText('Custo unitário'), { target: { value: '60' } });
   const categoria = screen.getByRole('combobox', { name: /Categoria/ });
-  expect(categoria).toHaveAccessibleDescription('A categoria define a tabela de medidas mostrada na loja.');
+  expect(categoria).toHaveAccessibleDescription('Organiza o produto na loja.');
   fireEvent.change(categoria, { target: { value: 'cat-1' } });
   fireEvent.submit(screen.getByPlaceholderText('Ex: Moletom').closest('form'));
   await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-  expect(JSON.parse(fetchMock.mock.calls[0][1].body).category).toBe('cat-1');
+  const payload = JSON.parse(fetchMock.mock.calls[0][1].body);
+  expect(payload.category).toBe('cat-1');
+  // Sem guia escolhido, o produto usa o da categoria.
+  expect(payload.size_guide).toBeNull();
+  vi.unstubAllGlobals();
+});
+
+it('envia o guia de medidas escolhido no cadastro', async () => {
+  const { fireEvent, waitFor } = await import('@testing-library/react');
+  const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+  vi.stubGlobal('fetch', fetchMock);
+  render(<MemoryRouter><NewProductPage /></MemoryRouter>);
+  fireEvent.change(screen.getByPlaceholderText('Ex: Moletom'), { target: { value: 'Camisa' } });
+  fireEvent.change(screen.getByLabelText('Custo unitário'), { target: { value: '60' } });
+  const guia = screen.getByRole('combobox', { name: /Guia de medidas/ });
+  expect(guia).toHaveValue('');
+  fireEvent.change(guia, { target: { value: 'guia-1' } });
+  fireEvent.submit(screen.getByPlaceholderText('Ex: Moletom').closest('form'));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body).size_guide).toBe('guia-1');
   vi.unstubAllGlobals();
 });
 

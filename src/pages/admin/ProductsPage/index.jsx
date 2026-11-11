@@ -110,6 +110,7 @@ function ProductEditDrawer({ id, refetchList }) {
   const { data: product, loading } = useApi(`/api/catalog/products/${id}/`);
   const { data: dropsData } = useApi('/api/catalog/drops/');
   const { data: catsData } = useApi('/api/catalog/categories/');
+  const { data: guidesData } = useApi('/api/catalog/size-guides/');
 
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -128,12 +129,15 @@ function ProductEditDrawer({ id, refetchList }) {
       promo_end: toSaoPauloInput(product.promo_end),
       drop: product.drop?.id ?? '',
       category: product.category?.id ?? '',
+      // own_size_guide é só o guia escolhido no produto; size_guide já vem com o da categoria.
+      size_guide: product.own_size_guide ?? '',
       is_active: product.is_active,
     });
   }
 
   const drops = Array.isArray(dropsData) ? dropsData : dropsData?.results ?? [];
   const categories = Array.isArray(catsData) ? catsData : catsData?.results ?? [];
+  const guides = Array.isArray(guidesData) ? guidesData : guidesData?.results ?? [];
 
   const handleSave = async () => {
     setSaving(true);
@@ -151,6 +155,7 @@ function ProductEditDrawer({ id, refetchList }) {
           ...pricePayload(form),
           drop: form.drop || null,
           category: form.category || null,
+          size_guide: form.size_guide || null,
           is_active: form.is_active,
         }),
       });
@@ -236,6 +241,15 @@ function ProductEditDrawer({ id, refetchList }) {
                   className="mt-2 h-11 w-full rounded-[8px] border border-black/20 bg-white px-4 text-[15px] outline-none focus:border-black">
                   <option value="">Sem categoria</option>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[13px] font-semibold uppercase text-shio-muted">Guia de medidas</span>
+                <select value={form.size_guide} onChange={(e) => setForm((f) => ({ ...f, size_guide: e.target.value }))}
+                  className="mt-2 h-11 w-full rounded-[8px] border border-black/20 bg-white px-4 text-[15px] outline-none focus:border-black">
+                  <option value="">Usar o guia da categoria</option>
+                  {guides.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </label>
 

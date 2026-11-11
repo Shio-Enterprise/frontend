@@ -2,6 +2,7 @@ export const ADMIN_PERMISSIONS = {
   DASHBOARD: 'access_admin_dashboard',
   CATALOG: 'manage_catalog',
   DROPS: 'manage_drops',
+  HOMEPAGE: 'manage_homepage',
   ORDERS: 'manage_orders',
   CUSTOMERS: 'manage_customers',
   ADMIN_PERMISSIONS: 'manage_admin_permissions',
@@ -12,6 +13,7 @@ export const ALL_ADMIN_PERMISSIONS = Object.values(ADMIN_PERMISSIONS);
 export const ADMIN_PERMISSION_HOME_ROUTES = [
   [ADMIN_PERMISSIONS.DASHBOARD, '/admin/dashboard'],
   [ADMIN_PERMISSIONS.DROPS, '/admin/drops'],
+  [ADMIN_PERMISSIONS.HOMEPAGE, '/admin/homepage'],
   [ADMIN_PERMISSIONS.CATALOG, '/admin/products'],
   [ADMIN_PERMISSIONS.ORDERS, '/admin/orders'],
   [ADMIN_PERMISSIONS.CUSTOMERS, '/admin/customers'],
