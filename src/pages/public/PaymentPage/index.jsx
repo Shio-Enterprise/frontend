@@ -5,6 +5,7 @@ import { Icon } from "../../../components/ui/ShioDesign";
 import { getAccessToken } from "../../../lib/authToken";
 import { EVENT_TYPES, trackEvent } from "../../../lib/analytics";
 import { useCart } from "../../../context/CartContext";
+import { phoneError } from "../../../lib/masks";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -722,6 +723,13 @@ const PaymentPage = () => {
   const items = (hasCalculation ? freightData.items : cart?.items) ?? [];
   const unavailableItems = items.filter((item) => item.is_sellable === false);
   const hasUnavailableItems = unavailableItems.length > 0;
+  // Telefone vai para a InfinitePay. Cadastro antigo fora do padrão (a migração preserva)
+  // também trava a compra até a pessoa corrigir em "Meus Dados".
+  const phoneMissing =
+    Boolean(userProfile) && !String(userProfile.phone_number ?? "").trim();
+  const phoneInvalid =
+    Boolean(userProfile?.phone_number) && Boolean(phoneError(userProfile.phone_number));
+  const phoneBlocked = phoneMissing || phoneInvalid;
   const subtotal = hasCalculation ? Number(freightData.subtotal) : null;
   const FRETE = hasCalculation ? Number(freightData.shipping_cost) : null;
   const total = hasCalculation ? Number(freightData.total_amount) : null;
@@ -811,7 +819,7 @@ const PaymentPage = () => {
           </div>
         ) : (
         <>
-        {userProfile && (!userProfile.phone_number || !userProfile.cpf) && (
+        {userProfile && (phoneBlocked || !userProfile.cpf) && (
           <Link
             to="/my-account"
             className="flex items-start gap-3 rounded-[14px] border border-[#e6a817]/40 bg-[#fffbeb] px-5 py-4 transition hover:bg-[#fff8e1]"
@@ -825,15 +833,17 @@ const PaymentPage = () => {
                 Complete seu perfil para finalizar a compra
               </p>
               <p className="mt-0.5 text-[13px] text-shio-warning">
-                {[
-                  !userProfile.phone_number && "telefone",
-                  !userProfile.cpf && "CPF",
-                ]
-                  .filter(Boolean)
-                  .join(" e ")}{" "}
-                não cadastrado
-                {!userProfile.phone_number && !userProfile.cpf ? "s" : ""}.{" "}
-                Clique aqui para preencher.
+                {(phoneMissing || !userProfile.cpf) && (
+                  <>
+                    {[phoneMissing && "telefone", !userProfile.cpf && "CPF"]
+                      .filter(Boolean)
+                      .join(" e ")}{" "}
+                    não cadastrado
+                    {phoneMissing && !userProfile.cpf ? "s" : ""}.{" "}
+                  </>
+                )}
+                {phoneInvalid && "O telefone cadastrado está incompleto ou inválido. "}
+                Clique aqui para {phoneInvalid ? "corrigir" : "preencher"}.
               </p>
             </div>
           </Link>
@@ -1318,9 +1328,9 @@ const PaymentPage = () => {
                   </p>
                 )}
 
-                {userProfile && !userProfile.phone_number && (
+                {phoneBlocked && (
                   <p className="text-center text-[13px] text-shio-warning">
-                    Cadastre seu telefone em{" "}
+                    {phoneInvalid ? "Corrija" : "Cadastre"} seu telefone em{" "}
                     <Link to="/my-account" className="font-bold underline">
                       Meus Dados
                     </Link>{" "}
@@ -1341,7 +1351,7 @@ const PaymentPage = () => {
                     items.length === 0 ||
                     hasUnavailableItems ||
                     !selectedAddressId ||
-                    (userProfile && !userProfile.phone_number)
+                    phoneBlocked
                   }
                   className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/40"
                 >

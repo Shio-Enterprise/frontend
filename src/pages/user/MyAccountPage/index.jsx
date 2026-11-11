@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import apiClient from '../../../lib/axios';
+import { displayCpf, displayPhone, maskCpf, maskPhone, phoneError } from '../../../lib/masks';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -36,6 +37,10 @@ const MyAccountPage = () => {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  // Telefone e CPF como vieram da API. Campo que a pessoa não mexeu não vai no PATCH:
+  // cadastro antigo fora do padrão não é apagado nem trava quem só quer mudar o nome.
+  const savedPhone = useRef('');
+  const savedCpf = useRef('');
 
   const [receives, setReceives] = useState(null);
   const [savingMarketing, setSavingMarketing] = useState(false);
@@ -74,12 +79,32 @@ const MyAccountPage = () => {
   useEffect(() => {
     if (!me) return;
     setName(me.name ?? '');
-    setPhone(me.phone_number ?? '');
-    setCpf(me.cpf ?? '');
+    showSavedPhone(me.phone_number);
+    showSavedCpf(me.cpf);
   }, [me]);
 
-  const editField = (field, setter) => (e) => {
-    setter(e.target.value);
+  function showSavedCpf(value) {
+    const shown = displayCpf(value);
+    savedCpf.current = shown;
+    setCpf(shown);
+  }
+
+  function showSavedPhone(value) {
+    const shown = displayPhone(value);
+    savedPhone.current = shown;
+    setPhone(shown);
+    const error = phoneError(value);
+    if (error) setFieldErrors((errors) => ({ ...errors, phone_number: error }));
+  }
+
+  // O aviso do telefone antigo continua na tela enquanto a pessoa não corrigir o campo.
+  const untouchedPhoneError = () => {
+    const error = phone === savedPhone.current && phoneError(phone);
+    return error ? { phone_number: error } : {};
+  };
+
+  const editField = (field, setter, mask = (v) => v) => (e) => {
+    setter(mask(e.target.value));
     if (fieldErrors[field]) {
       setFieldErrors((errors) => {
         const next = { ...errors };
@@ -107,7 +132,7 @@ const MyAccountPage = () => {
     if (saving) return;
     setSaving(true);
     setSaveMsg(null);
-    setFieldErrors({});
+    setFieldErrors(untouchedPhoneError());
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE_URL}/api/auth/me/`, {
@@ -116,17 +141,22 @@ const MyAccountPage = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name, phone_number: phone, cpf }),
+        body: JSON.stringify({
+          name,
+          ...(cpf !== savedCpf.current && { cpf }),
+          ...(phone !== savedPhone.current && { phone_number: phone }),
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         const { fieldErrors: errors, message } = parseSaveError(data);
-        setFieldErrors(errors);
+        setFieldErrors({ ...untouchedPhoneError(), ...errors });
         setSaveMsg({ type: 'error', text: message });
         return;
       }
       const data = await res.json();
-      setCpf(data.cpf ?? '');
+      if ('cpf' in data) showSavedCpf(data.cpf);
+      if ('phone_number' in data) showSavedPhone(data.phone_number);
       setSaveMsg({ type: 'success', text: 'Dados salvos com sucesso!' });
       // Só o sucesso some sozinho; o erro fica até a pessoa corrigir.
       setTimeout(() => setSaveMsg((msg) => (msg?.type === 'success' ? null : msg)), 4000);
@@ -169,7 +199,7 @@ const MyAccountPage = () => {
                   type="tel"
                   autoComplete="tel"
                   value={phone}
-                  onChange={editField('phone_number', setPhone)}
+                  onChange={editField('phone_number', setPhone, maskPhone)}
                   placeholder="(11) 99999-9999"
                   {...fieldProps('phone_number')}
                 />
@@ -197,7 +227,7 @@ const MyAccountPage = () => {
                 <input
                   inputMode="numeric"
                   value={cpf}
-                  onChange={editField('cpf', setCpf)}
+                  onChange={editField('cpf', setCpf, maskCpf)}
                   placeholder="000.000.000-00"
                   {...fieldProps('cpf')}
                 />

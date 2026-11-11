@@ -37,6 +37,7 @@ const showReview = async () => {
 let calculationResponse;
 let currentCart;
 let checkoutResponse;
+let meProfile;
 
 const confirmQuote = () => fireEvent.click(screen.getByRole('checkbox', { name: /Conferi os itens/ }));
 
@@ -46,13 +47,14 @@ beforeEach(() => {
   calculation.expires_at = new Date(Date.now() + 900000).toISOString();
   calculationResponse = async () => jsonResponse(calculation);
   checkoutResponse = async () => jsonResponse({ message: 'Gateway indisponível.' }, false);
+  meProfile = { id: 1, phone_number: '61999999999', cpf: '00000000000' };
   vi.stubGlobal('fetch', vi.fn(async (url, options) => {
     if (url.endsWith('/checkout/calculate/')) return calculationResponse(options);
     if (url.endsWith('/checkout/')) return checkoutResponse(options);
     if (url.endsWith('/cart/')) return jsonResponse(currentCart);
     if (url.includes('/cart/items/')) return jsonResponse({});
     if (url.endsWith('/addresses/')) return jsonResponse(addresses);
-    if (url.endsWith('/me/')) return jsonResponse({ id: 1, phone_number: '61999999999', cpf: '00000000000' });
+    if (url.endsWith('/me/')) return jsonResponse(meProfile);
     if (url.endsWith('/products/product-1/')) return jsonResponse({ id: 'product-1', images: [] });
     return jsonResponse([]);
   }));
@@ -364,6 +366,81 @@ describe('PaymentPage', () => {
     await screen.findByText('Gateway indisponível.');
     const call = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
     expect(JSON.parse(call[1].body)).toEqual(saved);
+  });
+
+  describe('telefone do perfil', () => {
+    const profileBanner = () => screen.queryByRole('link', { name: /Complete seu perfil/ });
+    const finish = () => screen.getByRole('button', { name: 'Finalizar Compra' });
+
+    it.each(['61999999999', '(61) 99999-9999', '(11) 3333-4444'])('%s válido libera a compra', async (phone) => {
+      meProfile = { ...meProfile, phone_number: phone };
+      renderPage();
+      await showReview();
+      confirmQuote();
+      expect(finish()).toBeEnabled();
+      expect(profileBanner()).not.toBeInTheDocument();
+      expect(screen.queryByText(/seu telefone em/)).not.toBeInTheDocument();
+    });
+
+    it.each(['ligar à tarde', '99999-9999', '(61) 9999-9999'])('%s antigo inválido trava a compra e pede correção', async (phone) => {
+      meProfile = { ...meProfile, phone_number: phone };
+      renderPage();
+      await showReview();
+      confirmQuote();
+      expect(finish()).toBeDisabled();
+      expect(profileBanner()).toHaveTextContent(
+        'O telefone cadastrado está incompleto ou inválido. Clique aqui para corrigir.',
+      );
+      expect(profileBanner()).not.toHaveTextContent('não cadastrado');
+      expect(screen.getByText(/Corrija seu telefone em/)).toBeInTheDocument();
+    });
+
+    it.each([null, '', '   '])('sem telefone (%j) continua pedindo o cadastro', async (phone) => {
+      meProfile = { ...meProfile, phone_number: phone };
+      renderPage();
+      await showReview();
+      confirmQuote();
+      expect(finish()).toBeDisabled();
+      expect(profileBanner()).toHaveTextContent('telefone não cadastrado. Clique aqui para preencher.');
+      expect(screen.getByText(/Cadastre seu telefone em/)).toBeInTheDocument();
+    });
+
+    it('sem CPF e sem telefone mantém o texto de antes', async () => {
+      meProfile = { ...meProfile, phone_number: null, cpf: null };
+      renderPage();
+      expect(await screen.findByRole('link', { name: /Complete seu perfil/ }))
+        .toHaveTextContent('telefone e CPF não cadastrados. Clique aqui para preencher.');
+    });
+
+    it('telefone inválido e sem CPF avisa as duas coisas', async () => {
+      meProfile = { ...meProfile, phone_number: 'ligar à tarde', cpf: null };
+      renderPage();
+      expect(await screen.findByRole('link', { name: /Complete seu perfil/ })).toHaveTextContent(
+        'CPF não cadastrado. O telefone cadastrado está incompleto ou inválido. Clique aqui para corrigir.',
+      );
+    });
+
+    it('sem CPF e com telefone válido não trava a compra (como antes)', async () => {
+      meProfile = { ...meProfile, cpf: null };
+      renderPage();
+      await showReview();
+      confirmQuote();
+      expect(finish()).toBeEnabled();
+      expect(profileBanner()).toHaveTextContent('CPF não cadastrado. Clique aqui para preencher.');
+    });
+
+    it('telefone inválido não impede consultar uma tentativa já registrada', async () => {
+      meProfile = { ...meProfile, phone_number: 'ligar à tarde' };
+      const saved = { address_id: 'address-1', shipping_quote_id: 'old-quote', idempotency_key: 'same-key' };
+      sessionStorage.setItem('checkout-attempt:1', JSON.stringify(saved));
+      renderPage();
+      const consult = await screen.findByRole('button', { name: 'Consultar tentativa' });
+      await waitFor(() => expect(consult).toBeEnabled());
+      fireEvent.click(consult);
+      await screen.findByText('Gateway indisponível.');
+      const call = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
+      expect(JSON.parse(call[1].body)).toEqual(saved);
+    });
   });
 
   it('não recupera tentativa de outra conta', async () => {
