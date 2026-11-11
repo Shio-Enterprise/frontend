@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AccountLayout from '../../../components/layout/user/AccountLayout';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import apiClient from '../../../lib/axios';
-import { maskCpf, maskPhone } from '../../../lib/masks';
+import { displayPhone, maskCpf, maskPhone, phoneError } from '../../../lib/masks';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -37,6 +37,9 @@ const MyAccountPage = () => {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  // Telefone como veio da API. Se a pessoa não mexer no campo, ele não vai no PATCH:
+  // cadastro antigo fora do padrão não é apagado nem trava quem só quer mudar o nome.
+  const savedPhone = useRef('');
 
   const [receives, setReceives] = useState(null);
   const [savingMarketing, setSavingMarketing] = useState(false);
@@ -75,10 +78,24 @@ const MyAccountPage = () => {
   useEffect(() => {
     if (!me) return;
     setName(me.name ?? '');
+    showSavedPhone(me.phone_number);
     // Dados antigos podem ter vindo em qualquer formato; a máscara padroniza na tela.
-    setPhone(maskPhone(me.phone_number));
     setCpf(maskCpf(me.cpf));
   }, [me]);
+
+  function showSavedPhone(value) {
+    const shown = displayPhone(value);
+    savedPhone.current = shown;
+    setPhone(shown);
+    const error = phoneError(value);
+    if (error) setFieldErrors((errors) => ({ ...errors, phone_number: error }));
+  }
+
+  // O aviso do telefone antigo continua na tela enquanto a pessoa não corrigir o campo.
+  const untouchedPhoneError = () => {
+    const error = phone === savedPhone.current && phoneError(phone);
+    return error ? { phone_number: error } : {};
+  };
 
   const editField = (field, setter, mask = (v) => v) => (e) => {
     setter(mask(e.target.value));
@@ -109,7 +126,7 @@ const MyAccountPage = () => {
     if (saving) return;
     setSaving(true);
     setSaveMsg(null);
-    setFieldErrors({});
+    setFieldErrors(untouchedPhoneError());
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE_URL}/api/auth/me/`, {
@@ -118,17 +135,22 @@ const MyAccountPage = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name, phone_number: phone, cpf }),
+        body: JSON.stringify({
+          name,
+          cpf,
+          ...(phone !== savedPhone.current && { phone_number: phone }),
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         const { fieldErrors: errors, message } = parseSaveError(data);
-        setFieldErrors(errors);
+        setFieldErrors({ ...untouchedPhoneError(), ...errors });
         setSaveMsg({ type: 'error', text: message });
         return;
       }
       const data = await res.json();
       setCpf(maskCpf(data.cpf));
+      if ('phone_number' in data) showSavedPhone(data.phone_number);
       setSaveMsg({ type: 'success', text: 'Dados salvos com sucesso!' });
       // Só o sucesso some sozinho; o erro fica até a pessoa corrigir.
       setTimeout(() => setSaveMsg((msg) => (msg?.type === 'success' ? null : msg)), 4000);

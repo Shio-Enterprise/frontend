@@ -26,3 +26,27 @@ export const maskPhone = (value) => {
   const split = rest.length === 9 ? 5 : 4;
   return `${ddd}${rest.slice(0, split)}-${rest.slice(split)}`;
 };
+
+export const PHONE_INVALID_MESSAGE = 'Telefone inválido. Informe DDD e número.';
+export const MOBILE_NINE_DIGITS_MESSAGE =
+  'Celular precisa ter 9 dígitos depois do DDD. Confira se falta o 9 no começo.';
+
+// Mesmas regras do backend (authentication/phone.py). Vazio não é erro.
+export const phoneError = (value) => {
+  let d = onlyDigits(value);
+  if (!String(value ?? '').trim()) return null;
+  if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
+  const dddOk = d.length >= 3 && !d.slice(0, 2).includes('0');
+  if (d.length === 10 && dddOk && '6789'.includes(d[2])) return MOBILE_NINE_DIGITS_MESSAGE;
+  const valid = dddOk && new Set(d).size > 1 && (
+    (d.length === 11 && d[2] === '9') || (d.length === 10 && '2345'.includes(d[2]))
+  );
+  return valid ? null : PHONE_INVALID_MESSAGE;
+};
+
+// Telefone vindo da API: válido ganha a máscara; fora do padrão (cadastro antigo) aparece
+// como está, para a pessoa ver o que tem salvo em vez de um número inventado pela máscara.
+export const displayPhone = (value) => {
+  if (!String(value ?? '').trim()) return '';
+  return phoneError(value) ? String(value) : maskPhone(value);
+};

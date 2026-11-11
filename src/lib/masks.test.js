@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { maskCpf, maskPhone, onlyDigits } from './masks';
+import {
+  MOBILE_NINE_DIGITS_MESSAGE, PHONE_INVALID_MESSAGE,
+  displayPhone, maskCpf, maskPhone, onlyDigits, phoneError,
+} from './masks';
 
 describe('onlyDigits', () => {
   it('tira tudo que não é número', () => {
@@ -45,5 +48,35 @@ describe('maskPhone', () => {
     [null, ''],
   ])('%s → %s', (value, expected) => {
     expect(maskPhone(value)).toBe(expected);
+  });
+});
+
+describe('phoneError', () => {
+  it.each([
+    ['', null],
+    ['   ', null],
+    [null, null],
+    ['61999999999', null],
+    ['(11) 3333-4444', null],
+    ['+55 61 99999-9999', null],
+    ['(61) 9999-9999', MOBILE_NINE_DIGITS_MESSAGE],
+    ['+55 61 7777-6666', MOBILE_NINE_DIGITS_MESSAGE],
+    ['99999-9999', PHONE_INVALID_MESSAGE],
+    ['ligar à tarde', PHONE_INVALID_MESSAGE],
+    ['01999999999', PHONE_INVALID_MESSAGE],
+    ['61899999999', PHONE_INVALID_MESSAGE],
+    ['11111111111', PHONE_INVALID_MESSAGE],
+  ])('%s → %s', (value, expected) => {
+    expect(phoneError(value)).toBe(expected);
+  });
+});
+
+describe('displayPhone', () => {
+  it('mascara o válido e mostra o antigo fora do padrão como está', () => {
+    expect(displayPhone('61999999999')).toBe('(61) 99999-9999');
+    expect(displayPhone('ligar à tarde')).toBe('ligar à tarde');
+    expect(displayPhone('99999-9999')).toBe('99999-9999');
+    expect(displayPhone(null)).toBe('');
+    expect(displayPhone('  ')).toBe('');
   });
 });

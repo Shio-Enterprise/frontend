@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import MyAccountPage from './index';
 import apiClient from '../../../lib/axios';
@@ -89,6 +89,83 @@ describe('MyAccountPage', () => {
     expect(screen.getByLabelText('CPF')).toHaveAccessibleDescription('CPF inválido.');
     expect(screen.getByLabelText('CPF')).toHaveAttribute('aria-invalid', 'true');
     fetchMock.mockRestore();
+  });
+
+  describe('telefone antigo fora do padrão', () => {
+    const mockMe = (phone, patchResponse = {}) => vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, options) => ({
+      ok: true,
+      json: async () => options?.method === 'PATCH'
+        ? { name: 'Nome Novo', phone_number: phone, cpf: null, ...patchResponse }
+        : { name: 'Cliente', phone_number: phone, cpf: null },
+    }));
+    const patchBody = (fetchMock) => {
+      const call = fetchMock.mock.calls.find(([, options]) => options?.method === 'PATCH');
+      return JSON.parse(call[1].body);
+    };
+
+    beforeEach(() => localStorage.setItem('accessToken', 'test-token'));
+    afterEach(() => {
+      vi.restoreAllMocks();
+      localStorage.removeItem('accessToken');
+    });
+
+    it.each([
+      ['ligar à tarde', 'Telefone inválido. Informe DDD e número.'],
+      ['99999-9999', 'Telefone inválido. Informe DDD e número.'],
+      ['(61) 9999-9999', 'Celular precisa ter 9 dígitos depois do DDD. Confira se falta o 9 no começo.'],
+    ])('%s aparece como está, com o erro, e não é apagado ao salvar só o nome', async (legacy, message) => {
+      const fetchMock = mockMe(legacy);
+      renderPage();
+      const tel = await screen.findByLabelText('Telefone');
+      await waitFor(() => expect(tel).toHaveValue(legacy));
+      expect(tel).toHaveAttribute('aria-invalid', 'true');
+      expect(tel).toHaveAccessibleDescription(message);
+
+      fireEvent.change(screen.getByLabelText('Nome Completo'), { target: { value: 'Nome Novo' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
+      expect(await screen.findByRole('status')).toHaveTextContent('Dados salvos com sucesso!');
+
+      expect(patchBody(fetchMock)).not.toHaveProperty('phone_number');
+      expect(tel).toHaveValue(legacy);
+      expect(tel).toHaveAccessibleDescription(message);
+    });
+
+    it('telefone válido sem mudança também não vai no PATCH', async () => {
+      const fetchMock = mockMe('61999999999', { phone_number: '(61) 99999-9999' });
+      renderPage();
+      const tel = await screen.findByLabelText('Telefone');
+      await waitFor(() => expect(tel).toHaveValue('(61) 99999-9999'));
+      expect(tel).not.toHaveAttribute('aria-invalid');
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
+      await screen.findByRole('status');
+      expect(patchBody(fetchMock)).not.toHaveProperty('phone_number');
+    });
+
+    it('corrigir o telefone tira o erro, envia e mostra o que a API devolveu', async () => {
+      const fetchMock = mockMe('ligar à tarde', { phone_number: '(61) 99999-9999' });
+      renderPage();
+      const tel = await screen.findByLabelText('Telefone');
+      await waitFor(() => expect(tel).toHaveAttribute('aria-invalid', 'true'));
+      fireEvent.change(tel, { target: { value: '61999999999' } });
+      expect(tel).not.toHaveAttribute('aria-invalid');
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
+      expect(await screen.findByRole('status')).toHaveTextContent('Dados salvos com sucesso!');
+      expect(patchBody(fetchMock).phone_number).toBe('(61) 99999-9999');
+      expect(tel).toHaveValue('(61) 99999-9999');
+      expect(tel).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('apagar o telefone envia vazio', async () => {
+      const fetchMock = mockMe('ligar à tarde', { phone_number: null });
+      renderPage();
+      const tel = await screen.findByLabelText('Telefone');
+      await waitFor(() => expect(tel).toHaveValue('ligar à tarde'));
+      fireEvent.change(tel, { target: { value: '' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar Alterações' }));
+      await screen.findByRole('status');
+      expect(patchBody(fetchMock).phone_number).toBe('');
+      expect(tel).toHaveValue('');
+    });
   });
 
   it('aplica a máscara no telefone e no CPF, inclusive em dados antigos', async () => {
