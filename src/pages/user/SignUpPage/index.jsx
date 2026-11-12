@@ -1,10 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useGoogleAuth } from '../../../context/useGoogleAuth';
 import { GoogleLoginButton } from '../../../context/GoogleLoginButton';
 import logo from '../../../assets/logo/logo.svg';
 import PasswordInput from '../../../components/ui/PasswordInput';
+
+const SIGNUP_FIELDS = ['name', 'email', 'password'];
+const FIELD_INPUT_CLASS =
+  'w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none aria-[invalid=true]:border-shio-danger';
+
+const asText = (value) => (Array.isArray(value) ? value.join(' ') : String(value));
+
+// O backend responde 400 com { campo: [mensagens em português] } (#96).
+// Erro de campo vai para o campo; qualquer outro erro vira a mensagem genérica.
+const parseSignUpError = (err) => {
+  const data = err?.response?.data;
+  const fieldErrors = {};
+  if (err?.response?.status === 400 && data && typeof data === 'object') {
+    SIGNUP_FIELDS.forEach((field) => {
+      const text = data[field] ? asText(data[field]).trim() : '';
+      if (text) fieldErrors[field] = text;
+    });
+  }
+  const hasFieldErrors = Object.keys(fieldErrors).length > 0;
+  return {
+    fieldErrors,
+    message: hasFieldErrors ? 'Revise os campos destacados.' : 'Erro ao criar conta.',
+  };
+};
 
 const SignUpPage = () => {
   const navigate = useNavigate();
@@ -18,6 +42,10 @@ const SignUpPage = () => {
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const formRef = useRef(null);
+  // Só um envio com erro move o foco; apagar o erro ao editar não move.
+  const focusFirstError = useRef(false);
   const displayedError = error || googleError;
 
   const handleSubmit = async (e) => {
@@ -25,18 +53,49 @@ const SignUpPage = () => {
     if (isLoading) return;
     setIsLoading(true);
     setError(null);
+    setFieldErrors({});
     try {
       await registerWithPassword(name, email, password, marketingOptIn);
       navigate('/my-account', { replace: true });
     } catch (err) {
-      let errorMessage = 'Erro ao criar conta.';
-      if (err.response?.data?.email) errorMessage = 'Este e-mail já está em uso.';
-      else if (err.response?.data?.password) errorMessage = 'A senha informada é inválida.';
-      setError(errorMessage);
+      const { fieldErrors: errors, message } = parseSignUpError(err);
+      focusFirstError.current = Object.keys(errors).length > 0;
+      setFieldErrors(errors);
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Depois de um envio com erro, o foco vai para o primeiro campo inválido.
+  useEffect(() => {
+    if (!focusFirstError.current) return;
+    focusFirstError.current = false;
+    formRef.current?.querySelector('[aria-invalid="true"]')?.focus();
+  }, [fieldErrors]);
+
+  const editField = (field, setter) => (e) => {
+    setter(e.target.value);
+    if (fieldErrors[field]) {
+      const next = { ...fieldErrors };
+      delete next[field];
+      setFieldErrors(next);
+      // Sem nenhum campo destacado, o "Revise os campos destacados." sai junto.
+      if (Object.keys(next).length === 0) setError(null);
+    }
+  };
+
+  const fieldProps = (field) => ({
+    'aria-invalid': fieldErrors[field] ? true : undefined,
+    'aria-describedby': fieldErrors[field] ? `signup-${field}-error` : undefined,
+  });
+
+  const fieldError = (field) =>
+    fieldErrors[field] && (
+      <p id={`signup-${field}-error`} className="mt-1.5 text-[13px] text-shio-danger">
+        {fieldErrors[field]}
+      </p>
+    );
 
   return (
     <main className="grid min-h-screen place-items-center bg-white px-6 py-16 font-inter text-black">
@@ -59,7 +118,7 @@ const SignUpPage = () => {
           <hr className="w-full border-gray-200" />
         </div>
 
-        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 text-left">
+        <form ref={formRef} onSubmit={handleSubmit} className="w-full flex flex-col gap-4 text-left">
           <div>
             <label htmlFor="signup-name" className="mb-1.5 block text-sm font-medium text-black">
               Nome completo
@@ -70,9 +129,11 @@ const SignUpPage = () => {
               autoComplete="name"
               required
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+              onChange={editField('name', setName)}
+              {...fieldProps('name')}
+              className={FIELD_INPUT_CLASS}
             />
+            {fieldError('name')}
           </div>
           <div>
             <label htmlFor="signup-email" className="mb-1.5 block text-sm font-medium text-black">
@@ -84,16 +145,19 @@ const SignUpPage = () => {
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+              onChange={editField('email', setEmail)}
+              {...fieldProps('email')}
+              className={FIELD_INPUT_CLASS}
             />
+            {fieldError('email')}
           </div>
           <PasswordInput
             label="Senha"
             autoComplete="new-password"
             required
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={editField('password', setPassword)}
+            error={fieldErrors.password}
           />
           <label className="flex items-start gap-2 text-sm text-black/60">
             <input
