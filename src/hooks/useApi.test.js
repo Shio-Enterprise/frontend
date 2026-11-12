@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useApiAll } from './useApi';
 
@@ -70,6 +70,41 @@ describe('useApiAll (#104)', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.data.results.map((d) => d.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('para em 100 páginas se a API mandar next sem fim', async () => {
+    const fetchMock = vi.fn(async (url) => jsonResponse({ next: 'x', results: [{ id: url }] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useApiAll('/api/catalog/drops/'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(fetchMock).toHaveBeenCalledTimes(100);
+    expect(result.current.data.results).toHaveLength(100);
+  });
+
+  it('sessão expirada (401) no meio da busca vira error', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => (url.endsWith('page=1')
+      ? jsonResponse({ next: 'x', results: [{ id: 'a' }] })
+      : jsonResponse({ detail: 'expired' }, false, 401))));
+
+    const { result } = renderHook(() => useApiAll('/api/catalog/drops/'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error.message).toMatch(/401/);
+    expect(result.current.data).toBeNull();
+  });
+
+  it('refetch busca tudo de novo e troca a lista', async () => {
+    let drops = [{ id: 'a' }];
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ next: null, results: drops })));
+
+    const { result } = renderHook(() => useApiAll('/api/catalog/drops/'));
+    await waitFor(() => expect(result.current.data?.results).toHaveLength(1));
+
+    drops = [{ id: 'b' }, { id: 'a' }];
+    await act(() => result.current.refetch());
+    expect(result.current.data.results.map((d) => d.id)).toEqual(['b', 'a']);
   });
 
   it('erro em qualquer página vira error, sem lista pela metade', async () => {
