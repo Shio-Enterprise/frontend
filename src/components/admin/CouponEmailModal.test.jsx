@@ -217,4 +217,15 @@ describe('CouponEmailModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
     await waitFor(() => expect(document.activeElement).toHaveTextContent('Falhou.'));
   });
+
+  it('explica o marcador {nome} junto do campo de mensagem (#99)', async () => {
+    setupFetch();
+    render(<CouponEmailModal coupon={coupon} onClose={() => {}} />);
+    const campo = await screen.findByLabelText('Mensagem (opcional)');
+    const dica = screen.getByText(/\{nome\}/);
+    expect(dica).toHaveTextContent(
+      'Para chamar a pessoa pelo nome, escreva {nome}. Ex.: "Olá, {nome}!". Quem não tem nome cadastrado recebe "Olá!".',
+    );
+    expect(campo.getAttribute('aria-describedby').split(' ')).toContain(dica.id);
+  });
 });

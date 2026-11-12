@@ -268,4 +268,15 @@ describe('NewsletterModal', () => {
     await screen.findByText('Envio iniciado!');
     await waitFor(() => expect(document.activeElement).toHaveTextContent('Envio iniciado!'));
   });
+
+  it('explica o marcador {nome} junto do campo de mensagem (#99)', async () => {
+    setupFetch();
+    render(<NewsletterModal onClose={() => {}} />);
+    const campo = await screen.findByLabelText('Mensagem');
+    const dica = screen.getByText(/\{nome\}/);
+    expect(dica).toHaveTextContent(
+      'Para chamar a pessoa pelo nome, escreva {nome}. Ex.: "Olá, {nome}!". Quem não tem nome cadastrado recebe "Olá!".',
+    );
+    expect(campo.getAttribute('aria-describedby').split(' ')).toContain(dica.id);
+  });
 });

@@ -180,9 +180,12 @@ export default function CouponEmailModal({ coupon, onClose }) {
             <label htmlFor="coupon-email-message" className="block text-sm font-semibold mb-1">
               Mensagem (opcional)
             </label>
+            <p id={`${titleId}-hint`} className="text-xs text-shio-muted mb-1">
+              Para chamar a pessoa pelo nome, escreva {"{nome}"}. Ex.: "Olá, {"{nome}"}!". Quem não tem nome cadastrado recebe "Olá!".
+            </p>
             <textarea
               id="coupon-email-message"
-              aria-describedby={`${titleId}-count`}
+              aria-describedby={`${titleId}-hint ${titleId}-count`}
               value={message}
               maxLength={MAX_MESSAGE}
               rows={4}

@@ -223,9 +223,12 @@ export default function NewsletterModal({ onClose, onSent }) {
           <label htmlFor="newsletter-message" className="block text-sm font-semibold mb-1">
             Mensagem
           </label>
+          <p id={`${titleId}-msg-hint`} className="text-xs text-shio-muted mb-1">
+            Para chamar a pessoa pelo nome, escreva {"{nome}"}. Ex.: "Olá, {"{nome}"}!". Quem não tem nome cadastrado recebe "Olá!".
+          </p>
           <textarea
             id="newsletter-message"
-            aria-describedby={`${titleId}-msg-count`}
+            aria-describedby={`${titleId}-msg-hint ${titleId}-msg-count`}
             value={message}
             maxLength={MAX_MESSAGE}
             rows={5}
