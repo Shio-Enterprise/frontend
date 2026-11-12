@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useMatch, useNavigate } from 'react-router-dom';
+import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { ActionMenu, AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
 import DrawerShell from '../../../components/admin/DrawerShell';
+import CustomerEditDrawer from './CustomerEditDrawer';
 
 // ─── Customer Profile Drawer ──────────────────────────────────────────────────
 
 function CustomerProfileDrawer({ id }) {
   const navigate = useNavigate();
+  // Volta da edição (#100) com o aviso de sucesso.
+  const justSaved = useLocation().state?.customerSaved === true;
   const { data: customer, loading } = useApi(`/api/auth/crm/customers/${id}/`);
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
@@ -27,6 +30,11 @@ function CustomerProfileDrawer({ id }) {
         <>
           {/* Rola por dentro sem nenhum botão: tabIndex para rolar pelo teclado. */}
           <div role="region" aria-label="Dados do cliente" tabIndex={0} className="flex-1 overflow-y-auto focus-visible:outline-offset-[-2px]!">
+            {justSaved && (
+              <p role="status" className="border-b border-black/10 bg-[#d4f7e2] px-7 py-3 text-[14px] font-semibold text-shio-success">
+                Dados do cliente salvos.
+              </p>
+            )}
             {/* Avatar + name */}
             <div className="flex items-center justify-between border-b border-black/10 px-7 py-5">
               <div className="flex min-w-0 items-center gap-4">
@@ -46,6 +54,20 @@ function CustomerProfileDrawer({ id }) {
                   <div className="flex flex-1 justify-between gap-4">
                     <span className="text-shio-muted">E-mail</span>
                     <span className="text-right font-medium break-all">{customer.email}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Icon name="user" className="mt-0.5 h-4 w-4 shrink-0 text-shio-muted" />
+                  <div className="flex flex-1 justify-between gap-4">
+                    <span className="text-shio-muted">Telefone</span>
+                    <span className="text-right font-medium">{customer.phone_number || '—'}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Icon name="shield" className="mt-0.5 h-4 w-4 shrink-0 text-shio-muted" />
+                  <div className="flex flex-1 justify-between gap-4">
+                    <span className="text-shio-muted">CPF</span>
+                    <span className="text-right font-medium">{customer.cpf || '—'}</span>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -141,10 +163,13 @@ const CustomersPage = () => {
   const customersUrl = debouncedSearch
     ? `/api/auth/crm/customers/?search=${encodeURIComponent(debouncedSearch)}`
     : '/api/auth/crm/customers/';
-  const { data: apiResponse, loading, error } = useApi(customersUrl);
+  const { data: apiResponse, loading, error, refetch } = useApi(customersUrl);
 
   const customerMatch = useMatch('/admin/customers/:id');
   const selectedId = customerMatch?.params?.id ?? null;
+  const editMatch = useMatch('/admin/customers/:id/edit');
+  const editingId = editMatch?.params?.id ?? null;
+  const highlightedId = selectedId ?? editingId;
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -181,7 +206,7 @@ const CustomersPage = () => {
           </thead>
           <tbody className="divide-y divide-black/10">
             {allCustomers.map((customer) => (
-              <tr key={customer.id} className={selectedId === customer.id ? 'bg-[#f9f9f9]' : ''}>
+              <tr key={customer.id} className={highlightedId === customer.id ? 'bg-[#f9f9f9]' : ''}>
                 <td className="px-4 py-4 text-[14px] font-semibold text-black md:px-10 md:py-8 md:text-[20px]">
                   {customer.name || '—'}
                 </td>
@@ -242,6 +267,7 @@ const CustomersPage = () => {
       </AdminPanel>
 
       {selectedId && <CustomerProfileDrawer id={selectedId} />}
+      {editingId && <CustomerEditDrawer id={editingId} onSaved={refetch} />}
     </div>
   );
 };
