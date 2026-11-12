@@ -58,6 +58,60 @@ function formatSaveError(data) {
   return lines.join('\n') || 'Erro ao salvar cupom';
 }
 
+// ─── Drops/categorias do cupom ───────────────────────────────────────────────
+
+// Caixas de marcar em vez de <select multiple>: um clique marca, outro desmarca,
+// sem Ctrl, e funciona no toque e no teclado (Tab + Espaço) (#101).
+function ScopeChecklist({ legend, items, selected, onChange, clearLabel, countLabel, emptyHint }) {
+  const listRef = useRef(null);
+  const selectedIds = selected.map(String);
+  const toggle = (id) => {
+    const key = String(id);
+    onChange(selectedIds.includes(key)
+      ? selected.filter((value) => String(value) !== key)
+      : [...selected, id]);
+  };
+  const clear = () => {
+    onChange([]);
+    // O botão "Limpar" some junto com a seleção: o foco vai para a primeira opção (#64).
+    listRef.current?.querySelector('input')?.focus();
+  };
+
+  return (
+    <fieldset>
+      <legend className="mb-1 block text-sm font-semibold">{legend}</legend>
+      <div className="mb-1 flex min-h-11 items-center justify-between gap-3 text-xs text-shio-muted">
+        <span>{selected.length ? countLabel(selected.length) : emptyHint}</span>
+        {selected.length > 0 && (
+          <button
+            type="button"
+            aria-label={clearLabel}
+            onClick={clear}
+            className="min-h-11 px-2 font-semibold text-black underline"
+          >
+            Limpar
+          </button>
+        )}
+      </div>
+      <ul ref={listRef} className="max-h-48 overflow-y-auto rounded-lg border border-black/15 px-3 py-1">
+        {items.map((item) => (
+          <li key={item.id}>
+            <label className="flex min-h-11 cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(String(item.id))}
+                onChange={() => toggle(item.id)}
+                className="h-5 w-5 accent-black"
+              />
+              <span className="text-sm">{item.name}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </fieldset>
+  );
+}
+
 // ─── Drawer Component ────────────────────────────────────────────────────────
 
 function CouponDrawer({ coupon, onClose, onSaved }) {
@@ -94,7 +148,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
   const baseId = useId();
   const ids = Object.fromEntries(
     ['title', 'error', 'code', 'codeHint', 'description', 'discountType', 'discountValue', 'maxDiscount', 'minOrder',
-      'startsAt', 'expiration', 'maxUses', 'maxPerUser', 'multiHint', 'drops', 'categories', 'partner']
+      'startsAt', 'expiration', 'maxUses', 'maxPerUser', 'partner']
       .map((name) => [name, `${baseId}-${name}`]),
   );
 
@@ -311,41 +365,25 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
               </div>
             </div>
 
-            <p id={ids.multiHint} className="text-xs text-shio-muted">
-              Para escolher mais de um item nas listas abaixo, segure Ctrl (ou Cmd no Mac) ao clicar. Sem nada escolhido, vale para todos.
-            </p>
+            <ScopeChecklist
+              legend="Drops Válidos (opcional)"
+              items={dropsList}
+              selected={selectedDrops}
+              onChange={setSelectedDrops}
+              clearLabel="Limpar drops"
+              countLabel={(n) => `${n} ${n === 1 ? 'marcado' : 'marcados'}`}
+              emptyHint="Nenhum marcado: vale para todos os drops."
+            />
 
-            <div>
-              <label htmlFor={ids.drops} className={labelClass}>Drops Válidos (opcional)</label>
-              <select
-                id={ids.drops}
-                multiple
-                aria-describedby={ids.multiHint}
-                value={selectedDrops}
-                onChange={(e) => setSelectedDrops(Array.from(e.target.selectedOptions, option => option.value))}
-                className={fieldClass}
-              >
-                {dropsList.map(drop => (
-                  <option key={drop.id} value={drop.id}>{drop.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor={ids.categories} className={labelClass}>Categorias Válidas (opcional)</label>
-              <select
-                id={ids.categories}
-                multiple
-                aria-describedby={ids.multiHint}
-                value={selectedCategories}
-                onChange={(e) => setSelectedCategories(Array.from(e.target.selectedOptions, option => option.value))}
-                className={fieldClass}
-              >
-                {categoriesList.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
+            <ScopeChecklist
+              legend="Categorias Válidas (opcional)"
+              items={categoriesList}
+              selected={selectedCategories}
+              onChange={setSelectedCategories}
+              clearLabel="Limpar categorias"
+              countLabel={(n) => `${n} ${n === 1 ? 'marcada' : 'marcadas'}`}
+              emptyHint="Nenhuma marcada: vale para todas as categorias."
+            />
 
             <fieldset className="mt-4 border-t pt-2">
               <legend className="sr-only">Opções do cupom</legend>

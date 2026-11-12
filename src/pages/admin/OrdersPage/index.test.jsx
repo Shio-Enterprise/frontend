@@ -1,13 +1,17 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import OrdersPage from './index';
 
-const { useApiMock } = vi.hoisted(() => ({ useApiMock: vi.fn() }));
+const { useApiMock, downloadFileMock } = vi.hoisted(() => ({ useApiMock: vi.fn(), downloadFileMock: vi.fn() }));
 
 vi.mock('../../../hooks/useApi', () => ({
   useApi: useApiMock,
+}));
+
+vi.mock('../../../lib/downloadFile', () => ({
+  downloadFile: downloadFileMock,
 }));
 
 describe('OrdersPage', () => {
@@ -84,6 +88,124 @@ describe('OrdersPage', () => {
     expect(useApiMock).toHaveBeenLastCalledWith('/api/orders/admin/?exchange_status=RECEIVED');
     fireEvent.change(screen.getByLabelText('Filtrar por reembolso'), { target: { value: 'REJECTED' } });
     expect(useApiMock).toHaveBeenLastCalledWith('/api/orders/admin/?refund_status=REJECTED&exchange_status=RECEIVED');
+  });
+
+  describe('busca pelo código do pedido (#89)', () => {
+    const orders = [
+      { id: '54974a89-1111-2222-3333-444444444444', customer_name: 'Maria Silva', created_at: '2026-10-20T10:00:00Z', total_amount: '100.00', status: 'PAID' },
+      { id: 'abcdef12-0000-0000-0000-000000000000', customer_name: 'João Souza', created_at: '2026-10-21T10:00:00Z', total_amount: '50.00', status: 'PAID' },
+    ];
+
+    beforeEach(() => {
+      useApiMock.mockReturnValue({ data: orders, loading: false, error: null, refetch: vi.fn() });
+    });
+
+    const searchFor = (term) => {
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar pedidos por ID ou cliente' }), { target: { value: term } });
+    };
+    const table = () => screen.getByRole('table', { name: 'Pedidos' });
+
+    it.each(['#54974A89', '54974A89', '54974a89', '#54974a89', '  #54974A89  ', '54974'])(
+      'buscar "%s" encontra o pedido como aparece na tela',
+      (term) => {
+        render(<MemoryRouter><OrdersPage /></MemoryRouter>);
+        searchFor(term);
+        expect(within(table()).getByText('#54974A89')).toBeInTheDocument();
+        expect(within(table()).queryByText('#ABCDEF12')).not.toBeInTheDocument();
+      },
+    );
+
+    it('busca pelo nome do cliente sem diferenciar maiúsculas', () => {
+      render(<MemoryRouter><OrdersPage /></MemoryRouter>);
+      searchFor('JOÃO');
+      expect(within(table()).getByText('#ABCDEF12')).toBeInTheDocument();
+      expect(within(table()).queryByText('#54974A89')).not.toBeInTheDocument();
+    });
+
+    it('busca sem resultado mostra "Nenhum pedido encontrado"', () => {
+      render(<MemoryRouter><OrdersPage /></MemoryRouter>);
+      searchFor('#ZZZZ');
+      expect(screen.getByText('Nenhum pedido encontrado.')).toBeInTheDocument();
+    });
+  });
+
+  describe('filtro por cliente (#88)', () => {
+    const mariaOrder = { id: '54974a89-1111-2222-3333-444444444444', customer_name: 'Maria Silva', created_at: '2026-10-20T10:00:00Z', total_amount: '100.00', status: 'PAID' };
+
+    function LocationProbe() {
+      const location = useLocation();
+      return <p data-testid="location">{location.pathname + location.search}</p>;
+    }
+
+    const renderAt = (entry) => render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/admin/orders/*" element={<><OrdersPage /><LocationProbe /></>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    it('lê o cliente do endereço e pede só os pedidos dele', () => {
+      useApiMock.mockReturnValue({ data: [mariaOrder], loading: false, error: null, refetch: vi.fn() });
+      renderAt('/admin/orders?customer=7');
+      expect(useApiMock).toHaveBeenCalledWith('/api/orders/admin/?customer=7');
+      expect(screen.getByText('Pedidos de Maria Silva')).toBeInTheDocument();
+    });
+
+    it('combina com os filtros de reembolso e troca', () => {
+      renderAt('/admin/orders?customer=7');
+      fireEvent.change(screen.getByLabelText('Filtrar por reembolso'), { target: { value: 'REQUESTED' } });
+      fireEvent.change(screen.getByLabelText('Filtrar por troca'), { target: { value: 'RECEIVED' } });
+      expect(useApiMock).toHaveBeenLastCalledWith('/api/orders/admin/?customer=7&refund_status=REQUESTED&exchange_status=RECEIVED');
+    });
+
+    it('cliente sem pedidos mostra o filtro e "Nenhum pedido encontrado"', () => {
+      renderAt('/admin/orders?customer=7');
+      expect(screen.getByText('Pedidos do cliente selecionado')).toBeInTheDocument();
+      expect(screen.getByText('Nenhum pedido encontrado.')).toBeInTheDocument();
+    });
+
+    it('limpar o filtro volta a mostrar todos e leva o foco para a busca', () => {
+      useApiMock.mockReturnValue({ data: [mariaOrder], loading: false, error: null, refetch: vi.fn() });
+      renderAt('/admin/orders?customer=7');
+      fireEvent.click(screen.getByRole('button', { name: 'Limpar filtro de cliente' }));
+      expect(useApiMock).toHaveBeenLastCalledWith('/api/orders/admin/');
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/admin\/orders$/);
+      expect(screen.queryByText('Pedidos de Maria Silva')).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: 'Buscar pedidos por ID ou cliente' }));
+    });
+
+    it.each(['abc', '0', '-3', '1.5'])('valor inválido (%s) é ignorado e não quebra a tela', (value) => {
+      renderAt(`/admin/orders?customer=${value}`);
+      expect(useApiMock).toHaveBeenLastCalledWith('/api/orders/admin/');
+      expect(screen.queryByRole('button', { name: 'Limpar filtro de cliente' })).not.toBeInTheDocument();
+    });
+
+    it('abrir e fechar o pedido mantém o filtro no endereço', () => {
+      useApiMock.mockReturnValue({ data: [mariaOrder], loading: false, error: null, refetch: vi.fn() });
+      renderAt('/admin/orders?customer=7');
+      fireEvent.click(screen.getAllByRole('button', { name: 'Ações para o pedido #54974A89' })[0]);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Ver detalhes' }));
+      expect(screen.getByTestId('location')).toHaveTextContent(`/admin/orders/${mariaOrder.id}?customer=7`);
+      // O painel tem o "x" do topo e o "Fechar" do rodapé; os dois fecham.
+      fireEvent.click(screen.getAllByRole('button', { name: 'Fechar' }).at(-1));
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/admin\/orders\?customer=7$/);
+    });
+
+    it('exportar com o filtro ativo envia o cliente', async () => {
+      downloadFileMock.mockResolvedValue();
+      renderAt('/admin/orders?customer=7');
+      fireEvent.click(screen.getByRole('button', { name: 'Exportar' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /CSV/ }));
+      await waitFor(() => expect(downloadFileMock).toHaveBeenCalled());
+      expect(downloadFileMock.mock.calls[0][1]).toEqual({ customer: '7', file_format: 'csv' });
+    });
+
+    it('chip do filtro não tem violações de acessibilidade', async () => {
+      useApiMock.mockReturnValue({ data: [mariaOrder], loading: false, error: null, refetch: vi.fn() });
+      const { container } = renderAt('/admin/orders?customer=7');
+      expect(await axe(container)).toHaveNoViolations();
+    });
   });
 
   describe('acessibilidade (#64)', () => {

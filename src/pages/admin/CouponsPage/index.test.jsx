@@ -4,11 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 import { axe } from 'vitest-axe';
 import CouponsPage from './index';
 
-const state = vi.hoisted(() => ({ coupons: null }));
+const state = vi.hoisted(() => ({ coupons: null, drops: null, categories: null }));
 
 vi.mock('../../../hooks/useApi', () => ({
   useApi: (url) => ({
-    data: url.includes('admin/coupons') ? state.coupons : null,
+    data: url.includes('admin/coupons') ? state.coupons
+      : url.includes('catalog/drops') ? state.drops
+      : url.includes('catalog/categories') ? state.categories
+      : null,
     loading: false,
     error: null,
     refetch: vi.fn(),
@@ -28,6 +31,8 @@ function renderPage() {
 describe('CouponsPage', () => {
   beforeEach(() => {
     state.coupons = [];
+    state.drops = null;
+    state.categories = null;
     vi.stubEnv('VITE_API_URL', 'http://api');
   });
 
@@ -171,6 +176,81 @@ describe('CouponsPage', () => {
     expect(screen.queryByText('Ilimitado')).not.toBeInTheDocument();
   });
 
+  describe('drops e categorias do cupom (#101)', () => {
+    const drops = [{ id: 'd1', name: 'Drop Verão' }, { id: 'd2', name: 'Drop Inverno' }];
+    const categories = [{ id: 'c1', name: 'Camisetas' }, { id: 'c2', name: 'Bonés' }];
+
+    beforeEach(() => {
+      state.drops = drops;
+      state.categories = categories;
+    });
+
+    function openEdit(coupon) {
+      state.coupons = [coupon];
+      globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(coupon) }));
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: /^Ações para o cupom/ }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Editar Cupom' }));
+      return screen.getByRole('dialog');
+    }
+
+    const sentBody = () => JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+
+    it('um clique marca e outro desmarca, sem Ctrl', () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      const group = screen.getByRole('group', { name: 'Drops Válidos (opcional)' });
+      const verao = within(group).getByRole('checkbox', { name: 'Drop Verão' });
+      fireEvent.click(verao);
+      expect(verao).toBeChecked();
+      fireEvent.click(verao);
+      expect(verao).not.toBeChecked();
+    });
+
+    it('editar, desmarcar um drop e salvar envia a lista sem ele', async () => {
+      const dialog = openEdit({ ...base, drops: ['d1', 'd2'], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      expect(within(group).getByRole('checkbox', { name: 'Drop Verão' })).toBeChecked();
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Drop Verão' }));
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual(['d2']);
+    });
+
+    it('"Limpar" desmarca tudo e o cupom volta a valer para todos', async () => {
+      const dialog = openEdit({ ...base, drops: ['d1'], categories: ['c1', 'c2'] });
+      const categoriesGroup = within(dialog).getByRole('group', { name: 'Categorias Válidas (opcional)' });
+      fireEvent.click(within(categoriesGroup).getByRole('button', { name: 'Limpar categorias' }));
+      expect(within(categoriesGroup).getByRole('checkbox', { name: 'Camisetas' })).not.toBeChecked();
+      expect(within(categoriesGroup).getByRole('checkbox', { name: 'Bonés' })).not.toBeChecked();
+      expect(categoriesGroup).toHaveTextContent('Nenhuma marcada: vale para todas as categorias.');
+      // O botão some: o foco vai para a primeira opção do grupo.
+      expect(document.activeElement).toBe(within(categoriesGroup).getByRole('checkbox', { name: 'Camisetas' }));
+
+      const dropsGroup = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      fireEvent.click(within(dropsGroup).getByRole('checkbox', { name: 'Drop Verão' }));
+      expect(dropsGroup).toHaveTextContent('Nenhum marcado: vale para todos os drops.');
+      expect(within(dropsGroup).queryByRole('button', { name: 'Limpar drops' })).not.toBeInTheDocument();
+
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual([]);
+      expect(sentBody().categories).toEqual([]);
+    });
+
+    it('mostra quantos estão marcados', () => {
+      const dialog = openEdit({ ...base, drops: ['d1'], categories: [] });
+      expect(within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' })).toHaveTextContent('1 marcado');
+    });
+
+    it('as caixas de marcar não têm violações de acessibilidade', async () => {
+      const { container } = render(<MemoryRouter><CouponsPage /></MemoryRouter>);
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Drop Verão' }));
+      expect(await axe(container)).toHaveNoViolations();
+    });
+  });
+
   describe('acessibilidade (#64)', () => {
     it('cupom novo abre como modal com campos rotulados e fecha com Esc', async () => {
       renderPage();
@@ -178,10 +258,11 @@ describe('CouponsPage', () => {
       opener.focus();
       fireEvent.click(opener);
       const dialog = screen.getByRole('dialog', { name: 'Novo Cupom' });
-      for (const name of ['Código', 'Descrição', 'Tipo de Desconto', 'Valor', 'Início', 'Fim', 'Usos Totais', 'Usos por Usuário', 'Drops Válidos (opcional)', 'Parceiro (Méliuz, Influenciador)']) {
+      for (const name of ['Código', 'Descrição', 'Tipo de Desconto', 'Valor', 'Início', 'Fim', 'Usos Totais', 'Usos por Usuário', 'Parceiro (Méliuz, Influenciador)']) {
         expect(within(dialog).getByLabelText(name)).toBeInTheDocument();
       }
-      expect(within(dialog).getByLabelText('Drops Válidos (opcional)')).toHaveAccessibleDescription(/segure Ctrl/);
+      expect(within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' })).toBeInTheDocument();
+      expect(within(dialog).getByRole('group', { name: 'Categorias Válidas (opcional)' })).toBeInTheDocument();
       fireEvent.keyDown(dialog, { key: 'Escape' });
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(document.activeElement).toBe(opener);
