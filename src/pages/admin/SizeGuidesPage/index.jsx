@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useApi } from '../../../hooks/useApi';
+import { useApi, useApiAll } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import {
   GUIDE_SIZES, addColumn, emptyGuideForm, formProblem, formToPayload, guideSaveError, guideToForm,
@@ -39,7 +39,7 @@ function GuideDrawer({ guide, guides, onClose, onSaved }) {
   const [newColumn, setNewColumn] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const { data: categoriesData } = useApi('/api/catalog/categories/');
+  const { data: categoriesData } = useApiAll('/api/catalog/categories/');
   const categories = categoriesData?.results || categoriesData || [];
 
   // Guia que cada categoria usa hoje, para avisar quando ela vai mudar de guia.

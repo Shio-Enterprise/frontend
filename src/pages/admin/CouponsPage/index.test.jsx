@@ -6,14 +6,15 @@ import CouponsPage from './index';
 
 const state = vi.hoisted(() => ({ coupons: null }));
 
-vi.mock('../../../hooks/useApi', () => ({
-  useApi: (url) => ({
+vi.mock('../../../hooks/useApi', () => {
+  const useApi = (url) => ({
     data: url.includes('admin/coupons') ? state.coupons : null,
     loading: false,
     error: null,
     refetch: vi.fn(),
-  }),
-}));
+  });
+  return { useApi, useApiAll: useApi };
+});
 vi.mock('../../../lib/authToken', () => ({ getAccessToken: () => 'tok' }));
 vi.mock('../../../components/admin/CouponEmailModal', () => ({
   default: ({ coupon }) => <div>modal-email {coupon.code}</div>,

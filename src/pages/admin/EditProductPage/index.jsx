@@ -6,7 +6,7 @@ import ProductVariationsEditor from '../../../components/admin/ProductVariations
 import { syncProductVariations, toVariationRows, validateVariations, variationsChanged } from '../../../components/admin/productVariations';
 import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useApi } from '../../../hooks/useApi';
+import { useApi, useApiAll } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, Icon } from '../../../components/ui/ShioDesign';
 
@@ -39,8 +39,8 @@ const initialForm = (product) => ({
 
 const EditProductForm = ({ productId, product }) => {
   const navigate = useNavigate();
-  const { data: dropsResponse } = useApi('/api/catalog/drops/');
-  const { data: categoriesResponse } = useApi('/api/catalog/categories/');
+  const { data: dropsResponse } = useApiAll('/api/catalog/drops/');
+  const { data: categoriesResponse } = useApiAll('/api/catalog/categories/');
   const { data: guidesResponse } = useApi('/api/catalog/size-guides/');
   const [form, setForm] = useState(() => initialForm(product));
   const [images, setImages] = useState(() => (product.images ?? []).map((image) => ({ key: image.id, id: image.id, url: image.image })));

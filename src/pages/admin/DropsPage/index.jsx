@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApi } from '../../../hooks/useApi';
+import { useApi, useApiAll } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { getDropStatus } from '../../../lib/dropStatus';
 import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
@@ -9,7 +9,7 @@ import Dialog from '../../../components/ui/Dialog';
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const DropsPage = () => {
-  const { data: apiResponse, loading, error, refetch } = useApi('/api/catalog/drops/');
+  const { data: apiResponse, loading, error, refetch } = useApiAll('/api/catalog/drops/');
   const { data: dropRevenueResponse } = useApi('/api/orders/dashboard/drop-revenue/');
   const [search, setSearch] = useState('');
   const [actionError, setActionError] = useState(null);
