@@ -19,7 +19,8 @@ const parseSignUpError = (err) => {
   const fieldErrors = {};
   if (err?.response?.status === 400 && data && typeof data === 'object') {
     SIGNUP_FIELDS.forEach((field) => {
-      if (data[field]) fieldErrors[field] = asText(data[field]);
+      const text = data[field] ? asText(data[field]).trim() : '';
+      if (text) fieldErrors[field] = text;
     });
   }
   const hasFieldErrors = Object.keys(fieldErrors).length > 0;
@@ -76,11 +77,11 @@ const SignUpPage = () => {
   const editField = (field, setter) => (e) => {
     setter(e.target.value);
     if (fieldErrors[field]) {
-      setFieldErrors((errors) => {
-        const next = { ...errors };
-        delete next[field];
-        return next;
-      });
+      const next = { ...fieldErrors };
+      delete next[field];
+      setFieldErrors(next);
+      // Sem nenhum campo destacado, o "Revise os campos destacados." sai junto.
+      if (Object.keys(next).length === 0) setError(null);
     }
   };
 

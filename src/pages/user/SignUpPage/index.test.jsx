@@ -127,6 +127,22 @@ describe('SignUpPage', () => {
     expect(screen.queryByText('Este e-mail já está em uso.')).not.toBeInTheDocument();
   });
 
+  it('o alerta some quando não sobra nenhum campo com erro', async () => {
+    submitWith({ email: ['Este e-mail já está em uso.'], password: ['Essa senha é muito comum.'] });
+    await screen.findByRole('alert');
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'outra@x.com' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Revise os campos destacados.');
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'OutraSenha9!' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('lista de erros vazia não marca o campo como inválido', async () => {
+    submitWith({ email: [], password: ['  '] });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Erro ao criar conta.');
+    expect(screen.getByLabelText('E-mail')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByLabelText('Senha')).not.toHaveAttribute('aria-invalid');
+  });
+
   it('editar um campo não tira o foco nem apaga o erro dos outros', async () => {
     submitWith({ email: ['Este e-mail já está em uso.'], password: ['Essa senha é muito comum.'] });
     await screen.findByRole('alert');
