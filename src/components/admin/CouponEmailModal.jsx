@@ -94,7 +94,7 @@ export default function CouponEmailModal({ coupon, onClose }) {
       const data = await res.json();
       setTestFeedback(
         res.ok
-          ? { ok: true, text: 'Teste enviado para o seu e-mail.' }
+          ? { ok: true, text: data.to ? `Teste enviado para ${data.to}.` : 'Teste enviado para o seu e-mail.' }
           : { ok: false, text: data.error || 'Não foi possível enviar o teste.' },
       );
     } catch {
@@ -202,11 +202,6 @@ export default function CouponEmailModal({ coupon, onClose }) {
             className="w-full h-96 border rounded-md bg-white"
           />
 
-          {testFeedback && (
-            <p role="status" className={`text-sm ${testFeedback.ok ? 'text-green-700' : 'text-red-700'}`}>
-              {testFeedback.text}
-            </p>
-          )}
           {error && <div ref={result ? undefined : outcomeRef} tabIndex={-1} role="alert" className="p-3 bg-red-100 text-red-700 text-sm rounded-md">{error}</div>}
           {result && (
             <div ref={outcomeRef} tabIndex={-1} role="status" className="p-3 bg-green-50 text-green-800 text-sm rounded-md">
@@ -241,7 +236,16 @@ export default function CouponEmailModal({ coupon, onClose }) {
           )}
         </div>
 
-        <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t bg-gray-50 p-4">
+        <div data-modal-footer className="flex shrink-0 flex-wrap justify-end gap-3 border-t bg-gray-50 p-4">
+          {/* No rodapé, junto do botão: depois da prévia o aviso ficava fora da tela. */}
+          {testFeedback && (
+            <p
+              role="status"
+              className={`w-full text-right text-sm font-semibold ${testFeedback.ok ? 'text-shio-success' : 'text-shio-danger'}`}
+            >
+              {testFeedback.text}
+            </p>
+          )}
           <button type="button" onClick={close} disabled={sending} className="h-12 rounded-md border border-black/25 px-4 text-sm font-bold hover:bg-black/5 disabled:opacity-50">
             {result ? 'Fechar' : 'Cancelar'}
           </button>
@@ -251,7 +255,7 @@ export default function CouponEmailModal({ coupon, onClose }) {
             disabled={testing || !info}
             className="h-12 rounded-md border border-black/25 px-4 text-sm font-bold hover:bg-black/5 disabled:opacity-50"
           >
-            Enviar teste para mim
+            {testing ? 'Enviando teste...' : 'Enviar teste para mim'}
           </button>
           <BlackButton onClick={() => setConfirming(true)} disabled={blocked || !!result || confirming || sending}>
             Enviar para {pessoas(audience?.total ?? 0)}

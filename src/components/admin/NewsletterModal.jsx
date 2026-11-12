@@ -8,6 +8,8 @@ const MAX_SUBJECT = 255;
 const MAX_MESSAGE = 10000;
 const PREVIEW_DEBOUNCE_MS = 400;
 
+const testSentText = (to) => (to ? `Teste enviado para ${to}.` : 'Teste enviado para o seu e-mail.');
+
 const inscritos = (n) => `${n} ${n === 1 ? 'inscrito' : 'inscritos'}`;
 
 export default function NewsletterModal({ onClose, onSent }) {
@@ -110,7 +112,7 @@ export default function NewsletterModal({ onClose, onSent }) {
       const data = await res.json();
       setTestFeedback(
         res.ok
-          ? { ok: true, text: 'Teste enviado para o seu e-mail com sucesso.' }
+          ? { ok: true, text: testSentText(data.to) }
           : { ok: false, text: data.error || 'Não foi possível enviar o teste.' },
       );
     } catch {
@@ -251,15 +253,6 @@ export default function NewsletterModal({ onClose, onSent }) {
           />
         </div>
 
-        {testFeedback && (
-          <p
-            role="status"
-            className={`text-sm font-semibold ${testFeedback.ok ? 'text-shio-success' : 'text-shio-danger'}`}
-          >
-            {testFeedback.text}
-          </p>
-        )}
-
         {error && (
           <div
             ref={result ? undefined : outcomeRef}
@@ -318,7 +311,16 @@ export default function NewsletterModal({ onClose, onSent }) {
         )}
       </div>
 
-      <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t bg-gray-50 p-4">
+      <div data-modal-footer className="flex shrink-0 flex-wrap justify-end gap-3 border-t bg-gray-50 p-4">
+        {/* No rodapé, junto do botão: depois da prévia o aviso ficava fora da tela. */}
+        {testFeedback && (
+          <p
+            role="status"
+            className={`w-full text-right text-sm font-semibold ${testFeedback.ok ? 'text-shio-success' : 'text-shio-danger'}`}
+          >
+            {testFeedback.text}
+          </p>
+        )}
         <button
           type="button"
           onClick={close}
