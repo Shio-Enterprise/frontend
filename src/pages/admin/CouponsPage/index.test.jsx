@@ -346,6 +346,8 @@ describe('CouponsPage', () => {
       fireEvent.submit(document.getElementById('coupon-form'));
       expect(await screen.findByText(/Já existe um cupom com este código/)).toBeInTheDocument();
       expect(screen.getByRole('dialog')).toBeInTheDocument();
+      // O erro fica no topo do formulário: o foco vai até ele para não passar despercebido.
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('alert')));
       expect(within(drops).getByRole('checkbox', { name: 'Drop Inverno' })).toBeChecked();
       expect(within(drops).getByRole('checkbox', { name: 'Drop Verão' })).not.toBeChecked();
       expect(within(categories).getByRole('checkbox', { name: 'Bonés' })).toBeChecked();

@@ -132,8 +132,10 @@ function CustomerProfileDrawer({ id }) {
 // ─── CustomersPage ────────────────────────────────────────────────────────────
 
 const CustomersPage = () => {
-  // Quem não gerencia pedidos seria só devolvido para cá ao abrir a tela de Pedidos (#88).
-  const canSeeOrders = useAuth().hasAdminPermission(ADMIN_PERMISSIONS.ORDERS);
+  // Sem a permissão, o admin seria só devolvido para cá ao abrir a outra tela (#88).
+  const { hasAdminPermission } = useAuth();
+  const canSeeOrders = hasAdminPermission(ADMIN_PERMISSIONS.ORDERS);
+  const canSeeDashboard = hasAdminPermission(ADMIN_PERMISSIONS.DASHBOARD);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -203,7 +205,7 @@ const CustomersPage = () => {
                     items={[
                       { label: 'Ver perfil', to: `/admin/customers/${customer.id}` },
                       ...(canSeeOrders ? [{ label: 'Ver pedidos', to: `/admin/orders?customer=${customer.id}` }] : []),
-                      { label: 'Ver comportamento', to: `/admin/dashboard?usuario=${customer.id}` },
+                      ...(canSeeDashboard ? [{ label: 'Ver comportamento', to: `/admin/dashboard?usuario=${customer.id}` }] : []),
                       { label: 'Editar cliente', to: `/admin/customers/${customer.id}/edit` },
                       { separator: true, key: 'sep' },
                       { label: 'Excluir cliente', danger: true, icon: 'trash', onClick: () => {} },

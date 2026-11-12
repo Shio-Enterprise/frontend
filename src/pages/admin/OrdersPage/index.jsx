@@ -644,8 +644,11 @@ const OrdersPage = () => {
     searchInputRef.current?.focus();
   };
 
+  // Mesmos filtros da tela: o arquivo traz o que o admin está vendo.
   const exportParams = {
     ...(customerId ? { customer: customerId } : {}),
+    ...(refundFilter ? { refund_status: refundFilter } : {}),
+    ...(exchangeFilter ? { exchange_status: exchangeFilter } : {}),
     ...(search.trim() ? { search: search.trim() } : {}),
   };
 

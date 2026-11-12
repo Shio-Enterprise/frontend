@@ -257,6 +257,19 @@ describe('OrdersPage', () => {
       expect(screen.getByText('Pedidos do cliente selecionado')).toBeInTheDocument();
     });
 
+    it('exportação leva também os filtros de reembolso e troca', async () => {
+      downloadFileMock.mockResolvedValue();
+      renderAt('/admin/orders?customer=7');
+      fireEvent.change(screen.getByLabelText('Filtrar por reembolso'), { target: { value: 'COMPLETED' } });
+      fireEvent.change(screen.getByLabelText('Filtrar por troca'), { target: { value: 'RECEIVED' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Exportar' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /CSV/ }));
+      await waitFor(() => expect(downloadFileMock).toHaveBeenCalled());
+      expect(downloadFileMock.mock.lastCall[1]).toEqual({
+        customer: '7', refund_status: 'COMPLETED', exchange_status: 'RECEIVED', file_format: 'csv',
+      });
+    });
+
     it('cliente sem nome aparece pelo e-mail no chip', () => {
       // A API já manda o e-mail em customer_name quando o cliente não tem nome.
       useApiMock.mockReturnValue({ data: [{ ...mariaOrder, customer_name: 'maria@x.com' }], loading: false, error: null, refetch: vi.fn() });

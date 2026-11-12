@@ -129,6 +129,13 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
   const isEditing = !!coupon;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const errorRef = useRef(null);
+
+  // O erro aparece no topo do formulário, que rola por dentro: o foco vai até ele (e o
+  // navegador rola junto) para o admin não ficar sem saber por que não salvou.
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   // Form State
   const [code, setCode] = useState(coupon?.code || '');
@@ -239,7 +246,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
 
         <div className="flex-1 overflow-y-auto p-6">
           <form id="coupon-form" onSubmit={handleSave} aria-describedby={error ? ids.error : undefined} className="space-y-5">
-            {error && <div id={ids.error} role="alert" className="whitespace-pre-line rounded-md bg-red-50 p-3 text-sm text-shio-danger">{error}</div>}
+            {error && <div id={ids.error} ref={errorRef} tabIndex={-1} role="alert" className="whitespace-pre-line rounded-md bg-red-50 p-3 text-sm text-shio-danger">{error}</div>}
 
             <div>
               <label htmlFor={ids.code} className={labelClass}>Código</label>

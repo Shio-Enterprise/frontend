@@ -43,6 +43,19 @@ describe('CustomersPage', () => {
       expect(screen.getByRole('menuitem', { name: 'Ver pedidos' })).toHaveAttribute('href', '/admin/orders?customer=7');
     });
 
+    it('com acesso ao Dashboard, o menu leva ao comportamento do cliente', () => {
+      permissions.list = ['manage_customers', 'access_admin_dashboard'];
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: 'Ver comportamento' })).toHaveAttribute('href', '/admin/dashboard?usuario=7');
+    });
+
+    it('sem acesso ao Dashboard, o menu não oferece "Ver comportamento"', () => {
+      permissions.list = ['manage_customers', 'manage_orders'];
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: 'Ver pedidos' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Ver comportamento' })).not.toBeInTheDocument();
+    });
+
     it('sem acesso a Pedidos, o menu não oferece "Ver pedidos"', () => {
       permissions.list = ['manage_customers'];
       openMenu();
