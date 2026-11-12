@@ -2,7 +2,7 @@ import { emptyVariation, pricePayload, apiError } from '../../../components/admi
 import { ProductPriceFields, VariationFields } from '../../../components/admin/ProductFields';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useApi } from '../../../hooks/useApi';
+import { useApi, useApiAll } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { AdminPanel, Icon } from '../../../components/ui/ShioDesign';
 
@@ -15,8 +15,8 @@ const getResults = (apiResponse) => {
 
 const NewProductPage = () => {
   const navigate = useNavigate();
-  const { data: dropsResponse } = useApi('/api/catalog/drops/');
-  const { data: categoriesResponse } = useApi('/api/catalog/categories/');
+  const { data: dropsResponse } = useApiAll('/api/catalog/drops/');
+  const { data: categoriesResponse } = useApiAll('/api/catalog/categories/');
   const { data: guidesResponse } = useApi('/api/catalog/size-guides/');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');

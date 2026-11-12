@@ -5,8 +5,8 @@ import SizeGuidesPage from './index';
 
 const state = vi.hoisted(() => ({ guides: [], refetch: null }));
 
-vi.mock('../../../hooks/useApi', () => ({
-  useApi: (url) => ({
+vi.mock('../../../hooks/useApi', () => {
+  const useApi = (url) => ({
     data: url.includes('size-guides') ? state.guides : [
       { id: 'c1', name: 'Camisetas' },
       { id: 'c2', name: 'Calças' },
@@ -14,8 +14,9 @@ vi.mock('../../../hooks/useApi', () => ({
     loading: false,
     error: null,
     refetch: state.refetch,
-  }),
-}));
+  });
+  return { useApi, useApiAll: useApi };
+});
 vi.mock('../../../lib/authToken', () => ({ getAccessToken: () => 'tok' }));
 
 const topGuide = {

@@ -3,16 +3,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import NewProductPage from './index';
 
-vi.mock('../../../hooks/useApi', () => ({
-  useApi: (url) => ({
+vi.mock('../../../hooks/useApi', () => {
+  const useApi = (url) => ({
     data: url.includes('/categories/')
       ? [{ id: 'cat-1', name: 'Camisetas' }]
       : url.includes('/size-guides/')
         ? [{ id: 'guia-1', name: 'Camiseta oversized' }]
         : null,
     loading: false, error: null, refetch: vi.fn(),
-  }),
-}));
+  });
+  return { useApi, useApiAll: useApi };
+});
 
 describe('NewProductPage', () => {
   it('renders headline', () => {

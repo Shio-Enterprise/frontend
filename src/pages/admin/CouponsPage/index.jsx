@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import Dialog from '../../../components/ui/Dialog';
-import { useApi } from '../../../hooks/useApi';
+import { useApi, useApiAll } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import CouponEmailModal from '../../../components/admin/CouponEmailModal';
 import { AdminPanel, AdminTitle, BlackButton, Icon, ActionMenu } from '../../../components/ui/ShioDesign';
@@ -82,8 +82,8 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
   const [partner, setPartner] = useState(coupon?.partner || '');
   
   // Scopes (multi-select)
-  const { data: catalogData } = useApi('/api/catalog/categories/');
-  const { data: dropsData } = useApi('/api/catalog/drops/');
+  const { data: catalogData } = useApiAll('/api/catalog/categories/');
+  const { data: dropsData } = useApiAll('/api/catalog/drops/');
   
   const categoriesList = catalogData?.results || catalogData || [];
   const dropsList = dropsData?.results || dropsData || [];

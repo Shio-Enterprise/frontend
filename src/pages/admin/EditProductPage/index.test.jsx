@@ -6,7 +6,7 @@ import EditProductPage from './index';
 
 const { useApiMock } = vi.hoisted(() => ({ useApiMock: vi.fn() }));
 
-vi.mock('../../../hooks/useApi', () => ({ useApi: useApiMock }));
+vi.mock('../../../hooks/useApi', () => ({ useApi: useApiMock, useApiAll: useApiMock }));
 vi.mock('../../../lib/authToken', () => ({ getAccessToken: () => 'test-token' }));
 
 const product = {
