@@ -62,7 +62,7 @@ function formatSaveError(data) {
 
 // Caixas de marcar em vez de <select multiple>: um clique marca, outro desmarca,
 // sem Ctrl, e funciona no toque e no teclado (Tab + Espaço) (#101).
-function ScopeChecklist({ legend, items, selected, onChange, clearLabel, countLabel, emptyHint }) {
+function ScopeChecklist({ legend, items, selected, onChange, clearLabel, countLabel, emptyHint, noItemsText }) {
   const listRef = useRef(null);
   const selectedIds = selected.map(String);
   const toggle = (id) => {
@@ -93,6 +93,9 @@ function ScopeChecklist({ legend, items, selected, onChange, clearLabel, countLa
           </button>
         )}
       </div>
+      {items.length === 0 ? (
+        <p className="text-sm text-shio-muted">{noItemsText}</p>
+      ) : (
       <ul ref={listRef} className="max-h-48 overflow-y-auto rounded-lg border border-black/15 px-3 py-1">
         {items.map((item) => (
           <li key={item.id}>
@@ -108,6 +111,7 @@ function ScopeChecklist({ legend, items, selected, onChange, clearLabel, countLa
           </li>
         ))}
       </ul>
+      )}
     </fieldset>
   );
 }
@@ -373,6 +377,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
               clearLabel="Limpar drops"
               countLabel={(n) => `${n} ${n === 1 ? 'marcado' : 'marcados'}`}
               emptyHint="Nenhum marcado: vale para todos os drops."
+              noItemsText="Nenhum drop cadastrado."
             />
 
             <ScopeChecklist
@@ -383,6 +388,7 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
               clearLabel="Limpar categorias"
               countLabel={(n) => `${n} ${n === 1 ? 'marcada' : 'marcadas'}`}
               emptyHint="Nenhuma marcada: vale para todas as categorias."
+              noItemsText="Nenhuma categoria cadastrada."
             />
 
             <fieldset className="mt-4 border-t pt-2">

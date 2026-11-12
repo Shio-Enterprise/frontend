@@ -475,6 +475,7 @@ const OrdersPage = () => {
     `/api/orders/admin/${listQuery ? `?${listQuery}` : ''}`,
   );
   const [search, setSearch] = useState('');
+  const [knownCustomer, setKnownCustomer] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [canceling, setCanceling] = useState(false);
@@ -626,8 +627,14 @@ const OrdersPage = () => {
   };
 
   const allOrders = Array.isArray(ordersData) ? ordersData : ordersData?.results ?? [];
-  // A lista já vem filtrada pelo cliente: o nome sai do primeiro pedido.
-  const customerName = customerId ? allOrders[0]?.customer_name : null;
+  // A lista já vem filtrada pelo cliente: o nome sai do primeiro pedido. Fica guardado para o
+  // chip não perder o nome quando reembolso/troca esvaziam a lista. Durante o carregamento a
+  // lista ainda pode ser a do cliente anterior, então só vale com a resposta já chegada.
+  const listedName = customerId && !loading ? allOrders[0]?.customer_name : null;
+  if (listedName && (knownCustomer?.id !== customerId || knownCustomer.name !== listedName)) {
+    setKnownCustomer({ id: customerId, name: listedName });
+  }
+  const customerName = listedName || (knownCustomer?.id === customerId ? knownCustomer.name : null);
 
   const clearCustomerFilter = () => {
     const next = new URLSearchParams(searchParams);

@@ -243,6 +243,62 @@ describe('CouponsPage', () => {
       expect(within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' })).toHaveTextContent('1 marcado');
     });
 
+    it('categoria também marca e desmarca com um clique', () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      const group = screen.getByRole('group', { name: 'Categorias Válidas (opcional)' });
+      const bones = within(group).getByRole('checkbox', { name: 'Bonés' });
+      fireEvent.click(bones);
+      expect(bones).toBeChecked();
+      expect(group).toHaveTextContent('1 marcada');
+      fireEvent.click(bones);
+      expect(bones).not.toBeChecked();
+      expect(group).toHaveTextContent('Nenhuma marcada: vale para todas as categorias.');
+    });
+
+    it('ID numérico da API e ID da lista batem, e o salvo mantém o tipo', async () => {
+      state.categories = [{ id: 3, name: 'Camisetas' }, { id: 4, name: 'Bonés' }];
+      const dialog = openEdit({ ...base, drops: [], categories: [3, 4] });
+      const group = within(dialog).getByRole('group', { name: 'Categorias Válidas (opcional)' });
+      expect(within(group).getByRole('checkbox', { name: 'Camisetas' })).toBeChecked();
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Camisetas' }));
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().categories).toEqual([4]);
+    });
+
+    it('marcar várias e salvar envia todas', async () => {
+      const dialog = openEdit({ ...base, drops: [], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Drop Verão' }));
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Drop Inverno' }));
+      expect(group).toHaveTextContent('2 marcados');
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual(['d1', 'd2']);
+    });
+
+    it('sem drops cadastrados mostra um aviso em vez de uma caixa vazia', () => {
+      state.drops = [];
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      const group = screen.getByRole('group', { name: 'Drops Válidos (opcional)' });
+      expect(within(group).queryByRole('list')).not.toBeInTheDocument();
+      expect(group).toHaveTextContent('Nenhum drop cadastrado.');
+    });
+
+    it('as opções são caixas de marcar nativas, na ordem do Tab', () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      const boxes = within(screen.getByRole('group', { name: 'Drops Válidos (opcional)' })).getAllByRole('checkbox');
+      // input type=checkbox nativo: Espaço marca/desmarca sem código extra; nenhum tabindex negativo.
+      for (const box of boxes) {
+        expect(box.tagName).toBe('INPUT');
+        expect(box).toHaveAttribute('type', 'checkbox');
+        expect(box).not.toHaveAttribute('tabindex');
+      }
+    });
+
     it('as caixas de marcar não têm violações de acessibilidade', async () => {
       const { container } = render(<MemoryRouter><CouponsPage /></MemoryRouter>);
       fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));

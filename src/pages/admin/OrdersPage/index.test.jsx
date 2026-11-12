@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import OrdersPage from './index';
 
 const { useApiMock, downloadFileMock } = vi.hoisted(() => ({ useApiMock: vi.fn(), downloadFileMock: vi.fn() }));
@@ -134,7 +134,13 @@ describe('OrdersPage', () => {
 
     function LocationProbe() {
       const location = useLocation();
-      return <p data-testid="location">{location.pathname + location.search}</p>;
+      const navigate = useNavigate();
+      return (
+        <>
+          <p data-testid="location">{location.pathname + location.search}</p>
+          <button type="button" onClick={() => navigate('/admin/orders?customer=9')}>ir para outro cliente</button>
+        </>
+      );
     }
 
     const renderAt = (entry) => render(
@@ -198,7 +204,71 @@ describe('OrdersPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Exportar' }));
       fireEvent.click(screen.getByRole('menuitem', { name: /CSV/ }));
       await waitFor(() => expect(downloadFileMock).toHaveBeenCalled());
-      expect(downloadFileMock.mock.calls[0][1]).toEqual({ customer: '7', file_format: 'csv' });
+      expect(downloadFileMock.mock.lastCall[1]).toEqual({ customer: '7', file_format: 'csv' });
+    });
+
+    it('filtro de cliente e busca funcionam juntos, e a exportação leva os dois', async () => {
+      const other = { ...mariaOrder, id: 'abcdef12-0000-0000-0000-000000000000' };
+      useApiMock.mockReturnValue({ data: [mariaOrder, other], loading: false, error: null, refetch: vi.fn() });
+      downloadFileMock.mockResolvedValue();
+      renderAt('/admin/orders?customer=7');
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar pedidos por ID ou cliente' }), { target: { value: '#54974A89' } });
+      const table = screen.getByRole('table', { name: 'Pedidos' });
+      expect(within(table).getByText('#54974A89')).toBeInTheDocument();
+      expect(within(table).queryByText('#ABCDEF12')).not.toBeInTheDocument();
+      expect(screen.getByText('Pedidos de Maria Silva')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Exportar' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /Excel/ }));
+      await waitFor(() => expect(downloadFileMock).toHaveBeenCalled());
+      expect(downloadFileMock.mock.lastCall[1]).toEqual({ customer: '7', search: '#54974A89', file_format: 'xlsx' });
+    });
+
+    it('o chip guarda o nome quando os outros filtros esvaziam a lista', () => {
+      useApiMock.mockImplementation((url) => ({
+        data: url.includes('refund_status') ? [] : [mariaOrder],
+        loading: false, error: null, refetch: vi.fn(),
+      }));
+      renderAt('/admin/orders?customer=7');
+      fireEvent.change(screen.getByLabelText('Filtrar por reembolso'), { target: { value: 'REQUESTED' } });
+      expect(screen.getByText('Nenhum pedido encontrado.')).toBeInTheDocument();
+      expect(screen.getByText('Pedidos de Maria Silva')).toBeInTheDocument();
+    });
+
+    it('trocar de cliente não reaproveita o nome do anterior', () => {
+      useApiMock.mockImplementation((url) => ({
+        data: url.includes('customer=7') ? [mariaOrder] : [],
+        loading: false, error: null, refetch: vi.fn(),
+      }));
+      renderAt('/admin/orders?customer=7');
+      expect(screen.getByText('Pedidos de Maria Silva')).toBeInTheDocument();
+      // Navega para outro cliente sem desmontar a página (como o "Voltar" do navegador).
+      fireEvent.click(screen.getByRole('button', { name: 'ir para outro cliente' }));
+      expect(screen.getByText('Pedidos do cliente selecionado')).toBeInTheDocument();
+    });
+
+    it('enquanto carrega o novo cliente, não mostra o nome do anterior', () => {
+      // useApi mantém a resposta antiga enquanto busca a nova URL.
+      useApiMock.mockImplementation((url) => ({
+        data: [mariaOrder], loading: !url.includes('customer=7'), error: null, refetch: vi.fn(),
+      }));
+      renderAt('/admin/orders?customer=7');
+      fireEvent.click(screen.getByRole('button', { name: 'ir para outro cliente' }));
+      expect(screen.queryByText('Pedidos de Maria Silva')).not.toBeInTheDocument();
+      expect(screen.getByText('Pedidos do cliente selecionado')).toBeInTheDocument();
+    });
+
+    it('cliente sem nome aparece pelo e-mail no chip', () => {
+      // A API já manda o e-mail em customer_name quando o cliente não tem nome.
+      useApiMock.mockReturnValue({ data: [{ ...mariaOrder, customer_name: 'maria@x.com' }], loading: false, error: null, refetch: vi.fn() });
+      renderAt('/admin/orders?customer=7');
+      expect(screen.getByText('Pedidos de maria@x.com')).toBeInTheDocument();
+    });
+
+    it('erro da API com o filtro mostra a mensagem e mantém o botão de limpar', () => {
+      useApiMock.mockReturnValue({ data: null, loading: false, error: new Error('400'), refetch: vi.fn() });
+      renderAt('/admin/orders?customer=7');
+      expect(screen.getByRole('alert')).toHaveTextContent('Erro ao carregar pedidos.');
+      expect(screen.getByRole('button', { name: 'Limpar filtro de cliente' })).toBeInTheDocument();
     });
 
     it('chip do filtro não tem violações de acessibilidade', async () => {
