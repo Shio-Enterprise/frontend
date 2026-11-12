@@ -4,10 +4,16 @@ import { MemoryRouter } from 'react-router-dom';
 import { axe } from 'vitest-axe';
 import CustomersPage from './index';
 
-const { useApiMock } = vi.hoisted(() => ({ useApiMock: vi.fn() }));
+const { useApiMock, permissions } = vi.hoisted(() => ({ useApiMock: vi.fn(), permissions: { list: null } }));
 
 vi.mock('../../../hooks/useApi', () => ({
   useApi: useApiMock,
+}));
+
+vi.mock('../../../context/AuthContext', () => ({
+  useAuth: () => ({
+    hasAdminPermission: (code) => permissions.list === null || permissions.list.includes(code),
+  }),
 }));
 
 describe('CustomersPage', () => {
@@ -19,6 +25,43 @@ describe('CustomersPage', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    permissions.list = null;
+  });
+
+  describe('"Ver pedidos" e permissão de Pedidos (#88)', () => {
+    const maria = { id: 7, name: 'Maria Silva', email: 'maria@exemplo.com', total_orders: 2, total_spent: '100', created_at: '2026-10-01T10:00:00Z' };
+
+    const openMenu = () => {
+      useApiMock.mockReturnValue({ data: [maria], loading: false, error: null, refetch: vi.fn() });
+      render(<MemoryRouter><CustomersPage /></MemoryRouter>);
+      fireEvent.click(screen.getByRole('button', { name: 'Ações para Maria Silva' }));
+    };
+
+    it('com acesso a Pedidos, o menu leva aos pedidos do cliente', () => {
+      permissions.list = ['manage_customers', 'manage_orders'];
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: 'Ver pedidos' })).toHaveAttribute('href', '/admin/orders?customer=7');
+    });
+
+    it('com acesso ao Dashboard, o menu leva ao comportamento do cliente', () => {
+      permissions.list = ['manage_customers', 'access_admin_dashboard'];
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: 'Ver comportamento' })).toHaveAttribute('href', '/admin/dashboard?usuario=7');
+    });
+
+    it('sem acesso ao Dashboard, o menu não oferece "Ver comportamento"', () => {
+      permissions.list = ['manage_customers', 'manage_orders'];
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: 'Ver pedidos' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Ver comportamento' })).not.toBeInTheDocument();
+    });
+
+    it('sem acesso a Pedidos, o menu não oferece "Ver pedidos"', () => {
+      permissions.list = ['manage_customers'];
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: 'Ver perfil' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Ver pedidos' })).not.toBeInTheDocument();
+    });
   });
 
   it('envia a busca por nome ou e-mail para o endpoint do CRM', () => {

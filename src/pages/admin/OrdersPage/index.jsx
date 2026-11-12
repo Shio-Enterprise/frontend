@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { useMatch, useNavigate } from 'react-router-dom';
+import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { ActionMenu, AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
@@ -24,6 +24,19 @@ const STATUS_MAP = {
 
 const shortId = (id) => `#${String(id).substring(0, 8).toUpperCase()}`;
 
+// A tela mostra "#" + 8 primeiros caracteres em maiúsculas; o ID real é o UUID minúsculo (#89).
+const matchesSearch = (order, search) => {
+  const term = search.trim().toLowerCase();
+  const code = term.replace(/^#\s*/, '');
+  return Boolean(
+    (code && order.id.toLowerCase().includes(code))
+    || order.customer_name?.toLowerCase().includes(term),
+  );
+};
+
+// ?customer= vem do "Ver pedidos" em Clientes; valor que não é ID válido é ignorado (#88).
+const parseCustomerId = (value) => (/^[1-9]\d*$/.test(value ?? '') ? value : null);
+
 const PAYMENT_METHOD_MAP = {
   PIX: 'PIX',
   CREDIT_CARD: 'Cartão de Crédito',
@@ -35,6 +48,7 @@ const PAYMENT_METHOD_MAP = {
 
 function OrderDetailDrawer({ id, onChanged }) {
   const navigate = useNavigate();
+  const { search: locationSearch } = useLocation();
   const { data: order, loading, refetch } = useApi(`/api/orders/admin/${id}/`);
 
   const [actionLoading, setActionLoading] = useState(false);
@@ -179,7 +193,8 @@ function OrderDetailDrawer({ id, onChanged }) {
     : '';
 
   const primaryAction = getPrimaryAction();
-  const close = () => navigate('/admin/orders');
+  // Mantém o filtro de cliente (?customer=) ao fechar o painel.
+  const close = () => navigate(`/admin/orders${locationSearch}`);
 
   return (
     <DrawerShell title="Detalhes do Pedido" onClose={close} width={380} titleRef={titleRef}>
@@ -445,9 +460,14 @@ function OrderBadges({ order }) {
 }
 
 const OrdersPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { search: locationSearch } = useLocation();
+  const customerId = parseCustomerId(searchParams.get('customer'));
+  const searchInputRef = useRef(null);
   const [refundFilter, setRefundFilter] = useState('');
   const [exchangeFilter, setExchangeFilter] = useState('');
   const listQuery = new URLSearchParams({
+    ...(customerId ? { customer: customerId } : {}),
     ...(refundFilter ? { refund_status: refundFilter } : {}),
     ...(exchangeFilter ? { exchange_status: exchangeFilter } : {}),
   }).toString();
@@ -455,6 +475,7 @@ const OrdersPage = () => {
     `/api/orders/admin/${listQuery ? `?${listQuery}` : ''}`,
   );
   const [search, setSearch] = useState('');
+  const [knownCustomer, setKnownCustomer] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [canceling, setCanceling] = useState(false);
@@ -487,7 +508,7 @@ const OrdersPage = () => {
     const items = [
       {
         label: 'Ver detalhes',
-        to: `/admin/orders/${order.id}`,
+        to: `/admin/orders/${order.id}${locationSearch}`,
       },
     ];
 
@@ -535,10 +556,7 @@ const OrdersPage = () => {
 
     const allOrders = Array.isArray(ordersData) ? ordersData : ordersData?.results ?? [];
     const orders = search.trim()
-      ? allOrders.filter((o) =>
-        o.id.includes(search) ||
-        o.customer_name?.toLowerCase().includes(search.toLowerCase())
-      )
+      ? allOrders.filter((o) => matchesSearch(o, search))
       : allOrders;
 
     if (orders.length === 0) return <div className="p-10 text-center text-shio-muted">Nenhum pedido encontrado.</div>;
@@ -608,6 +626,32 @@ const OrdersPage = () => {
     );
   };
 
+  const allOrders = Array.isArray(ordersData) ? ordersData : ordersData?.results ?? [];
+  // A lista já vem filtrada pelo cliente: o nome sai do primeiro pedido. Fica guardado para o
+  // chip não perder o nome quando reembolso/troca esvaziam a lista. Durante o carregamento a
+  // lista ainda pode ser a do cliente anterior, então só vale com a resposta já chegada.
+  const listedName = customerId && !loading ? allOrders[0]?.customer_name : null;
+  if (listedName && (knownCustomer?.id !== customerId || knownCustomer.name !== listedName)) {
+    setKnownCustomer({ id: customerId, name: listedName });
+  }
+  const customerName = listedName || (knownCustomer?.id === customerId ? knownCustomer.name : null);
+
+  const clearCustomerFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('customer');
+    setSearchParams(next);
+    // O chip some junto com o botão: o foco vai para a busca (#64).
+    searchInputRef.current?.focus();
+  };
+
+  // Mesmos filtros da tela: o arquivo traz o que o admin está vendo.
+  const exportParams = {
+    ...(customerId ? { customer: customerId } : {}),
+    ...(refundFilter ? { refund_status: refundFilter } : {}),
+    ...(exchangeFilter ? { exchange_status: exchangeFilter } : {}),
+    ...(search.trim() ? { search: search.trim() } : {}),
+  };
+
   return (
     <div>
       <AdminTitle title="Pedidos" />
@@ -624,6 +668,7 @@ const OrdersPage = () => {
           <label className="flex h-12 min-w-0 max-w-[675px] flex-1 basis-56 items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
             <Icon name="search" className="h-5 w-5 shrink-0" />
             <input
+              ref={searchInputRef}
               type="search"
               aria-label="Buscar pedidos por ID ou cliente"
               value={search}
@@ -663,7 +708,7 @@ const OrdersPage = () => {
 
             <ExportButton
               endpoint="/api/orders/admin/export/"
-              params={search.trim() ? { search: search.trim() } : {}}
+              params={exportParams}
               fallbackFilename="pedidos"
             />
 
@@ -685,6 +730,22 @@ const OrdersPage = () => {
             </button>
           </div>
         </div>
+        {customerId && (
+          <div className="px-5 pb-4">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#f0f0f0] pl-4 text-black">
+              <span>{customerName ? `Pedidos de ${customerName}` : 'Pedidos do cliente selecionado'}</span>
+              <button
+                type="button"
+                aria-label="Limpar filtro de cliente"
+                onClick={clearCustomerFilter}
+                // shrink-0: com nome longo no celular o botão encolhia para ~14px de largura.
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold hover:bg-black/10"
+              >
+                ×
+              </button>
+            </span>
+          </div>
+        )}
         {renderContent()}
       </AdminPanel>
 
