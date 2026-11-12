@@ -13,6 +13,7 @@ const CartPage = lazy(() => import("../pages/public/CartPage"));
 const DropPage = lazy(() => import("../pages/public/DropPage"));
 const UnsubscribePage = lazy(() => import("../pages/public/UnsubscribePage"));
 const InstitutionalPage = lazy(() => import("../pages/public/InstitutionalPage"));
+const NotFoundPage = lazy(() => import("../pages/public/NotFoundPage"));
 
 // User pages
 const LoginPage = lazy(() => import("../pages/user/LoginPage"));
@@ -248,6 +249,12 @@ const routes = [
     requiredPermission: ADMIN_PERMISSIONS.CUSTOMERS,
   },
   {
+    path: "/admin/customers/:id/edit",
+    component: <AdminLayout><CustomersPage /></AdminLayout>,
+    isAdmin: true,
+    requiredPermission: ADMIN_PERMISSIONS.CUSTOMERS,
+  },
+  {
     path: "/admin/reviews",
     component: <AdminLayout><ReviewsPage /></AdminLayout>,
     isAdmin: true,
@@ -270,6 +277,12 @@ const routes = [
     component: <AdminLayout><NewsletterPage /></AdminLayout>,
     isAdmin: true,
     requiredPermission: ADMIN_PERMISSIONS.CUSTOMERS,
+  },
+  // Endereço que não existe (#90): fica por último e tem a menor prioridade.
+  {
+    path: "*",
+    component: <NotFoundPage />,
+    isPrivate: false,
   },
 ];
 

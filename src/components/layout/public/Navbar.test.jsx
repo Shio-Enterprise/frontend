@@ -131,6 +131,28 @@ describe('Navbar', () => {
     expect(router.state.location.pathname).toBe('/signup');
   });
 
+  it('a faixa de desconto cresce com o texto no celular em vez de cortá-lo', () => {
+    const router = createMemoryRouter([{ path: '*', element: <Navbar /> }], { initialEntries: ['/'] });
+    render(<RouterProvider router={router} />);
+    const bannerLink = screen.getByRole('link', { name: /ganhe 10% de desconto/i });
+    // Altura fixa (h-9) cortava o texto em 360px, que quebra em 3 linhas.
+    expect(bannerLink.parentElement.className).not.toMatch(/(^|\s)h-\d/);
+    expect(bannerLink.className).not.toMatch(/(^|\s)h-(full|\d)/);
+    expect(bannerLink).toHaveClass('min-h-9');
+  });
+
+  it('o texto da faixa não passa por baixo do X e o foco aparece no fundo preto', () => {
+    const router = createMemoryRouter([{ path: '*', element: <Navbar /> }], { initialEntries: ['/'] });
+    render(<RouterProvider router={router} />);
+    const bannerLink = screen.getByRole('link', { name: /ganhe 10% de desconto/i });
+    const close = screen.getByRole('button', { name: 'Fechar promoção' });
+    // X: right-2 (8px) + w-11 (44px) = 52px; o link reserva 56px de cada lado.
+    expect(close).toHaveClass('right-2', 'w-11');
+    expect(bannerLink).toHaveClass('px-14');
+    // O contorno padrão é preto e por fora: aqui ele é branco e por dentro da faixa.
+    expect(bannerLink).toHaveClass('focus-visible:outline-white!', 'focus-visible:outline-offset-[-4px]!');
+  });
+
   it('o X fecha a faixa de desconto sem levar ao cadastro', () => {
     const router = createMemoryRouter([{ path: '*', element: <Navbar /> }], { initialEntries: ['/'] });
     render(<RouterProvider router={router} />);

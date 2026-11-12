@@ -29,9 +29,12 @@ export default function Navbar() {
   return (
     <header className="w-full bg-white font-inter text-black">
       {showBanner && (
-        <div className="relative h-9 bg-black text-center text-[13px] text-white">
-          {/* A faixa inteira é o link; o X fica fora dele (irmão), senão o clique no X navegaria. */}
-          <Link to="/signup" className="flex h-full w-full items-center justify-center px-12">
+        <div className="relative bg-black text-center text-[13px] leading-snug text-white">
+          {/* A faixa inteira é o link; o X fica fora dele (irmão), senão o clique no X navegaria.
+              Altura mínima, não fixa: no celular o texto quebra em linhas e não pode ser cortado.
+              px-14 (56px) > área do X (right-2 + w-11 = 52px): o texto não passa por baixo do botão.
+              Foco: contorno branco por dentro; o padrão (preto, por fora) some no fundo preto e atrás do cabeçalho. */}
+          <Link to="/signup" className="flex min-h-9 w-full items-center justify-center px-14 py-2 focus-visible:shadow-none! focus-visible:outline-white! focus-visible:outline-offset-[-4px]!">
             <span>
               Cadastre-se e ganhe 10% de desconto no seu primeiro pedido.{' '}
               <span className="font-semibold underline underline-offset-2">Cadastre-se agora</span>
