@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { axe } from 'vitest-axe';
 import CouponsPage from './index';
 
-const state = vi.hoisted(() => ({ coupons: null, drops: null, categories: null }));
+const state = vi.hoisted(() => ({ coupons: null, drops: null, categories: null, catalogLoading: false }));
 
 vi.mock('../../../hooks/useApi', () => ({
   useApi: (url) => ({
@@ -12,7 +12,7 @@ vi.mock('../../../hooks/useApi', () => ({
       : url.includes('catalog/drops') ? state.drops
       : url.includes('catalog/categories') ? state.categories
       : null,
-    loading: false,
+    loading: url.includes('catalog/') ? state.catalogLoading : false,
     error: null,
     refetch: vi.fn(),
   }),
@@ -33,6 +33,7 @@ describe('CouponsPage', () => {
     state.coupons = [];
     state.drops = null;
     state.categories = null;
+    state.catalogLoading = false;
     vi.stubEnv('VITE_API_URL', 'http://api');
   });
 
@@ -297,6 +298,58 @@ describe('CouponsPage', () => {
         expect(box).toHaveAttribute('type', 'checkbox');
         expect(box).not.toHaveAttribute('tabindex');
       }
+    });
+
+    it('drop marcado que não está na lista é avisado e sai com "Limpar"', async () => {
+      // Ex.: a lista de drops vem paginada e o drop do cupom ficou fora dela.
+      const dialog = openEdit({ ...base, drops: ['d1', 'fora-da-lista'], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      expect(group).toHaveTextContent('2 marcados');
+      expect(group).toHaveTextContent('1 marcado não aparece na lista abaixo.');
+      fireEvent.click(within(group).getByRole('button', { name: 'Limpar drops' }));
+      expect(group).not.toHaveTextContent('não aparece na lista');
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual([]);
+    });
+
+    it('desmarcar os visíveis mantém o que não está na lista', async () => {
+      const dialog = openEdit({ ...base, drops: ['d1', 'fora-da-lista'], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Drop Verão' }));
+      expect(group).toHaveTextContent('1 marcado não aparece na lista abaixo.');
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual(['fora-da-lista']);
+    });
+
+    it('enquanto a lista carrega, mostra "Carregando..." e nenhum aviso falso', () => {
+      state.drops = null;
+      state.catalogLoading = true;
+      const dialog = openEdit({ ...base, drops: ['d1'], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      expect(group).toHaveTextContent('Carregando...');
+      expect(group).not.toHaveTextContent('Nenhum drop cadastrado.');
+      expect(group).not.toHaveTextContent('não aparece na lista');
+    });
+
+    it('erro do backend ao salvar mantém o que estava marcado', async () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, json: () => Promise.resolve({ code: ['Já existe um cupom com este código.'] }) }));
+      const drops = screen.getByRole('group', { name: 'Drops Válidos (opcional)' });
+      const categories = screen.getByRole('group', { name: 'Categorias Válidas (opcional)' });
+      fireEvent.click(within(drops).getByRole('checkbox', { name: 'Drop Inverno' }));
+      fireEvent.click(within(categories).getByRole('checkbox', { name: 'Bonés' }));
+      fireEvent.change(screen.getByPlaceholderText('Ex: VERAO20'), { target: { value: 'TESTE10' } });
+      fireEvent.change(document.querySelector('input[type=number][step="0.01"]'), { target: { value: '10' } });
+      fireEvent.submit(document.getElementById('coupon-form'));
+      expect(await screen.findByText(/Já existe um cupom com este código/)).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(within(drops).getByRole('checkbox', { name: 'Drop Inverno' })).toBeChecked();
+      expect(within(drops).getByRole('checkbox', { name: 'Drop Verão' })).not.toBeChecked();
+      expect(within(categories).getByRole('checkbox', { name: 'Bonés' })).toBeChecked();
+      expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toMatchObject({ drops: ['d2'], categories: ['c2'] });
     });
 
     it('as caixas de marcar não têm violações de acessibilidade', async () => {

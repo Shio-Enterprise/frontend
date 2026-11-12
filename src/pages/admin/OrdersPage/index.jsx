@@ -735,7 +735,8 @@ const OrdersPage = () => {
                 type="button"
                 aria-label="Limpar filtro de cliente"
                 onClick={clearCustomerFilter}
-                className="flex h-11 w-11 items-center justify-center rounded-full font-bold hover:bg-black/10"
+                // shrink-0: com nome longo no celular o botão encolhia para ~14px de largura.
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold hover:bg-black/10"
               >
                 ×
               </button>

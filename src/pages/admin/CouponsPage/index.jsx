@@ -62,9 +62,13 @@ function formatSaveError(data) {
 
 // Caixas de marcar em vez de <select multiple>: um clique marca, outro desmarca,
 // sem Ctrl, e funciona no toque e no teclado (Tab + Espaço) (#101).
-function ScopeChecklist({ legend, items, selected, onChange, clearLabel, countLabel, emptyHint, noItemsText }) {
+function ScopeChecklist({ legend, items, selected, onChange, clearLabel, countLabel, emptyHint, noItemsText, hiddenLabel, loading }) {
   const listRef = useRef(null);
   const selectedIds = selected.map(String);
+  // Marcado no cupom mas fora da lista (ex.: a lista veio paginada): sem aviso, "1 marcado"
+  // apareceria sem nenhuma caixa marcada à vista.
+  const listedIds = new Set(items.map((item) => String(item.id)));
+  const hiddenCount = selectedIds.filter((id) => !listedIds.has(id)).length;
   const toggle = (id) => {
     const key = String(id);
     onChange(selectedIds.includes(key)
@@ -93,8 +97,11 @@ function ScopeChecklist({ legend, items, selected, onChange, clearLabel, countLa
           </button>
         )}
       </div>
+      {!loading && hiddenCount > 0 && (
+        <p className="mb-2 text-xs font-semibold text-shio-warning">{hiddenLabel(hiddenCount)}</p>
+      )}
       {items.length === 0 ? (
-        <p className="text-sm text-shio-muted">{noItemsText}</p>
+        <p className="text-sm text-shio-muted">{loading ? 'Carregando...' : noItemsText}</p>
       ) : (
       <ul ref={listRef} className="max-h-48 overflow-y-auto rounded-lg border border-black/15 px-3 py-1">
         {items.map((item) => (
@@ -140,8 +147,8 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
   const [partner, setPartner] = useState(coupon?.partner || '');
   
   // Scopes (multi-select)
-  const { data: catalogData } = useApi('/api/catalog/categories/');
-  const { data: dropsData } = useApi('/api/catalog/drops/');
+  const { data: catalogData, loading: categoriesLoading } = useApi('/api/catalog/categories/');
+  const { data: dropsData, loading: dropsLoading } = useApi('/api/catalog/drops/');
   
   const categoriesList = catalogData?.results || catalogData || [];
   const dropsList = dropsData?.results || dropsData || [];
@@ -372,23 +379,27 @@ function CouponDrawer({ coupon, onClose, onSaved }) {
             <ScopeChecklist
               legend="Drops Válidos (opcional)"
               items={dropsList}
+              loading={dropsLoading}
               selected={selectedDrops}
               onChange={setSelectedDrops}
               clearLabel="Limpar drops"
               countLabel={(n) => `${n} ${n === 1 ? 'marcado' : 'marcados'}`}
               emptyHint="Nenhum marcado: vale para todos os drops."
               noItemsText="Nenhum drop cadastrado."
+              hiddenLabel={(n) => (n === 1 ? '1 marcado não aparece na lista abaixo.' : `${n} marcados não aparecem na lista abaixo.`)}
             />
 
             <ScopeChecklist
               legend="Categorias Válidas (opcional)"
               items={categoriesList}
+              loading={categoriesLoading}
               selected={selectedCategories}
               onChange={setSelectedCategories}
               clearLabel="Limpar categorias"
               countLabel={(n) => `${n} ${n === 1 ? 'marcada' : 'marcadas'}`}
               emptyHint="Nenhuma marcada: vale para todas as categorias."
               noItemsText="Nenhuma categoria cadastrada."
+              hiddenLabel={(n) => (n === 1 ? '1 marcada não aparece na lista abaixo.' : `${n} marcadas não aparecem na lista abaixo.`)}
             />
 
             <fieldset className="mt-4 border-t pt-2">
