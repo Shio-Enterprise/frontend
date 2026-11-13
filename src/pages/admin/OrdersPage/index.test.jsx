@@ -194,5 +194,103 @@ describe('OrdersPage', () => {
         expect(within(region).getAllByRole('listitem')).toHaveLength(1);
       });
     });
+
+    describe('e-mail de recuperação (#102)', () => {
+      const makeListOrder = (status, extra = {}) => ({
+        id: 'abcdef12-0000-0000-0000-000000000000',
+        customer_name: 'Ana',
+        created_at: '2026-11-10T15:00:00Z',
+        total_amount: '200.00',
+        status,
+        ...extra,
+      });
+
+      const makeDetailOrder = (status, extra = {}) => ({
+        id: order.id,
+        status,
+        created_at: '2026-11-10T15:00:00Z',
+        user: { name: 'Ana', email: 'ana@example.com' },
+        items: [],
+        status_logs: [],
+        recovery_email_sends: [],
+        subtotal: '200.00',
+        shipping_cost: '0',
+        total_amount: '200.00',
+        ...extra,
+      });
+
+      it.each(['AWAITING_PAYMENT', 'CANCELED'])('mostra ação de e-mail na lista para pedido %s e abre o modal', async (status) => {
+        useApiMock.mockReturnValue({ data: [makeListOrder(status)], loading: false, error: null, refetch: vi.fn() });
+        vi.stubGlobal('fetch', vi.fn((url) => {
+          if (String(url).endsWith('/email/preview/')) return Promise.resolve({ ok: true, json: async () => ({ html: '<p>previa</p>' }) });
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              block_reason: null,
+              unsubscribed: false,
+              recipient: { name: 'Ana', email: 'ana@example.com' },
+              order_status: status,
+              suggested_message: 'Sugestão',
+              history: [],
+            }),
+          });
+        }));
+
+        render(<MemoryRouter><OrdersPage /></MemoryRouter>);
+        fireEvent.click(screen.getAllByRole('button', { name: 'Ações para o pedido #ABCDEF12' })[0]);
+        const item = screen.getByRole('menuitem', { name: 'Enviar e-mail ao cliente' });
+        expect(item).toBeInTheDocument();
+
+        fireEvent.click(item);
+        expect(await screen.findByRole('heading', { name: /Enviar e-mail — Pedido #ABCDEF12/ })).toBeInTheDocument();
+        expect(await screen.findByText('ana@example.com')).toBeInTheDocument();
+      });
+
+      it.each(['PAID', 'PREPARING', 'SHIPPED', 'DELIVERED'])('não mostra ação de e-mail na lista para pedido %s', (status) => {
+        useApiMock.mockReturnValue({ data: [makeListOrder(status)], loading: false, error: null, refetch: vi.fn() });
+        render(<MemoryRouter><OrdersPage /></MemoryRouter>);
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Ações para o pedido #ABCDEF12' })[0]);
+        expect(screen.queryByRole('menuitem', { name: 'Enviar e-mail ao cliente' })).not.toBeInTheDocument();
+      });
+
+      it('mostra selo de data de envio na lista', () => {
+        useApiMock.mockReturnValue({
+          data: [makeListOrder('AWAITING_PAYMENT', { last_recovery_email_sent_at: '2026-11-12T15:00:00Z' })],
+          loading: false,
+          error: null,
+          refetch: vi.fn(),
+        });
+        render(<MemoryRouter><OrdersPage /></MemoryRouter>);
+        expect(screen.getAllByText('E-mail enviado em 12/11/2026')).toHaveLength(2);
+      });
+
+      it.each(['AWAITING_PAYMENT', 'CANCELED'])('mostra botão e histórico no detalhe para pedido %s', (status) => {
+        const detailData = makeDetailOrder(status, {
+          recovery_email_sends: [{ id: 'r1', sent_at: '2026-11-12T15:00:00Z', sent_by_name: 'Admin Pedidos', message: 'Oi' }],
+        });
+        useApiMock.mockImplementation((url) => (
+          url === `/api/orders/admin/${order.id}/`
+            ? { data: detailData, loading: false, error: null, refetch: vi.fn() }
+            : { data: [], loading: false, error: null, refetch: vi.fn() }
+        ));
+
+        render(<MemoryRouter initialEntries={[`/admin/orders/${order.id}`]}><OrdersPage /></MemoryRouter>);
+        expect(screen.getByText('E-mail enviado em 12/11/2026 por Admin Pedidos')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Enviar e-mail ao cliente' })).toBeInTheDocument();
+      });
+
+      it.each(['PAID', 'PREPARING', 'SHIPPED', 'DELIVERED'])('não mostra botão de e-mail no detalhe para pedido %s', (status) => {
+        const detailData = makeDetailOrder(status);
+        useApiMock.mockImplementation((url) => (
+          url === `/api/orders/admin/${order.id}/`
+            ? { data: detailData, loading: false, error: null, refetch: vi.fn() }
+            : { data: [], loading: false, error: null, refetch: vi.fn() }
+        ));
+
+        render(<MemoryRouter initialEntries={[`/admin/orders/${order.id}`]}><OrdersPage /></MemoryRouter>);
+        expect(screen.queryByRole('button', { name: 'Enviar e-mail ao cliente' })).not.toBeInTheDocument();
+      });
+    });
   });
 });

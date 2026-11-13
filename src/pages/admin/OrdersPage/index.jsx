@@ -4,6 +4,7 @@ import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { ActionMenu, AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
+import OrderEmailModal from '../../../components/admin/OrderEmailModal';
 import DrawerShell from '../../../components/admin/DrawerShell';
 import Dialog from '../../../components/ui/Dialog';
 import AdminRefundPanel from '../../../components/refunds/AdminRefundPanel';
@@ -24,6 +25,16 @@ const STATUS_MAP = {
 
 const shortId = (id) => `#${String(id).substring(0, 8).toUpperCase()}`;
 
+const canSendOrderEmail = (order) =>
+  order?.status === 'AWAITING_PAYMENT' || order?.status === 'CANCELED';
+
+const formatFullDate = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+};
+
 const PAYMENT_METHOD_MAP = {
   PIX: 'PIX',
   CREDIT_CARD: 'Cartão de Crédito',
@@ -33,7 +44,7 @@ const PAYMENT_METHOD_MAP = {
 
 // ─── Order Detail Drawer ──────────────────────────────────────────────────────
 
-function OrderDetailDrawer({ id, onChanged }) {
+function OrderDetailDrawer({ id, onChanged, onOpenEmailModal }) {
   const navigate = useNavigate();
   const { data: order, loading, refetch } = useApi(`/api/orders/admin/${id}/`);
 
@@ -221,6 +232,29 @@ function OrderDetailDrawer({ id, onChanged }) {
                   </div>
                 )}
               </div>
+
+              {(order.recovery_email_sends?.length > 0 || canSendOrderEmail(order)) && (
+                <div className="mt-4 border-t border-black/10 pt-4 space-y-2">
+                  {order.recovery_email_sends?.length > 0 && (
+                    <p className="text-[13px] font-medium text-gray-700">
+                      E-mail enviado em {formatFullDate(order.recovery_email_sends[0].sent_at)}
+                      {order.recovery_email_sends[0].sent_by_name
+                        ? ` por ${order.recovery_email_sends[0].sent_by_name}`
+                        : ''}
+                    </p>
+                  )}
+                  {canSendOrderEmail(order) && onOpenEmailModal && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenEmailModal(order, refetch)}
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/25 px-4 text-sm font-bold text-black transition hover:bg-black/5"
+                    >
+                      <Icon name="mail" className="h-4 w-4" />
+                      Enviar e-mail ao cliente
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Itens */}
@@ -440,6 +474,11 @@ function OrderBadges({ order }) {
           {EXCHANGE_STATUS[order.exchange_status].label}
         </span>
       )}
+      {order.last_recovery_email_sent_at && (
+        <span className="mt-2 block w-fit rounded-full bg-gray-100 px-3 py-1 text-[13px] font-semibold text-gray-700">
+          E-mail enviado em {formatFullDate(order.last_recovery_email_sent_at)}
+        </span>
+      )}
     </>
   );
 }
@@ -458,6 +497,7 @@ const OrdersPage = () => {
   const [actionError, setActionError] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [canceling, setCanceling] = useState(false);
+  const [emailTarget, setEmailTarget] = useState(null);
   const cancelTitleId = useId();
   // Depois de cancelar, o item do menu some: o foco vai para o aviso do resultado (#64).
   const [notice, setNotice] = useState(null);
@@ -490,6 +530,14 @@ const OrdersPage = () => {
         to: `/admin/orders/${order.id}`,
       },
     ];
+
+    if (canSendOrderEmail(order)) {
+      items.push({
+        label: 'Enviar e-mail ao cliente',
+        icon: 'mail',
+        onClick: () => setEmailTarget({ order }),
+      });
+    }
 
     if (order.status === 'AWAITING_PAYMENT') {
       items.push(
@@ -689,7 +737,24 @@ const OrdersPage = () => {
       </AdminPanel>
 
       {selectedId && (
-        <OrderDetailDrawer id={selectedId} onChanged={refetch} />
+        <OrderDetailDrawer
+          id={selectedId}
+          onChanged={refetch}
+          onOpenEmailModal={(order, refreshDrawer) =>
+            setEmailTarget({ order, onSent: refreshDrawer })
+          }
+        />
+      )}
+
+      {emailTarget && (
+        <OrderEmailModal
+          order={emailTarget.order}
+          onClose={() => setEmailTarget(null)}
+          onSent={() => {
+            emailTarget.onSent?.();
+            refetch();
+          }}
+        />
       )}
 
       {cancelTarget && (
