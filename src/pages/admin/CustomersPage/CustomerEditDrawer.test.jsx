@@ -8,6 +8,10 @@ import apiClient from '../../../lib/axios';
 const { useApiMock } = vi.hoisted(() => ({ useApiMock: vi.fn() }));
 
 vi.mock('../../../hooks/useApi', () => ({ useApi: useApiMock }));
+// A lista de clientes consulta as permissões (frontend#67); aqui o admin tem todas.
+vi.mock('../../../context/AuthContext', () => ({
+  useAuth: () => ({ hasAdminPermission: () => true }),
+}));
 vi.mock('../../../lib/axios', () => ({ default: { patch: vi.fn() } }));
 
 const CUSTOMER = {
