@@ -26,7 +26,7 @@ function setupFetch({ info, send, test, preview } = {}) {
       return preview ? preview() : json({ html: '<p>Prévia Newsletter</p>' });
     }
     if (url.endsWith('/newsletter/test/')) {
-      return test ? test() : json({ sent: true });
+      return test ? test() : json({ sent: true, to: 'admin@shio.com' });
     }
     if (url.endsWith('/newsletter/send/')) {
       return send
@@ -93,7 +93,11 @@ describe('NewsletterModal', () => {
     fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'Corpo do teste' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Enviar teste para mim' }));
-    expect(await screen.findByText(/Teste enviado para o seu e-mail com sucesso/)).toBeInTheDocument();
+    const aviso = await screen.findByText('Teste enviado para admin@shio.com.');
+    // O aviso fica no rodapé, junto do botão: antes ficava depois da prévia, fora da tela.
+    expect(
+      screen.getByRole('button', { name: 'Enviar teste para mim' }).closest('[data-modal-footer]'),
+    ).toContainElement(aviso);
 
     const c = calls.find((x) => x.url.endsWith('/newsletter/test/'));
     expect(c.opts.method).toBe('POST');
@@ -267,5 +271,16 @@ describe('NewsletterModal', () => {
 
     await screen.findByText('Envio iniciado!');
     await waitFor(() => expect(document.activeElement).toHaveTextContent('Envio iniciado!'));
+  });
+
+  it('explica o marcador {nome} junto do campo de mensagem (#99)', async () => {
+    setupFetch();
+    render(<NewsletterModal onClose={() => {}} />);
+    const campo = await screen.findByLabelText('Mensagem');
+    const dica = screen.getByText(/\{nome\}/);
+    expect(dica).toHaveTextContent(
+      'Para chamar a pessoa pelo nome, escreva {nome}. Ex.: "Olá, {nome}!". Quem não tem nome cadastrado recebe "Olá!".',
+    );
+    expect(campo.getAttribute('aria-describedby').split(' ')).toContain(dica.id);
   });
 });
