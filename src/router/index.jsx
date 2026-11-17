@@ -10,7 +10,7 @@ const Router = () => {
     <BrowserRouter>
       <PageViewTracker />
       <ConsentBanner />
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<div role="status" className="p-10 text-center text-shio-muted">Carregando...</div>}>
         <Routes>
           {routes.map((route) => (
             <Route
