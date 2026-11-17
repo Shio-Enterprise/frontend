@@ -4,12 +4,15 @@ import { MemoryRouter } from 'react-router-dom';
 import { axe } from 'vitest-axe';
 import CouponsPage from './index';
 
-const state = vi.hoisted(() => ({ coupons: null }));
+const state = vi.hoisted(() => ({ coupons: null, drops: null, categories: null, catalogLoading: false }));
 
 vi.mock('../../../hooks/useApi', () => ({
   useApi: (url) => ({
-    data: url.includes('admin/coupons') ? state.coupons : null,
-    loading: false,
+    data: url.includes('admin/coupons') ? state.coupons
+      : url.includes('catalog/drops') ? state.drops
+      : url.includes('catalog/categories') ? state.categories
+      : null,
+    loading: url.includes('catalog/') ? state.catalogLoading : false,
     error: null,
     refetch: vi.fn(),
   }),
@@ -28,6 +31,9 @@ function renderPage() {
 describe('CouponsPage', () => {
   beforeEach(() => {
     state.coupons = [];
+    state.drops = null;
+    state.categories = null;
+    state.catalogLoading = false;
     vi.stubEnv('VITE_API_URL', 'http://api');
   });
 
@@ -171,6 +177,191 @@ describe('CouponsPage', () => {
     expect(screen.queryByText('Ilimitado')).not.toBeInTheDocument();
   });
 
+  describe('drops e categorias do cupom (#101)', () => {
+    const drops = [{ id: 'd1', name: 'Drop Verão' }, { id: 'd2', name: 'Drop Inverno' }];
+    const categories = [{ id: 'c1', name: 'Camisetas' }, { id: 'c2', name: 'Bonés' }];
+
+    beforeEach(() => {
+      state.drops = drops;
+      state.categories = categories;
+    });
+
+    function openEdit(coupon) {
+      state.coupons = [coupon];
+      globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(coupon) }));
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: /^Ações para o cupom/ }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Editar Cupom' }));
+      return screen.getByRole('dialog');
+    }
+
+    const sentBody = () => JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+
+    it('um clique marca e outro desmarca, sem Ctrl', () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      const group = screen.getByRole('group', { name: 'Drops Válidos (opcional)' });
+      const verao = within(group).getByRole('checkbox', { name: 'Drop Verão' });
+      fireEvent.click(verao);
+      expect(verao).toBeChecked();
+      fireEvent.click(verao);
+      expect(verao).not.toBeChecked();
+    });
+
+    it('editar, desmarcar um drop e salvar envia a lista sem ele', async () => {
+      const dialog = openEdit({ ...base, drops: ['d1', 'd2'], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      expect(within(group).getByRole('checkbox', { name: 'Drop Verão' })).toBeChecked();
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Drop Verão' }));
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual(['d2']);
+    });
+
+    it('"Limpar" desmarca tudo e o cupom volta a valer para todos', async () => {
+      const dialog = openEdit({ ...base, drops: ['d1'], categories: ['c1', 'c2'] });
+      const categoriesGroup = within(dialog).getByRole('group', { name: 'Categorias Válidas (opcional)' });
+      fireEvent.click(within(categoriesGroup).getByRole('button', { name: 'Limpar categorias' }));
+      expect(within(categoriesGroup).getByRole('checkbox', { name: 'Camisetas' })).not.toBeChecked();
+      expect(within(categoriesGroup).getByRole('checkbox', { name: 'Bonés' })).not.toBeChecked();
+      expect(categoriesGroup).toHaveTextContent('Nenhuma marcada: vale para todas as categorias.');
+      // O botão some: o foco vai para a primeira opção do grupo.
+      expect(document.activeElement).toBe(within(categoriesGroup).getByRole('checkbox', { name: 'Camisetas' }));
+
+      const dropsGroup = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      fireEvent.click(within(dropsGroup).getByRole('checkbox', { name: 'Drop Verão' }));
+      expect(dropsGroup).toHaveTextContent('Nenhum marcado: vale para todos os drops.');
+      expect(within(dropsGroup).queryByRole('button', { name: 'Limpar drops' })).not.toBeInTheDocument();
+
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual([]);
+      expect(sentBody().categories).toEqual([]);
+    });
+
+    it('mostra quantos estão marcados', () => {
+      const dialog = openEdit({ ...base, drops: ['d1'], categories: [] });
+      expect(within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' })).toHaveTextContent('1 marcado');
+    });
+
+    it('categoria também marca e desmarca com um clique', () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      const group = screen.getByRole('group', { name: 'Categorias Válidas (opcional)' });
+      const bones = within(group).getByRole('checkbox', { name: 'Bonés' });
+      fireEvent.click(bones);
+      expect(bones).toBeChecked();
+      expect(group).toHaveTextContent('1 marcada');
+      fireEvent.click(bones);
+      expect(bones).not.toBeChecked();
+      expect(group).toHaveTextContent('Nenhuma marcada: vale para todas as categorias.');
+    });
+
+    it('ID numérico da API e ID da lista batem, e o salvo mantém o tipo', async () => {
+      state.categories = [{ id: 3, name: 'Camisetas' }, { id: 4, name: 'Bonés' }];
+      const dialog = openEdit({ ...base, drops: [], categories: [3, 4] });
+      const group = within(dialog).getByRole('group', { name: 'Categorias Válidas (opcional)' });
+      expect(within(group).getByRole('checkbox', { name: 'Camisetas' })).toBeChecked();
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Camisetas' }));
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().categories).toEqual([4]);
+    });
+
+    it('marcar várias e salvar envia todas', async () => {
+      const dialog = openEdit({ ...base, drops: [], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Drop Verão' }));
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Drop Inverno' }));
+      expect(group).toHaveTextContent('2 marcados');
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual(['d1', 'd2']);
+    });
+
+    it('sem drops cadastrados mostra um aviso em vez de uma caixa vazia', () => {
+      state.drops = [];
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      const group = screen.getByRole('group', { name: 'Drops Válidos (opcional)' });
+      expect(within(group).queryByRole('list')).not.toBeInTheDocument();
+      expect(group).toHaveTextContent('Nenhum drop cadastrado.');
+    });
+
+    it('as opções são caixas de marcar nativas, na ordem do Tab', () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      const boxes = within(screen.getByRole('group', { name: 'Drops Válidos (opcional)' })).getAllByRole('checkbox');
+      // input type=checkbox nativo: Espaço marca/desmarca sem código extra; nenhum tabindex negativo.
+      for (const box of boxes) {
+        expect(box.tagName).toBe('INPUT');
+        expect(box).toHaveAttribute('type', 'checkbox');
+        expect(box).not.toHaveAttribute('tabindex');
+      }
+    });
+
+    it('drop marcado que não está na lista é avisado e sai com "Limpar"', async () => {
+      // Ex.: a lista de drops vem paginada e o drop do cupom ficou fora dela.
+      const dialog = openEdit({ ...base, drops: ['d1', 'fora-da-lista'], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      expect(group).toHaveTextContent('2 marcados');
+      expect(group).toHaveTextContent('1 marcado não aparece na lista abaixo.');
+      fireEvent.click(within(group).getByRole('button', { name: 'Limpar drops' }));
+      expect(group).not.toHaveTextContent('não aparece na lista');
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual([]);
+    });
+
+    it('desmarcar os visíveis mantém o que não está na lista', async () => {
+      const dialog = openEdit({ ...base, drops: ['d1', 'fora-da-lista'], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      fireEvent.click(within(group).getByRole('checkbox', { name: 'Drop Verão' }));
+      expect(group).toHaveTextContent('1 marcado não aparece na lista abaixo.');
+      fireEvent.submit(document.getElementById('coupon-form'));
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(sentBody().drops).toEqual(['fora-da-lista']);
+    });
+
+    it('enquanto a lista carrega, mostra "Carregando..." e nenhum aviso falso', () => {
+      state.drops = null;
+      state.catalogLoading = true;
+      const dialog = openEdit({ ...base, drops: ['d1'], categories: [] });
+      const group = within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' });
+      expect(group).toHaveTextContent('Carregando...');
+      expect(group).not.toHaveTextContent('Nenhum drop cadastrado.');
+      expect(group).not.toHaveTextContent('não aparece na lista');
+    });
+
+    it('erro do backend ao salvar mantém o que estava marcado', async () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, json: () => Promise.resolve({ code: ['Já existe um cupom com este código.'] }) }));
+      const drops = screen.getByRole('group', { name: 'Drops Válidos (opcional)' });
+      const categories = screen.getByRole('group', { name: 'Categorias Válidas (opcional)' });
+      fireEvent.click(within(drops).getByRole('checkbox', { name: 'Drop Inverno' }));
+      fireEvent.click(within(categories).getByRole('checkbox', { name: 'Bonés' }));
+      fireEvent.change(screen.getByPlaceholderText('Ex: VERAO20'), { target: { value: 'TESTE10' } });
+      fireEvent.change(document.querySelector('input[type=number][step="0.01"]'), { target: { value: '10' } });
+      fireEvent.submit(document.getElementById('coupon-form'));
+      expect(await screen.findByText(/Já existe um cupom com este código/)).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      // O erro fica no topo do formulário: o foco vai até ele para não passar despercebido.
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('alert')));
+      expect(within(drops).getByRole('checkbox', { name: 'Drop Inverno' })).toBeChecked();
+      expect(within(drops).getByRole('checkbox', { name: 'Drop Verão' })).not.toBeChecked();
+      expect(within(categories).getByRole('checkbox', { name: 'Bonés' })).toBeChecked();
+      expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toMatchObject({ drops: ['d2'], categories: ['c2'] });
+    });
+
+    it('as caixas de marcar não têm violações de acessibilidade', async () => {
+      const { container } = render(<MemoryRouter><CouponsPage /></MemoryRouter>);
+      fireEvent.click(screen.getByRole('button', { name: '+ Novo Cupom' }));
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Drop Verão' }));
+      expect(await axe(container)).toHaveNoViolations();
+    });
+  });
+
   describe('acessibilidade (#64)', () => {
     it('cupom novo abre como modal com campos rotulados e fecha com Esc', async () => {
       renderPage();
@@ -178,10 +369,11 @@ describe('CouponsPage', () => {
       opener.focus();
       fireEvent.click(opener);
       const dialog = screen.getByRole('dialog', { name: 'Novo Cupom' });
-      for (const name of ['Código', 'Descrição', 'Tipo de Desconto', 'Valor', 'Início', 'Fim', 'Usos Totais', 'Usos por Usuário', 'Drops Válidos (opcional)', 'Parceiro (Méliuz, Influenciador)']) {
+      for (const name of ['Código', 'Descrição', 'Tipo de Desconto', 'Valor', 'Início', 'Fim', 'Usos Totais', 'Usos por Usuário', 'Parceiro (Méliuz, Influenciador)']) {
         expect(within(dialog).getByLabelText(name)).toBeInTheDocument();
       }
-      expect(within(dialog).getByLabelText('Drops Válidos (opcional)')).toHaveAccessibleDescription(/segure Ctrl/);
+      expect(within(dialog).getByRole('group', { name: 'Drops Válidos (opcional)' })).toBeInTheDocument();
+      expect(within(dialog).getByRole('group', { name: 'Categorias Válidas (opcional)' })).toBeInTheDocument();
       fireEvent.keyDown(dialog, { key: 'Escape' });
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(document.activeElement).toBe(opener);

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
+import { useAuth } from '../../../context/AuthContext';
+import { ADMIN_PERMISSIONS } from '../../../lib/adminPermissions';
 import { ActionMenu, AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
 import DrawerShell from '../../../components/admin/DrawerShell';
@@ -130,6 +132,10 @@ function CustomerProfileDrawer({ id }) {
 // ─── CustomersPage ────────────────────────────────────────────────────────────
 
 const CustomersPage = () => {
+  // Sem a permissão, o admin seria só devolvido para cá ao abrir a outra tela (#88).
+  const { hasAdminPermission } = useAuth();
+  const canSeeOrders = hasAdminPermission(ADMIN_PERMISSIONS.ORDERS);
+  const canSeeDashboard = hasAdminPermission(ADMIN_PERMISSIONS.DASHBOARD);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -198,8 +204,8 @@ const CustomersPage = () => {
                     label={`Ações para ${customer.name || customer.email}`}
                     items={[
                       { label: 'Ver perfil', to: `/admin/customers/${customer.id}` },
-                      { label: 'Ver pedidos', to: `/admin/orders?customer=${customer.id}` },
-                      { label: 'Ver comportamento', to: `/admin/dashboard?usuario=${customer.id}` },
+                      ...(canSeeOrders ? [{ label: 'Ver pedidos', to: `/admin/orders?customer=${customer.id}` }] : []),
+                      ...(canSeeDashboard ? [{ label: 'Ver comportamento', to: `/admin/dashboard?usuario=${customer.id}` }] : []),
                       { label: 'Editar cliente', to: `/admin/customers/${customer.id}/edit` },
                       { separator: true, key: 'sep' },
                       { label: 'Excluir cliente', danger: true, icon: 'trash', onClick: () => {} },
