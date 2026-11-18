@@ -6,8 +6,8 @@ import CouponsPage from './index';
 
 const state = vi.hoisted(() => ({ coupons: null, drops: null, categories: null, catalogLoading: false }));
 
-vi.mock('../../../hooks/useApi', () => ({
-  useApi: (url) => ({
+vi.mock('../../../hooks/useApi', () => {
+  const useApi = (url) => ({
     data: url.includes('admin/coupons') ? state.coupons
       : url.includes('catalog/drops') ? state.drops
       : url.includes('catalog/categories') ? state.categories
@@ -15,8 +15,9 @@ vi.mock('../../../hooks/useApi', () => ({
     loading: url.includes('catalog/') ? state.catalogLoading : false,
     error: null,
     refetch: vi.fn(),
-  }),
-}));
+  });
+  return { useApi, useApiAll: useApi };
+});
 vi.mock('../../../lib/authToken', () => ({ getAccessToken: () => 'tok' }));
 vi.mock('../../../components/admin/CouponEmailModal', () => ({
   default: ({ coupon }) => <div>modal-email {coupon.code}</div>,

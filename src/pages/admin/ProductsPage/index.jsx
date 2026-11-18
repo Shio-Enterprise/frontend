@@ -3,7 +3,7 @@ import VariationManager from '../../../components/admin/VariationManager';
 import { VariationFields, MarginSummary } from '../../../components/admin/ProductFields';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useMatch, useNavigate } from 'react-router-dom';
-import { useApi } from '../../../hooks/useApi';
+import { useApi, useApiAll } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { ActionMenu, AdminPanel, AdminTitle, BlackButton, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
@@ -389,7 +389,7 @@ function StockManagementDrawer({ id, refetchList }) {
 
 const ProductsPage = () => {
   const { data: apiResponse, loading, error, refetch } = useApi('/api/catalog/products/');
-  const { data: dropsResponse } = useApi('/api/catalog/drops/');
+  const { data: dropsResponse } = useApiAll('/api/catalog/drops/');
   const [search, setSearch] = useState('');
   const [actionError, setActionError] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
