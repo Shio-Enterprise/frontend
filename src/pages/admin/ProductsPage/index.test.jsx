@@ -10,6 +10,7 @@ const { useApiMock } = vi.hoisted(() => ({
 
 vi.mock('../../../hooks/useApi', () => ({
   useApi: useApiMock,
+  useApiAll: useApiMock,
 }));
 
 afterEach(() => {
