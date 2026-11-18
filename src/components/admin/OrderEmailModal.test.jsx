@@ -125,6 +125,9 @@ describe('OrderEmailModal', () => {
     const statusBanner = await screen.findByText(/E-mail enviado em 13\/11\/2026 para ana@example\.com\./);
     expect(statusBanner).toBeInTheDocument();
     await waitFor(() => expect(document.activeElement).toBe(statusBanner));
+    expect(screen.getByText('Histórico de envios')).toBeInTheDocument();
+    expect(screen.getByText('E-mail enviado em 13/11/2026')).toBeInTheDocument();
+    expect(screen.getByText(/Admin Pedidos/)).toBeInTheDocument();
     expect(onSent).toHaveBeenCalledTimes(1);
     expect(window.confirm).not.toHaveBeenCalled();
   });
@@ -146,6 +149,7 @@ describe('OrderEmailModal', () => {
     render(<OrderEmailModal order={order} onClose={() => {}} />);
 
     expect(await screen.findByText('E-mail enviado em 10/11/2026')).toBeInTheDocument();
+    expect(screen.getByText('Histórico de envios')).toBeInTheDocument();
     expect(screen.getByText(/Ana Admin/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Reenviar e-mail' }));

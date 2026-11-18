@@ -291,6 +291,53 @@ describe('OrdersPage', () => {
         render(<MemoryRouter initialEntries={[`/admin/orders/${order.id}`]}><OrdersPage /></MemoryRouter>);
         expect(screen.queryByRole('button', { name: 'Enviar e-mail ao cliente' })).not.toBeInTheDocument();
       });
+
+      it('ao fechar modal aberto pelo painel de detalhes, devolve foco ao botão de enviar e-mail', async () => {
+        const detailData = makeDetailOrder('AWAITING_PAYMENT');
+        useApiMock.mockImplementation((url) => (
+          url === `/api/orders/admin/${order.id}/`
+            ? { data: detailData, loading: false, error: null, refetch: vi.fn() }
+            : { data: [], loading: false, error: null, refetch: vi.fn() }
+        ));
+        vi.stubGlobal('fetch', vi.fn((url) => {
+          if (String(url).endsWith('/email/preview/')) return Promise.resolve({ ok: true, json: async () => ({ html: '<p>previa</p>' }) });
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              block_reason: null,
+              unsubscribed: false,
+              recipient: { name: 'Ana', email: 'ana@example.com' },
+              order_status: 'AWAITING_PAYMENT',
+              suggested_message: 'Sugestão',
+              history: [],
+            }),
+          });
+        }));
+
+        render(<MemoryRouter initialEntries={[`/admin/orders/${order.id}`]}><OrdersPage /></MemoryRouter>);
+        const emailBtn = screen.getByRole('button', { name: 'Enviar e-mail ao cliente' });
+        fireEvent.click(emailBtn);
+        expect(await screen.findByRole('heading', { name: /Enviar e-mail — Pedido #ABCDEF12/ })).toBeInTheDocument();
+        await screen.findByText('ana@example.com');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+        await waitFor(() => expect(screen.queryByRole('heading', { name: /Enviar e-mail/ })).not.toBeInTheDocument());
+        expect(document.activeElement).toBe(emailBtn);
+      });
+
+      it('avisa antes de abrir o modal quando cliente é descadastrado', () => {
+        const listOrder = makeListOrder('AWAITING_PAYMENT', { email_unsubscribed: true });
+        const detailData = makeDetailOrder('AWAITING_PAYMENT', { email_unsubscribed: true });
+        useApiMock.mockImplementation((url) => (
+          url === `/api/orders/admin/${order.id}/`
+            ? { data: detailData, loading: false, error: null, refetch: vi.fn() }
+            : { data: [listOrder], loading: false, error: null, refetch: vi.fn() }
+        ));
+
+        render(<MemoryRouter initialEntries={[`/admin/orders/${order.id}`]}><OrdersPage /></MemoryRouter>);
+        expect(screen.getAllByText('Descadastrado de e-mails')).toHaveLength(2);
+        expect(screen.getByText('O cliente pediu para não receber e-mails.')).toBeInTheDocument();
+      });
     });
   });
 });

@@ -1,26 +1,11 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Dialog from '../ui/Dialog';
 import { getAccessToken } from '../../lib/authToken';
+import { formatOrderDate, formatOrderDateTime, shortOrderId } from '../../lib/orderFormat';
 import { BlackButton, Icon } from '../ui/ShioDesign';
 
 const MAX_MESSAGE = 500;
 const PREVIEW_DEBOUNCE_MS = 400;
-
-const pad = (n) => String(n).padStart(2, '0');
-
-const fmtDate = (iso) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-};
-
-const fmtDateTime = (iso) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${fmtDate(iso)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
-const shortId = (id) => `#${String(id).substring(0, 8).toUpperCase()}`;
 
 export default function OrderEmailModal({ order, onClose, onSent }) {
   const baseUrl = `${import.meta.env.VITE_API_URL}/api/orders/admin/${order.id}/email/`;
@@ -139,6 +124,22 @@ export default function OrderEmailModal({ order, onClose, onSent }) {
       if (!res.ok) throw new Error(data.error || 'Não foi possível enviar o e-mail.');
       setResult(data);
       setConfirming(false);
+      setInfo((prev) =>
+        prev
+          ? {
+              ...prev,
+              history: [
+                {
+                  id: data.id || data.sent_at || new Date().toISOString(),
+                  sent_at: data.sent_at || new Date().toISOString(),
+                  sent_by_name: data.sent_by_name ?? null,
+                  message: data.message ?? message,
+                },
+                ...(prev.history || []),
+              ],
+            }
+          : prev,
+      );
       onSent?.(data);
     } catch (e) {
       setError(e.message);
@@ -152,7 +153,7 @@ export default function OrderEmailModal({ order, onClose, onSent }) {
   const lastSend = history[0];
   const recipient = info?.recipient;
   const blocked = !info || !!info.block_reason;
-  const sentDateLabel = result ? fmtDate(result.sent_at || new Date().toISOString()) : null;
+  const sentDateLabel = result ? formatOrderDate(result.sent_at || new Date().toISOString()) : null;
 
   return (
     <Dialog
@@ -163,7 +164,7 @@ export default function OrderEmailModal({ order, onClose, onSent }) {
     >
       <div className="flex items-center justify-between gap-3 border-b px-6 py-3">
         <h2 id={titleId} className="text-xl font-bold uppercase tracking-tight">
-          Enviar e-mail — Pedido {shortId(order.id)}
+          Enviar e-mail — Pedido {shortOrderId(order.id)}
         </h2>
         <button
           type="button"
@@ -203,12 +204,12 @@ export default function OrderEmailModal({ order, onClose, onSent }) {
         {history.length > 0 && (
           <div className="rounded-md bg-amber-50 border border-amber-200 p-4 text-xs text-gray-800 space-y-1">
             <p className="text-sm font-semibold text-black">
-              E-mail enviado em {fmtDate(lastSend.sent_at)}
+              E-mail enviado em {formatOrderDate(lastSend.sent_at)}
             </p>
-            <p className="font-semibold uppercase tracking-wider text-gray-600 pt-1">Envios anteriores</p>
+            <p className="font-semibold uppercase tracking-wider text-gray-600 pt-1">Histórico de envios</p>
             {history.map((h) => (
               <p key={h.id || h.sent_at}>
-                {fmtDateTime(h.sent_at)} · {h.sent_by_name || '—'}
+                {formatOrderDateTime(h.sent_at)} · {h.sent_by_name || '—'}
               </p>
             ))}
           </div>
@@ -280,7 +281,7 @@ export default function OrderEmailModal({ order, onClose, onSent }) {
           >
             <p id={`${titleId}-confirm`} className="text-sm font-semibold">
               {lastSend
-                ? `Um e-mail já foi enviado em ${fmtDate(lastSend.sent_at)}. Deseja enviar novamente para ${recipient?.email || 'o cliente'}?`
+                ? `Um e-mail já foi enviado em ${formatOrderDate(lastSend.sent_at)}. Deseja enviar novamente para ${recipient?.email || 'o cliente'}?`
                 : `Enviar e-mail para ${recipient?.email || 'o cliente'}?`}
             </p>
             <div className="flex gap-3">
