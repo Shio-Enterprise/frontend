@@ -59,6 +59,83 @@ describe('HomepagePage', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/homepage/banners/b1/'), expect.objectContaining({ method: 'PATCH' })));
   });
 
+  it('makes the edit mode explicit: focus, banner name and highlight in the list', async () => {
+    render(<MemoryRouter><HomepagePage /></MemoryRouter>);
+    await screen.findByText('Campanha');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    const heading = screen.getByRole('heading', { name: 'Editar banner' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAccessibleDescription(/Editando: Campanha/);
+    expect(screen.getByText('Em edição').closest('li')).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByText('Imagem atual')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trocar imagem para computador' })).toBeInTheDocument();
+  });
+
+  it('switches the edited banner and returns focus to its Editar button on cancel', async () => {
+    const second = { ...banner, id: 'b2', alt_text: 'Segundo', display_order: 1 };
+    fetch.mockImplementation((url) => url.includes('/admin/')
+      ? reply({ tagline: 'Frase atual', banners: [banner, second] }) : reply({}));
+    render(<MemoryRouter><HomepagePage /></MemoryRouter>);
+    await screen.findByText('Segundo');
+    const [editFirst, editSecond] = screen.getAllByRole('button', { name: 'Editar' });
+    fireEvent.click(editFirst);
+    fireEvent.click(editSecond);
+    expect(screen.getByText('Editando: Segundo')).toBeInTheDocument();
+    expect(screen.getByText('Em edição').closest('li')).toHaveTextContent('Segundo');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar edição' }));
+    await waitFor(() => expect(editSecond).toHaveFocus());
+    expect(screen.getByRole('heading', { name: 'Adicionar banner' })).toBeInTheDocument();
+    expect(screen.queryByText('Em edição')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Texto alternativo')).toHaveValue('');
+  });
+
+  it('leaves edit mode after saving', async () => {
+    render(<MemoryRouter><HomepagePage /></MemoryRouter>);
+    await screen.findByText('Campanha');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar banner' }));
+    await screen.findByText('Banner publicado.');
+    expect(screen.getByRole('heading', { name: 'Adicionar banner' })).toBeInTheDocument();
+    expect(screen.queryByText('Em edição')).not.toBeInTheDocument();
+  });
+
+  it('leaves edit mode when the banner being edited is removed', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const second = { ...banner, id: 'b2', alt_text: 'Segundo', display_order: 1 };
+    let list = [banner, second];
+    fetch.mockImplementation((url, init) => {
+      if (url.endsWith('/homepage/banners/b2/') && init?.method === 'DELETE') { list = [banner]; return reply(null, 204); }
+      return url.includes('/admin/') ? reply({ tagline: 'Frase atual', banners: list }) : reply({});
+    });
+    render(<MemoryRouter><HomepagePage /></MemoryRouter>);
+    await screen.findByText('Segundo');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar' })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remover' })[1]);
+    await screen.findByText('Banner removido.');
+    expect(screen.getByRole('heading', { name: 'Adicionar banner' })).toBeInTheDocument();
+    expect(screen.queryByText(/Editando:/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Texto alternativo')).toHaveValue('');
+    vi.restoreAllMocks();
+  });
+
+  it('keeps editing another banner when a different one is removed', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const second = { ...banner, id: 'b2', alt_text: 'Segundo', display_order: 1 };
+    let list = [banner, second];
+    fetch.mockImplementation((url, init) => {
+      if (url.endsWith('/homepage/banners/b1/') && init?.method === 'DELETE') { list = [second]; return reply(null, 204); }
+      return url.includes('/admin/') ? reply({ tagline: 'Frase atual', banners: list }) : reply({});
+    });
+    render(<MemoryRouter><HomepagePage /></MemoryRouter>);
+    await screen.findByText('Segundo');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar' })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remover' })[0]);
+    await screen.findByText('Banner removido.');
+    expect(screen.getByRole('heading', { name: 'Editar banner' })).toBeInTheDocument();
+    expect(screen.getByText('Editando: Segundo')).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
   it('removes a banner after confirmation', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<MemoryRouter><HomepagePage /></MemoryRouter>);
@@ -85,6 +162,9 @@ describe('HomepagePage', () => {
     await screen.findByText('Campanha');
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Remover imagem de celular atual' }));
+    expect(screen.queryByText('Imagem atual', { selector: 'figcaption' })).toBeInTheDocument();
+    expect(screen.getAllByText('Imagem atual')).toHaveLength(1);
+    expect(screen.getAllByText('Nenhuma nova imagem — a atual será mantida')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Salvar banner' }));
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/homepage/banners/b1/'), expect.objectContaining({ method: 'PATCH' })));
     const options = fetch.mock.calls.find(([url, init]) => url.endsWith('/homepage/banners/b1/') && init.method === 'PATCH')[1];

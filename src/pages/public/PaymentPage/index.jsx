@@ -27,8 +27,8 @@ const apiErrorMessage = (data, response, fallback) => {
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-const PixLogo = () => (
-  <svg viewBox="0 0 48 48" className="h-12 w-12" fill="none" aria-hidden="true">
+const PixLogo = ({ className = "h-12 w-12" }) => (
+  <svg viewBox="0 0 48 48" className={className} fill="none" aria-hidden="true">
     <path d="M17.5 6.5L24 0L30.5 6.5L24 13L17.5 6.5Z" fill="black" />
     <path d="M41.5 17.5L48 24L41.5 30.5L35 24L41.5 17.5Z" fill="black" />
     <path d="M30.5 41.5L24 48L17.5 41.5L24 35L30.5 41.5Z" fill="black" />
@@ -38,8 +38,8 @@ const PixLogo = () => (
   </svg>
 );
 
-const CreditCardIcon = () => (
-  <svg viewBox="0 0 56 40" className="h-11 w-14" fill="none" aria-hidden="true">
+const CreditCardIcon = ({ className = "h-11 w-14" }) => (
+  <svg viewBox="0 0 56 40" className={className} fill="none" aria-hidden="true">
     <rect width="56" height="40" rx="5" fill="black" />
     <rect y="11" width="56" height="11" fill="#222" />
     <rect x="6" y="27" width="14" height="7" rx="2" fill="#444" />
@@ -515,7 +515,7 @@ const PaymentPage = () => {
       refreshCart();
       setActionMessage(`${productName} removido do pedido.`);
       // O botão some com o item: foco vai para o título da etapa.
-      stepHeaders.current[2]?.focus();
+      stepHeaders.current[1]?.focus();
     } catch (error) {
       setCheckoutError(error.message);
     } finally {
@@ -690,7 +690,7 @@ const PaymentPage = () => {
       checkoutErrorRef.current ??
       freightErrorRef.current ??
       couponErrorRef.current ??
-      stepHeaders.current[2]
+      stepHeaders.current[1]
     )?.focus();
   }, [submitting]);
 
@@ -853,7 +853,7 @@ const PaymentPage = () => {
           {/* ── Step 1: ENTREGA ── */}
           <StepCard
             number={1}
-            total={3}
+            total={2}
             title="Entrega"
             active={activeStep === 0}
             onClick={() => setActiveStep(0)}
@@ -965,56 +965,19 @@ const PaymentPage = () => {
                 onClick={() => goToStep(1)}
                 className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/35"
               >
-                Continuar para Pagamento
+                Continuar para Revisão
               </button>
             </div>
           </StepCard>
 
-          {/* ── Step 2: PAGAMENTO ── */}
+          {/* ── Step 2: REVISÃO ── */}
           <StepCard
             number={2}
-            total={3}
-            title="Pagamento"
+            total={2}
+            title="Revisão"
             active={activeStep === 1}
             onClick={() => setActiveStep(1)}
             headerRef={(el) => { stepHeaders.current[1] = el; }}
-          >
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-black/10 py-6">
-                  <PixLogo />
-                  <span className="text-[15px] font-bold text-black">PIX</span>
-                </div>
-                <div className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-black/10 py-6">
-                  <CreditCardIcon />
-                  <span className="text-[15px] font-bold text-black">
-                    Cartão
-                  </span>
-                  <span className="text-[12px] text-shio-muted">ATÉ 12X</span>
-                </div>
-              </div>
-              <p className="text-[13px] text-shio-muted">
-                Escolha PIX ou cartão na página de pagamento da InfinitePay.
-              </p>
-              <button
-                type="button"
-                onClick={() => goToStep(2)}
-                disabled={!hasCalculation || cartUpdating || submitting}
-                className="h-12 w-full rounded-full bg-black text-[14px] font-bold uppercase tracking-widest text-white transition hover:bg-black/85 disabled:bg-black/35"
-              >
-                Revisar Pedido
-              </button>
-            </div>
-          </StepCard>
-
-          {/* ── Step 3: REVISÃO ── */}
-          <StepCard
-            number={3}
-            total={3}
-            title="Revisão"
-            active={activeStep === 2}
-            onClick={() => setActiveStep(2)}
-            headerRef={(el) => { stepHeaders.current[2] = el; }}
           >
             {cartLoading ? (
               <p className="py-4 text-center text-[14px] text-shio-muted">
@@ -1279,6 +1242,29 @@ const PaymentPage = () => {
                       {total === null ? "A calcular" : `R$ ${total.toFixed(2)}`}
                     </span>
                   </div>
+                </div>
+
+                {/* Pagamento: PIX ou cartão, escolhidos na InfinitePay. */}
+                <div className="rounded-[10px] bg-[#f7f7f7] px-4 py-3 text-[13px]">
+                  <h4 className="mb-2 text-[12px] font-semibold uppercase text-shio-muted">
+                    Formas de pagamento
+                  </h4>
+                  <ul className="flex flex-wrap gap-x-6 gap-y-2">
+                    <li className="flex items-center gap-2">
+                      <PixLogo className="h-5 w-5" />
+                      <span className="font-bold text-black">PIX</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CreditCardIcon className="h-5 w-7" />
+                      <span className="font-bold text-black">
+                        Cartão em até 12x
+                      </span>
+                    </li>
+                  </ul>
+                  <p className="mt-2 text-black/60">
+                    Você escolhe a forma de pagamento na página segura da
+                    InfinitePay, depois de finalizar a compra.
+                  </p>
                 </div>
 
                 {freightError && (

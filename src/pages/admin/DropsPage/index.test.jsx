@@ -8,7 +8,7 @@ const { useApiMock } = vi.hoisted(() => ({
   useApiMock: vi.fn(() => ({ data: null, loading: false, error: null, refetch: vi.fn() })),
 }));
 
-vi.mock('../../../hooks/useApi', () => ({ useApi: useApiMock }));
+vi.mock('../../../hooks/useApi', () => ({ useApi: useApiMock, useApiAll: useApiMock }));
 
 const drop = {
   id: 'd1', name: 'Drop Genesis', slug: 'genesis', launch_date: '2026-01-10T00:00:00Z',

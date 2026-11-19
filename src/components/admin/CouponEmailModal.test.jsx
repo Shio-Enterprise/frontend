@@ -16,7 +16,7 @@ function setupFetch({ info, send, test } = {}) {
   globalThis.fetch = vi.fn((url, opts = {}) => {
     calls.push({ url, opts });
     if (url.endsWith('/email/preview/')) return json({ html: '<p>oi</p>' });
-    if (url.endsWith('/email/test/')) return test ? test() : json({ sent: true });
+    if (url.endsWith('/email/test/')) return test ? test() : json({ sent: true, to: 'admin@shio.com' });
     if (url.endsWith('/email/send/')) {
       return send ? send() : json({ sent_count: 87, failed_count: 0, sent_at: '2026-10-20T10:00:00Z' }, 201);
     }
@@ -68,7 +68,11 @@ describe('CouponEmailModal', () => {
     await screen.findByText('87 pessoas');
     fireEvent.change(screen.getByLabelText(/Mensagem/), { target: { value: 'Olá' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enviar teste para mim' }));
-    await screen.findByText(/Teste enviado/);
+    const aviso = await screen.findByText('Teste enviado para admin@shio.com.');
+    // O aviso fica no rodapé, junto do botão: antes ficava depois da prévia, fora da tela.
+    expect(
+      screen.getByRole('button', { name: 'Enviar teste para mim' }).closest('[data-modal-footer]'),
+    ).toContainElement(aviso);
     const c = calls.find((x) => x.url.endsWith('/email/test/'));
     expect(c.opts.method).toBe('POST');
     expect(c.opts.headers.Authorization).toBe('Bearer tok');
@@ -216,5 +220,16 @@ describe('CouponEmailModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enviar para 87 pessoas' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio' }));
     await waitFor(() => expect(document.activeElement).toHaveTextContent('Falhou.'));
+  });
+
+  it('explica o marcador {nome} junto do campo de mensagem (#99)', async () => {
+    setupFetch();
+    render(<CouponEmailModal coupon={coupon} onClose={() => {}} />);
+    const campo = await screen.findByLabelText('Mensagem (opcional)');
+    const dica = screen.getByText(/\{nome\}/);
+    expect(dica).toHaveTextContent(
+      'Para chamar a pessoa pelo nome, escreva {nome}. Ex.: "Olá, {nome}!". Quem não tem nome cadastrado recebe "Olá!".',
+    );
+    expect(campo.getAttribute('aria-describedby').split(' ')).toContain(dica.id);
   });
 });
