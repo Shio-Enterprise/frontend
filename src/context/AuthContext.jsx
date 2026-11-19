@@ -15,7 +15,7 @@ import {
 } from "../lib/authToken";
 import apiClient from "../lib/axios";
 import { firstAllowedAdminRoute, resolveAdminPermissions } from '../lib/adminPermissions';
-import { linkAnonymousEvents, resetAnonymousId } from '../lib/analytics';
+import { linkAnonymousEvents, resetAnonymousId, syncAnalyticsConsent } from '../lib/analytics';
 
 const AuthContext = createContext(null);
 const getStoredUser = () => {
@@ -117,7 +117,7 @@ export const AuthProvider = ({ children }) => {
     setIsAdmin(
       userData.is_admin || userData.is_staff || userData.is_superuser || false,
     );
-    linkAnonymousEvents();
+    syncAnalyticsConsent().then(linkAnonymousEvents);
   };
 
   const refreshUser = async () => {
