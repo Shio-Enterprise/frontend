@@ -8,25 +8,11 @@ const WelcomeModal = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const modalClosedAt = localStorage.getItem('welcomeModalClosedAt');
     const token = getAccessToken();
 
-    let shouldShow = false;
-
+    // Exibe o modal sempre que o usuário não estiver logado,
+    // independente de ter fechado antes.
     if (!token) {
-      if (!modalClosedAt) {
-        shouldShow = true;
-      } else {
-        const closedTime = parseInt(modalClosedAt, 10);
-        const oneDayInMs = 1 * 24 * 60 * 60 * 1000;
-
-        if (Date.now() - closedTime > oneDayInMs) {
-          shouldShow = true;
-        }
-      }
-    }
-
-    if (shouldShow) {
       const timer = setTimeout(() => {
         setIsOpen(true);
       }, 3000);
@@ -37,7 +23,6 @@ const WelcomeModal = () => {
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
-    localStorage.setItem('welcomeModalClosedAt', Date.now().toString());
   }, []);
 
   if (!isOpen) return null;

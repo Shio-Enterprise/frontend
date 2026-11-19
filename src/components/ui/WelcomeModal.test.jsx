@@ -53,18 +53,19 @@ describe('WelcomeModal', () => {
     expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
   });
 
-  it('não deve renderizar se o modal foi fechado há menos de 1 dia', () => {
+  it('deve renderizar mesmo que o modal tenha sido fechado recentemente (sem cooldown)', () => {
+    // Antes havia cooldown de 1 dia; agora o modal sempre aparece para usuário deslogado.
     localStorage.setItem('welcomeModalClosedAt', Date.now().toString());
     renderModal();
 
     act(() => {
-      vi.advanceTimersByTime(3500);
+      vi.advanceTimersByTime(3000);
     });
 
-    expect(screen.queryByText('Seja muito bem-vindo(a)!')).not.toBeInTheDocument();
+    expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
   });
 
-  it('deve renderizar após 3 segundos se o usuário não estiver logado e não tiver visto o modal recentemente', () => {
+  it('deve renderizar após 3 segundos se o usuário não estiver logado', () => {
     renderModal();
 
     expect(screen.queryByText('Seja muito bem-vindo(a)!')).not.toBeInTheDocument();
@@ -77,7 +78,7 @@ describe('WelcomeModal', () => {
     expect(document.body.style.overflow).toBe('hidden');
   });
 
-  it('deve renderizar se o modal foi fechado há mais de 1 dia', () => {
+  it('deve renderizar mesmo com timestamp antigo no localStorage (cooldown removido)', () => {
     const doisDiasAtras = Date.now() - (2 * 24 * 60 * 60 * 1000);
     localStorage.setItem('welcomeModalClosedAt', doisDiasAtras.toString());
 
@@ -90,7 +91,7 @@ describe('WelcomeModal', () => {
     expect(screen.getByText('Seja muito bem-vindo(a)!')).toBeInTheDocument();
   });
 
-  it('deve fechar o modal e salvar no localStorage ao clicar no botão de fechar', () => {
+  it('deve fechar o modal ao clicar no botão de fechar (sem salvar no localStorage)', () => {
     renderModal();
 
     act(() => {
@@ -101,15 +102,13 @@ describe('WelcomeModal', () => {
 
     const closeButton = screen.getByLabelText('Fechar');
 
-    const mockNow = 1600000000000;
-    vi.spyOn(Date, 'now').mockReturnValue(mockNow);
-
     act(() => {
       fireEvent.click(closeButton);
     });
 
     expect(screen.queryByText('Seja muito bem-vindo(a)!')).not.toBeInTheDocument();
-    expect(localStorage.getItem('welcomeModalClosedAt')).toBe(mockNow.toString());
+    // Não salva mais timestamp no localStorage — modal sempre reaparece
+    expect(localStorage.getItem('welcomeModalClosedAt')).toBeNull();
   });
 
   it('deve fechar o modal ao pressionar Esc', () => {
