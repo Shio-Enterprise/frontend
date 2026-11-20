@@ -46,12 +46,78 @@ const removeStorage = (key) => {
   }
 };
 
+export const CONSENT_CHANGE_EVENT = 'analyticsconsentchange';
+
 export const getAnalyticsConsent = () => readStorage(CONSENT_KEY);
 
 // Ao recusar, o identificador anônimo também é apagado: nada mais fica guardado no navegador.
+// Com `null`, a escolha local é apagada e o banner volta a aparecer.
 export const setAnalyticsConsent = (value) => {
-  writeStorage(CONSENT_KEY, value);
+  if (value === null) removeStorage(CONSENT_KEY);
+  else writeStorage(CONSENT_KEY, value);
   if (value !== CONSENT_GRANTED) removeStorage(ANONYMOUS_ID_KEY);
+  window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT));
+};
+
+const authHeaders = () => {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+};
+
+/**
+ * Grava a escolha no navegador e a registra no backend.
+ * A promessa sempre resolve, mesmo se o backend falhar.
+ */
+export const registerAnalyticsConsent = (value) => {
+  const anonymousId =
+    value === CONSENT_GRANTED ? getAnonymousId() : readStorage(ANONYMOUS_ID_KEY);
+  const hasOwner = Boolean(anonymousId || getAccessToken());
+  setAnalyticsConsent(value);
+  if (!hasOwner) return Promise.resolve();
+
+  const payload = { choice: value };
+  if (anonymousId) payload.anonymous_id = anonymousId;
+  return fetch(`${API_BASE_URL}/api/analytics/consent/`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  })
+    .then(() => {})
+    .catch(() => {});
+};
+
+/**
+ * Após o login, adota a escolha registrada no backend para a conta ou este navegador.
+ * Sem escolha registrada, envia a escolha local; com versão desatualizada, limpa a
+ * escolha local para o banner aparecer de novo.
+ */
+export const syncAnalyticsConsent = async () => {
+  if (!getAccessToken()) return;
+  const anonymousId = readStorage(ANONYMOUS_ID_KEY);
+  const query = anonymousId ? `?anonymous_id=${encodeURIComponent(anonymousId)}` : '';
+
+  let consent;
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/analytics/consent/${query}`, {
+      headers: authHeaders(),
+    });
+    if (!response.ok) return;
+    consent = await response.json();
+  } catch {
+    return;
+  }
+  if (!consent || !('choice' in consent)) return;
+
+  if (consent.choice === null) {
+    const local = getAnalyticsConsent();
+    if (local === CONSENT_GRANTED || local === CONSENT_DENIED) {
+      await registerAnalyticsConsent(local);
+    }
+    return;
+  }
+  setAnalyticsConsent(consent.version === consent.current_version ? consent.choice : null);
 };
 
 export const getAnonymousId = () => {
