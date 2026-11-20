@@ -109,6 +109,22 @@ function CustomerProfileDrawer({ id }) {
                     <span className="text-right font-medium">{customer.is_recurring ? 'Sim' : 'Não'}</span>
                   </div>
                 </div>
+                {/* #103: só leitura; o aceite vem do próprio cliente (LGPD). */}
+                <div className="flex items-start gap-3">
+                  <Icon name="mail" className="mt-0.5 h-4 w-4 shrink-0 text-shio-muted" />
+                  <div className="flex flex-1 justify-between gap-4">
+                    <span className="text-shio-muted">Aceita receber e-mails (newsletter e cupons)</span>
+                    <span className="text-right font-medium">
+                      {customer.accepts_emails ? 'Sim' : 'Não'}
+                      {customer.accepts_emails && customer.email_consent_at && (
+                        <span className="block text-[13px] font-normal text-shio-muted">desde <span className="whitespace-nowrap">{formatDate(customer.email_consent_at)}</span></span>
+                      )}
+                      {!customer.accepts_emails && customer.email_unsubscribed_at && (
+                        <span className="block text-[13px] font-normal text-shio-muted">descadastrou em <span className="whitespace-nowrap">{formatDate(customer.email_unsubscribed_at)}</span></span>
+                      )}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -166,9 +182,17 @@ const CustomersPage = () => {
     return () => window.clearTimeout(timeoutId);
   }, [search]);
 
-  const customersUrl = debouncedSearch
-    ? `/api/auth/crm/customers/?search=${encodeURIComponent(debouncedSearch)}`
-    : '/api/auth/crm/customers/';
+  // #103: '' = todos, 'true' = aceitam e-mails, 'false' = não aceitam.
+  const [emailsFilter, setEmailsFilter] = useState('');
+
+  const listParams = {
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    ...(emailsFilter ? { accepts_emails: emailsFilter } : {}),
+  };
+  const query = Object.entries(listParams)
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join('&');
+  const customersUrl = `/api/auth/crm/customers/${query ? `?${query}` : ''}`;
   const { data: apiResponse, loading, error, refetch } = useApi(customersUrl);
 
   const customerMatch = useMatch('/admin/customers/:id');
@@ -263,11 +287,28 @@ const CustomersPage = () => {
             />
           </label>
 
-          <ExportButton
-            endpoint="/api/auth/crm/customers/export/"
-            params={search.trim() ? { search: search.trim() } : {}}
-            fallbackFilename="clientes"
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="sr-only" htmlFor="emails-filter">Filtrar por aceite de e-mails</label>
+            <select
+              id="emails-filter"
+              value={emailsFilter}
+              onChange={(event) => setEmailsFilter(event.target.value)}
+              className="h-11 rounded-lg border border-black/20 bg-white px-3 text-sm text-black"
+            >
+              <option value="">E-mails: todos</option>
+              <option value="true">E-mails: aceitam</option>
+              <option value="false">E-mails: não aceitam</option>
+            </select>
+
+            <ExportButton
+              endpoint="/api/auth/crm/customers/export/"
+              params={{
+                ...(search.trim() ? { search: search.trim() } : {}),
+                ...(emailsFilter ? { accepts_emails: emailsFilter } : {}),
+              }}
+              fallbackFilename="clientes"
+            />
+          </div>
         </div>
         {renderContent()}
       </AdminPanel>

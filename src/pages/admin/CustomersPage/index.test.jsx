@@ -104,4 +104,48 @@ describe('CustomersPage', () => {
     fireEvent.keyDown(panel, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
+
+  describe('aceite de e-mails (#103)', () => {
+    const renderProfile = (extra) => {
+      vi.useRealTimers();
+      useApiMock.mockImplementation((url) => ({
+        data: url === '/api/auth/crm/customers/c1/'
+          ? { id: 'c1', name: 'Maria Silva', email: 'maria@exemplo.com', total_orders: 0, total_spent: '0', created_at: '2026-10-01T12:00:00Z', ...extra }
+          : [],
+        loading: false, error: null, refetch: vi.fn(),
+      }));
+      render(<MemoryRouter initialEntries={['/admin/customers/c1']}><CustomersPage /></MemoryRouter>);
+      return screen.getByText('Aceita receber e-mails (newsletter e cupons)').nextElementSibling;
+    };
+
+    it('quem aceitou aparece como Sim com a data do aceite', () => {
+      const value = renderProfile({ accepts_emails: true, email_consent_at: '2026-11-05T12:00:00Z', email_unsubscribed_at: null });
+      expect(value).toHaveTextContent('Sim');
+      expect(value).toHaveTextContent('desde 05/11/2026');
+    });
+
+    it('quem se descadastrou aparece como Não com a data do descadastro', () => {
+      const value = renderProfile({ accepts_emails: false, email_consent_at: null, email_unsubscribed_at: '2026-11-10T12:00:00Z' });
+      expect(value).toHaveTextContent('Não');
+      expect(value).toHaveTextContent('descadastrou em 10/11/2026');
+    });
+
+    it('quem nunca aceitou aparece só como Não', () => {
+      const value = renderProfile({ accepts_emails: false, email_consent_at: null, email_unsubscribed_at: null });
+      expect(value).toHaveTextContent(/^Não$/);
+    });
+
+    it('filtro manda accepts_emails para a lista, junto com a busca', () => {
+      render(<MemoryRouter><CustomersPage /></MemoryRouter>);
+      fireEvent.change(screen.getByLabelText('Filtrar por aceite de e-mails'), { target: { value: 'true' } });
+      expect(useApiMock).toHaveBeenLastCalledWith('/api/auth/crm/customers/?accepts_emails=true');
+
+      fireEvent.change(screen.getByPlaceholderText('Buscar por nome ou e-mail...'), { target: { value: 'Maria' } });
+      act(() => vi.advanceTimersByTime(300));
+      expect(useApiMock).toHaveBeenLastCalledWith('/api/auth/crm/customers/?search=Maria&accepts_emails=true');
+
+      fireEvent.change(screen.getByLabelText('Filtrar por aceite de e-mails'), { target: { value: '' } });
+      expect(useApiMock).toHaveBeenLastCalledWith('/api/auth/crm/customers/?search=Maria');
+    });
+  });
 });
