@@ -72,7 +72,21 @@ describe('CustomersPage', () => {
     act(() => vi.advanceTimersByTime(300));
 
     expect(useApiMock).toHaveBeenLastCalledWith(
-      '/api/auth/crm/customers/?search=Maria%20Silva',
+      '/api/auth/crm/customers/?search=Maria+Silva',
+    );
+  });
+
+  it('codifica caracteres especiais da busca junto com o filtro de e-mails', () => {
+    render(<MemoryRouter><CustomersPage /></MemoryRouter>);
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar por nome ou e-mail...'), {
+      target: { value: '  ana+teste@x.com & cia  ' },
+    });
+    act(() => vi.advanceTimersByTime(300));
+    fireEvent.change(screen.getByLabelText('Filtrar por aceite de e-mails'), { target: { value: 'false' } });
+
+    expect(useApiMock).toHaveBeenLastCalledWith(
+      '/api/auth/crm/customers/?search=ana%2Bteste%40x.com+%26+cia&accepts_emails=false',
     );
   });
 

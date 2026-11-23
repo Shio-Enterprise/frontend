@@ -189,9 +189,7 @@ const CustomersPage = () => {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
     ...(emailsFilter ? { accepts_emails: emailsFilter } : {}),
   };
-  const query = Object.entries(listParams)
-    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-    .join('&');
+  const query = new URLSearchParams(listParams).toString();
   const customersUrl = `/api/auth/crm/customers/${query ? `?${query}` : ''}`;
   const { data: apiResponse, loading, error, refetch } = useApi(customersUrl);
 
