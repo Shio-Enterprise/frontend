@@ -4,7 +4,7 @@ import CouponEmailModal from './CouponEmailModal';
 
 vi.mock('../../lib/authToken', () => ({ getAccessToken: () => 'tok' }));
 
-const AUDIENCE = { total: 87, buyers: 62, subscribers: 40, overlap: 15, suppressed: 3 };
+const AUDIENCE = { total: 87, subscribers: 87, suppressed: 3 };
 const coupon = { id: 7, code: 'VERAO20' };
 
 function json(body, status = 200) {
@@ -35,13 +35,12 @@ describe('CouponEmailModal', () => {
     vi.unstubAllEnvs();
   });
 
-  it('mostra total e quebra do público', async () => {
+  it('mostra total, regra do aceite e quem pediu para não receber', async () => {
     setupFetch();
     render(<CouponEmailModal coupon={coupon} onClose={() => {}} />);
     expect(await screen.findByText('87 pessoas')).toBeInTheDocument();
-    expect(screen.getByText('62 clientes que já compraram')).toBeInTheDocument();
-    expect(screen.getByText('40 inscritos na newsletter / cadastro')).toBeInTheDocument();
-    expect(screen.getByText('15 aparecem nos dois (recebem 1 e-mail)')).toBeInTheDocument();
+    expect(screen.getByText(/Só recebe quem aceitou receber e-mails/)).toBeInTheDocument();
+    expect(screen.queryByText(/já compraram/)).not.toBeInTheDocument();
     expect(screen.getByText('3 pediram para não receber')).toBeInTheDocument();
   });
 

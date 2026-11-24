@@ -213,8 +213,11 @@ export function NewsletterBand() {
   return (
     <section className="mx-auto w-full max-w-[1240px] px-6">
       <form onSubmit={handleSubmit}>
-        <div className="grid gap-8 rounded-[20px] bg-black px-8 py-9 text-white md:grid-cols-[1fr_420px] md:items-center md:px-14">
-          <h2 className="max-w-xl text-[30px] font-black uppercase leading-[1.08] md:text-[36px]">
+        {/* Duas colunas só a partir de lg: em 768px sobravam ~156px para o título e, com
+            espaçamento de texto aumentado, a grade passava da tela (#106, WCAG 1.4.10/1.4.12).
+            minmax(0, …) e break-words deixam o título quebrar em vez de empurrar a caixa. */}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-8 rounded-[20px] bg-black px-8 py-9 text-white md:px-14 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
+          <h2 className="max-w-xl break-words hyphens-auto text-[30px] font-black uppercase leading-[1.08] md:text-[36px]">
             Cadastre-se para receber novidades
           </h2>
           <div className="grid gap-3">

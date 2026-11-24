@@ -158,9 +158,7 @@ export default function CouponEmailModal({ coupon, onClose }) {
           {audience && (
             <div className="rounded-md bg-gray-50 border p-4 text-sm space-y-1">
               <p className="text-base font-bold">{pessoas(audience.total)}</p>
-              <p>{audience.buyers} clientes que já compraram</p>
-              <p>{audience.subscribers} inscritos na newsletter / cadastro</p>
-              <p>{audience.overlap} aparecem nos dois (recebem 1 e-mail)</p>
+              <p>Só recebe quem aceitou receber e-mails (no cadastro, em Minha conta ou na newsletter). Ter comprado não basta.</p>
               <p>{audience.suppressed} pediram para não receber</p>
             </div>
           )}
