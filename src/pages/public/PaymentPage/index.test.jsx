@@ -29,9 +29,8 @@ const LoginState = () => <p data-testid="login-from">{useLocation().state?.from?
 const renderPage = () => render(<BrowserRouter><PaymentPage /></BrowserRouter>);
 
 const showReview = async () => {
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
-  fireEvent.click(screen.getByRole('button', { name: 'Continuar para Pagamento' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Revisar Pedido' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: 'Continuar para Revisão' }));
 };
 
 let calculationResponse;
@@ -104,8 +103,8 @@ describe('PaymentPage', () => {
     calculationResponse = async () => jsonResponse({ detail: 'Correios indisponíveis.' }, false);
     renderPage();
     await screen.findByText('Correios indisponíveis.');
-    expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: /3.*Revisão/ }));
+    expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /2.*Revisão/ }));
     expect(screen.getByRole('button', { name: 'Finalizar Compra' })).toBeDisabled();
     expect(screen.queryByText('Grátis')).not.toBeInTheDocument();
     expect(screen.queryByText('R$ 0.00')).not.toBeInTheDocument();
@@ -163,7 +162,7 @@ describe('PaymentPage', () => {
     renderPage();
     await waitFor(() => expect(resolveFirst).toBeDefined());
     fireEvent.click(screen.getAllByRole('radio')[1]);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeEnabled());
     await act(async () => { resolveFirst({
       ...jsonResponse({}, false, status),
       headers: { get: (name) => name === 'Retry-After' ? '30' : null },
@@ -171,7 +170,7 @@ describe('PaymentPage', () => {
     fireEvent.click(screen.getAllByRole('radio')[0]);
 
     await waitFor(() => expect(requests).toBe(3));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeEnabled());
   });
 
   it.each([[429, 'endereço'], [503, 'endereço'], [429, 'quantidade'], [503, 'quantidade']])('mantém recuperação após mudar %s/%s durante a espera', async (status, change) => {
@@ -185,7 +184,7 @@ describe('PaymentPage', () => {
       fireEvent.click(screen.getAllByRole('radio')[1]);
     } else {
       currentCart = { ...cart, items: [{ ...cart.items[0], quantity: 3 }] };
-      fireEvent.click(screen.getByRole('button', { name: /3.*Revisão/ }));
+      fireEvent.click(screen.getByRole('button', { name: /2.*Revisão/ }));
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Aumentar quantidade/ })); });
     }
 
@@ -265,7 +264,7 @@ describe('PaymentPage', () => {
     calculation.expires_at = new Date(Date.now() + 60000).toISOString();
     renderPage();
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-    fireEvent.click(screen.getByRole('button', { name: /3.*Revisão/ }));
+    fireEvent.click(screen.getByRole('button', { name: /2.*Revisão/ }));
     confirmQuote();
     expect(screen.getByRole('button', { name: 'Finalizar Compra' })).toBeEnabled();
     await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
@@ -319,7 +318,7 @@ describe('PaymentPage', () => {
     calculationResponse = async () => jsonResponse({ ...calculation, shipping_quote_id: null });
     renderPage();
     await screen.findByText(/Não foi possível validar a cotação/);
-    expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeDisabled();
   });
 
   it('persiste a chave antes do envio e reutiliza após perder a resposta', async () => {
@@ -361,7 +360,7 @@ describe('PaymentPage', () => {
     await screen.findByRole('button', { name: 'Consultar tentativa' });
     expect(screen.queryByText('Calculando frete...')).not.toBeInTheDocument();
     expect(screen.getByText('O frete está vinculado à tentativa anterior. Consulte o resultado abaixo.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Consultar tentativa' }));
     await screen.findByText('Gateway indisponível.');
     const call = fetch.mock.calls.find(([url]) => url.endsWith('/checkout/'));
@@ -633,20 +632,27 @@ describe('PaymentPage', () => {
 
     it('etapas são títulos com botão que informa se está aberta', async () => {
       renderPage();
-      const entrega = screen.getByRole('button', { name: 'Etapa 1 de 3: Entrega' });
+      const entrega = screen.getByRole('button', { name: 'Etapa 1 de 2: Entrega' });
       expect(entrega).toHaveAttribute('aria-expanded', 'true');
       expect(entrega.closest('h2')).not.toBeNull();
-      expect(screen.getByRole('button', { name: 'Etapa 2 de 3: Pagamento' })).toHaveAttribute('aria-expanded', 'false');
-      await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+      expect(screen.getByRole('button', { name: 'Etapa 2 de 2: Revisão' })).toHaveAttribute('aria-expanded', 'false');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeEnabled());
     });
 
     it('ao avançar, o foco vai para o título da próxima etapa', async () => {
       renderPage();
-      await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
-      fireEvent.click(screen.getByRole('button', { name: 'Continuar para Pagamento' }));
-      expect(screen.getByRole('button', { name: 'Etapa 2 de 3: Pagamento' })).toHaveFocus();
-      fireEvent.click(screen.getByRole('button', { name: 'Revisar Pedido' }));
-      expect(screen.getByRole('button', { name: 'Etapa 3 de 3: Revisão' })).toHaveFocus();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeEnabled());
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar para Revisão' }));
+      expect(screen.getByRole('button', { name: 'Etapa 2 de 2: Revisão' })).toHaveFocus();
+    });
+
+    it('revisão informa PIX e cartão como formas de pagamento', async () => {
+      renderPage();
+      await showReview();
+      const box = screen.getByRole('heading', { name: 'Formas de pagamento' }).parentElement;
+      expect(box).toHaveTextContent('PIX');
+      expect(box).toHaveTextContent('Cartão em até 12x');
+      expect(box).toHaveTextContent('InfinitePay');
     });
 
     it('endereços ficam num grupo com legenda', async () => {
@@ -731,11 +737,11 @@ describe('PaymentPage', () => {
 
     it('etapa mostra seta que gira quando aberta (pista além da cor)', async () => {
       renderPage();
-      const open = screen.getByRole('button', { name: 'Etapa 1 de 3: Entrega' }).querySelector('[data-chevron]');
-      const closed = screen.getByRole('button', { name: 'Etapa 2 de 3: Pagamento' }).querySelector('[data-chevron]');
+      const open = screen.getByRole('button', { name: 'Etapa 1 de 2: Entrega' }).querySelector('[data-chevron]');
+      const closed = screen.getByRole('button', { name: 'Etapa 2 de 2: Revisão' }).querySelector('[data-chevron]');
       expect(open).toHaveClass('rotate-180');
       expect(closed).not.toHaveClass('rotate-180');
-      await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeEnabled());
     });
 
     it('visitante sem login vê aviso para entrar, sem as etapas', async () => {
@@ -750,7 +756,7 @@ describe('PaymentPage', () => {
       );
       expect(screen.getByRole('heading', { level: 2, name: 'Entre para finalizar a compra' })).toBeInTheDocument();
       expect(screen.queryByText('Você ainda não tem endereços cadastrados.')).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Etapa 1 de 3/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Etapa 1 de 2/ })).not.toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Criar conta' })).toHaveAttribute('href', '/signup');
       expect(screen.getByRole('link', { name: 'Voltar ao carrinho' })).toHaveAttribute('href', '/cart');
       fireEvent.click(screen.getByRole('link', { name: 'Entrar' }));
@@ -774,13 +780,11 @@ describe('PaymentPage', () => {
 
 // Testes mínimos da #64: formulário de pagamento sem violações em cada etapa e com erro.
 describe('PaymentPage — acessibilidade (axe)', () => {
-  it('sem violações no endereço, no pagamento, na revisão e com erro ao finalizar', async () => {
+  it('sem violações no endereço, na revisão e com erro ao finalizar', async () => {
     const { container } = renderPage();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Pagamento' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar para Revisão' })).toBeEnabled());
     expect(await axe(container)).toHaveNoViolations();
-    fireEvent.click(screen.getByRole('button', { name: 'Continuar para Pagamento' }));
-    expect(await axe(container)).toHaveNoViolations();
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar Pedido' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar para Revisão' }));
     expect(await axe(container)).toHaveNoViolations();
     confirmQuote();
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar Compra' }));

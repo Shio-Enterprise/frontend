@@ -30,12 +30,16 @@ function checkFile(file) {
   return '';
 }
 
-function ImagePicker({ id, label, buttonLabel, file, onChange, disabled, keepExisting }) {
+function ImagePicker({ id, label, buttonLabel, file, onChange, disabled, keepExisting, currentSrc }) {
   const inputRef = useRef(null);
 
   return <div className="grid gap-2">
     <label htmlFor={id} className="text-sm font-medium text-black">{label}</label>
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-black/25 bg-[#fafafa] p-4">
+      {currentSrc && !file && <figure className="flex items-center gap-2">
+        <img src={currentSrc} alt="" className="h-12 w-20 rounded object-cover" />
+        <figcaption className="text-xs text-black/60">Imagem atual</figcaption>
+      </figure>}
       <input
         ref={inputRef}
         id={id}
@@ -73,6 +77,22 @@ export default function HomepagePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [focusRequest, setFocusRequest] = useState(null);
+  const formHeadingRef = useRef(null);
+  const editButtonRefs = useRef({});
+  const editingBanner = editingId ? banners.find((banner) => banner.id === editingId) : null;
+
+  useEffect(() => {
+    if (!focusRequest) return;
+    if (focusRequest.target === 'form') {
+      const heading = formHeadingRef.current;
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+      heading?.closest('section')?.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      heading?.focus({ preventScroll: true });
+    } else {
+      editButtonRefs.current[focusRequest.target]?.focus();
+    }
+  }, [focusRequest]);
 
   const refresh = useCallback(async (includeTagline = false) => {
     const data = await apiRequest('admin/', { headers: authHeaders(), cache: 'no-store' });
@@ -144,10 +164,14 @@ export default function HomepagePage() {
       await apiRequest(editingId ? `banners/${editingId}/` : 'banners/', {
         method: editingId ? 'PATCH' : 'POST', headers: authHeaders(), body,
       });
-      setEditingId(null);
-      setForm(emptyForm);
-      setFormRevision((value) => value + 1);
+      resetForm();
     }, 'Banner publicado.');
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormRevision((value) => value + 1);
   };
 
   const edit = (banner) => {
@@ -156,11 +180,21 @@ export default function HomepagePage() {
     setFormRevision((value) => value + 1);
     setError('');
     setSuccess('');
+    setFocusRequest({ target: 'form' });
+  };
+
+  const cancelEdit = () => {
+    const id = editingId;
+    resetForm();
+    setFocusRequest({ target: id });
   };
 
   const remove = (banner) => {
     if (!window.confirm(`Remover o banner “${banner.alt_text}”?`)) return;
-    void run(() => apiRequest(`banners/${banner.id}/`, { method: 'DELETE', headers: authHeaders() }), 'Banner removido.');
+    void run(async () => {
+      await apiRequest(`banners/${banner.id}/`, { method: 'DELETE', headers: authHeaders() });
+      if (banner.id === editingId) resetForm();
+    }, 'Banner removido.');
   };
 
   const move = (index, direction) => {
@@ -191,34 +225,42 @@ export default function HomepagePage() {
       <h2 className="mb-4 text-xl font-semibold">Banners do carrossel</h2>
       {!loading && banners.length === 0 && <p className="mb-5 text-black/60">Nenhum banner cadastrado. A loja exibe os banners padrão.</p>}
       <ol className="space-y-4">
-        {banners.map((banner, index) => <li key={banner.id} className="flex flex-col gap-4 rounded-lg border border-black/15 p-4 sm:flex-row sm:items-center">
+        {banners.map((banner, index) => <li key={banner.id} aria-current={banner.id === editingId ? 'true' : undefined} className={`flex flex-col gap-4 rounded-lg p-4 sm:flex-row sm:items-center ${banner.id === editingId ? 'border-2 border-black bg-black/[0.04]' : 'border border-black/15'}`}>
           <img src={banner.image_desktop} alt="" className="h-28 w-full rounded object-cover sm:w-44" />
           <div className="min-w-0 flex-1">
+            {banner.id === editingId && <span className="mb-1 inline-block rounded-full bg-black px-2.5 py-0.5 text-xs font-semibold text-white">Em edição</span>}
             <p className="font-semibold">{banner.alt_text}</p>
             {banner.link && <p className="truncate text-sm text-black/60">{banner.link}</p>}
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" disabled={busy || index === 0} onClick={() => move(index, -1)} aria-label={`Subir ${banner.alt_text}`} className="rounded border px-3 py-2 disabled:opacity-40">↑</button>
             <button type="button" disabled={busy || index === banners.length - 1} onClick={() => move(index, 1)} aria-label={`Descer ${banner.alt_text}`} className="rounded border px-3 py-2 disabled:opacity-40">↓</button>
-            <button type="button" disabled={busy} onClick={() => edit(banner)} className="rounded border px-3 py-2">Editar</button>
+            <button type="button" ref={(node) => { if (node) editButtonRefs.current[banner.id] = node; else delete editButtonRefs.current[banner.id]; }} disabled={busy} onClick={() => edit(banner)} className={`rounded border px-3 py-2 ${banner.id === editingId ? 'border-black bg-black text-white' : ''}`}>Editar</button>
             <button type="button" disabled={busy} onClick={() => remove(banner)} className="rounded border border-red-300 px-3 py-2 text-red-700">Remover</button>
           </div>
         </li>)}
       </ol>
     </section>
 
-    <section className="rounded-xl border border-black/15 bg-white p-6">
-      <h2 className="mb-4 text-xl font-semibold">{editingId ? 'Editar banner' : 'Adicionar banner'}</h2>
+    <section aria-labelledby="homepage-banner-form-title" className={`scroll-mt-6 rounded-xl p-6 ${editingId ? 'border-2 border-black bg-[#fafafa] shadow-md' : 'border border-black/15 bg-white'}`}>
+      <h2 id="homepage-banner-form-title" ref={formHeadingRef} tabIndex={-1} aria-describedby={editingBanner ? 'homepage-editing-banner' : undefined} className="mb-4 text-xl font-semibold focus:outline-none">{editingId ? 'Editar banner' : 'Adicionar banner'}</h2>
+      {editingBanner && <div id="homepage-editing-banner" className="mb-5 flex items-center gap-4 rounded-lg border border-black/15 bg-white p-3">
+        <img src={editingBanner.image_desktop} alt="" className="h-16 w-28 shrink-0 rounded object-cover" />
+        <p className="min-w-0 text-sm">
+          <span className="block font-semibold">Editando: {editingBanner.alt_text}</span>
+          <span className="text-black/60">As alterações só valem depois de clicar em “Salvar banner”.</span>
+        </p>
+      </div>}
       <form key={formRevision} onSubmit={saveBanner} className="grid gap-4">
-        <ImagePicker id="homepage-desktop-image" label="Imagem para computador" buttonLabel="Escolher imagem para computador" file={form.image_desktop} disabled={busy} keepExisting={Boolean(editingId)} onChange={(event) => { if (!selectFile('image_desktop', event.target.files?.[0])) event.target.value = ''; }} />
-        <ImagePicker id="homepage-mobile-image" label="Imagem para celular (opcional)" buttonLabel="Escolher imagem para celular" file={form.image_mobile} disabled={busy} keepExisting={Boolean(editingId && banners.find((banner) => banner.id === editingId)?.image_mobile)} onChange={(event) => { if (!selectFile('image_mobile', event.target.files?.[0])) event.target.value = ''; }} />
-        {editingId && banners.find((banner) => banner.id === editingId)?.image_mobile && <label className="flex gap-2"><input type="checkbox" checked={form.remove_image_mobile} onChange={(event) => update('remove_image_mobile', event.target.checked)} />Remover imagem de celular atual</label>}
+        <ImagePicker id="homepage-desktop-image" label="Imagem para computador" buttonLabel={editingId ? 'Trocar imagem para computador' : 'Escolher imagem para computador'} file={form.image_desktop} disabled={busy} keepExisting={Boolean(editingId)} currentSrc={editingBanner?.image_desktop} onChange={(event) => { if (!selectFile('image_desktop', event.target.files?.[0])) event.target.value = ''; }} />
+        <ImagePicker id="homepage-mobile-image" label="Imagem para celular (opcional)" buttonLabel={editingBanner?.image_mobile ? 'Trocar imagem para celular' : 'Escolher imagem para celular'} file={form.image_mobile} disabled={busy} keepExisting={Boolean(editingBanner?.image_mobile) && !form.remove_image_mobile} currentSrc={form.remove_image_mobile ? null : editingBanner?.image_mobile} onChange={(event) => { if (!selectFile('image_mobile', event.target.files?.[0])) event.target.value = ''; }} />
+        {editingBanner?.image_mobile && <label className="flex gap-2"><input type="checkbox" checked={form.remove_image_mobile} onChange={(event) => update('remove_image_mobile', event.target.checked)} />Remover imagem de celular atual</label>}
         <label className="grid gap-2">Texto alternativo<input required maxLength={255} value={form.alt_text} onChange={(event) => update('alt_text', event.target.value)} className="rounded border border-black/30 p-3" /></label>
         <label className="grid gap-2">Link interno (opcional)<input placeholder="/drop/novo" maxLength={500} value={form.link} onChange={(event) => update('link', event.target.value)} className="rounded border border-black/30 p-3" /></label>
         <p className="text-sm text-black/60">JPEG, PNG ou WebP. Máximo de 5 MB por imagem.</p>
         <div className="flex gap-3">
           <button type="submit" disabled={busy || loading} className="rounded bg-black px-5 py-3 text-white disabled:opacity-50">{editingId ? 'Salvar banner' : 'Adicionar banner'}</button>
-          {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); setFormRevision((value) => value + 1); }} className="rounded border px-5 py-3">Cancelar</button>}
+          {editingId && <button type="button" onClick={cancelEdit} className="rounded border px-5 py-3">Cancelar edição</button>}
         </div>
       </form>
     </section>

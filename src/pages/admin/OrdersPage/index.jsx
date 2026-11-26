@@ -1,15 +1,17 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { useMatch, useNavigate } from 'react-router-dom';
+import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../hooks/useApi';
 import { getAccessToken } from '../../../lib/authToken';
 import { ActionMenu, AdminPanel, AdminTitle, Icon } from '../../../components/ui/ShioDesign';
 import ExportButton from '../../../components/admin/ExportButton';
+import OrderEmailModal from '../../../components/admin/OrderEmailModal';
 import DrawerShell from '../../../components/admin/DrawerShell';
 import Dialog from '../../../components/ui/Dialog';
 import AdminRefundPanel from '../../../components/refunds/AdminRefundPanel';
 import { REFUND_STATUS, refundTimelineEvents } from '../../../lib/refunds';
 import AdminExchangePanel from '../../../components/exchanges/AdminExchangePanel';
 import { EXCHANGE_STATUS, exchangeTimelineEvents } from '../../../lib/exchanges';
+import { formatOrderDate, shortOrderId } from '../../../lib/orderFormat';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -22,7 +24,21 @@ const STATUS_MAP = {
   CANCELED: { label: 'Cancelado', color: 'text-shio-danger' },
 };
 
-const shortId = (id) => `#${String(id).substring(0, 8).toUpperCase()}`;
+const canSendOrderEmail = (order) =>
+  order?.status === 'AWAITING_PAYMENT' || order?.status === 'CANCELED';
+
+// A tela mostra "#" + 8 primeiros caracteres em maiúsculas; o ID real é o UUID minúsculo (#89).
+const matchesSearch = (order, search) => {
+  const term = search.trim().toLowerCase();
+  const code = term.replace(/^#\s*/, '');
+  return Boolean(
+    (code && order.id.toLowerCase().includes(code))
+    || order.customer_name?.toLowerCase().includes(term),
+  );
+};
+
+// ?customer= vem do "Ver pedidos" em Clientes; valor que não é ID válido é ignorado (#88).
+const parseCustomerId = (value) => (/^[1-9]\d*$/.test(value ?? '') ? value : null);
 
 const PAYMENT_METHOD_MAP = {
   PIX: 'PIX',
@@ -33,8 +49,9 @@ const PAYMENT_METHOD_MAP = {
 
 // ─── Order Detail Drawer ──────────────────────────────────────────────────────
 
-function OrderDetailDrawer({ id, onChanged }) {
+function OrderDetailDrawer({ id, onChanged, onOpenEmailModal }) {
   const navigate = useNavigate();
+  const { search: locationSearch } = useLocation();
   const { data: order, loading, refetch } = useApi(`/api/orders/admin/${id}/`);
 
   const [actionLoading, setActionLoading] = useState(false);
@@ -44,6 +61,7 @@ function OrderDetailDrawer({ id, onChanged }) {
   // atualização do pedido. O foco vai para o título do painel e o resultado é anunciado (#64).
   const [notice, setNotice] = useState(null);
   const titleRef = useRef(null);
+  const emailButtonRef = useRef(null);
   const historyTitleId = useId();
 
   const pendingNotice = useRef(null);
@@ -179,7 +197,8 @@ function OrderDetailDrawer({ id, onChanged }) {
     : '';
 
   const primaryAction = getPrimaryAction();
-  const close = () => navigate('/admin/orders');
+  // Mantém o filtro de cliente (?customer=) ao fechar o painel.
+  const close = () => navigate(`/admin/orders${locationSearch}`);
 
   return (
     <DrawerShell title="Detalhes do Pedido" onClose={close} width={380} titleRef={titleRef}>
@@ -192,9 +211,9 @@ function OrderDetailDrawer({ id, onChanged }) {
       ) : order ? (
         <>
           {/* Rola por dentro e pode não ter nenhum botão (pedido sem ações): tabIndex para rolar pelo teclado. */}
-          <div role="region" aria-label={`Pedido ${shortId(order.id)}`} tabIndex={0} className="flex-1 overflow-y-auto focus-visible:outline-offset-[-2px]!">
+          <div role="region" aria-label={`Pedido ${shortOrderId(order.id)}`} tabIndex={0} className="flex-1 overflow-y-auto focus-visible:outline-offset-[-2px]!">
             <div className="flex items-center justify-between border-b border-black/10 px-7 py-4">
-              <span className="text-[16px] font-bold text-black">{shortId(order.id)}</span>
+              <span className="text-[16px] font-bold text-black">{shortOrderId(order.id)}</span>
               <span className={`text-[14px] font-semibold ${statusInfo?.color}`}>{statusInfo?.label}</span>
             </div>
 
@@ -221,6 +240,35 @@ function OrderDetailDrawer({ id, onChanged }) {
                   </div>
                 )}
               </div>
+
+              {(order.recovery_email_sends?.length > 0 || canSendOrderEmail(order)) && (
+                <div className="mt-4 border-t border-black/10 pt-4 space-y-2">
+                  {order.recovery_email_sends?.length > 0 && (
+                    <p className="text-[13px] font-medium text-gray-700">
+                      E-mail enviado em {formatOrderDate(order.recovery_email_sends[0].sent_at)}
+                      {order.recovery_email_sends[0].sent_by_name
+                        ? ` por ${order.recovery_email_sends[0].sent_by_name}`
+                        : ''}
+                    </p>
+                  )}
+                  {canSendOrderEmail(order) && order.email_unsubscribed && (
+                    <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] font-medium text-amber-800">
+                      O cliente pediu para não receber e-mails.
+                    </p>
+                  )}
+                  {canSendOrderEmail(order) && onOpenEmailModal && (
+                    <button
+                      ref={emailButtonRef}
+                      type="button"
+                      onClick={() => onOpenEmailModal(order, refetch, emailButtonRef.current)}
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/25 px-4 text-sm font-bold text-black transition hover:bg-black/5"
+                    >
+                      <Icon name="mail" className="h-4 w-4" />
+                      Enviar e-mail ao cliente
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Itens */}
@@ -440,14 +488,29 @@ function OrderBadges({ order }) {
           {EXCHANGE_STATUS[order.exchange_status].label}
         </span>
       )}
+      {order.last_recovery_email_sent_at && (
+        <span className="mt-2 block w-fit rounded-full bg-gray-100 px-3 py-1 text-[13px] font-semibold text-gray-700">
+          E-mail enviado em {formatOrderDate(order.last_recovery_email_sent_at)}
+        </span>
+      )}
+      {canSendOrderEmail(order) && order.email_unsubscribed && (
+        <span className="mt-2 block w-fit rounded-full bg-amber-50 px-3 py-1 text-[13px] font-semibold text-amber-800">
+          Descadastrado de e-mails
+        </span>
+      )}
     </>
   );
 }
 
 const OrdersPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { search: locationSearch } = useLocation();
+  const customerId = parseCustomerId(searchParams.get('customer'));
+  const searchInputRef = useRef(null);
   const [refundFilter, setRefundFilter] = useState('');
   const [exchangeFilter, setExchangeFilter] = useState('');
   const listQuery = new URLSearchParams({
+    ...(customerId ? { customer: customerId } : {}),
     ...(refundFilter ? { refund_status: refundFilter } : {}),
     ...(exchangeFilter ? { exchange_status: exchangeFilter } : {}),
   }).toString();
@@ -455,9 +518,12 @@ const OrdersPage = () => {
     `/api/orders/admin/${listQuery ? `?${listQuery}` : ''}`,
   );
   const [search, setSearch] = useState('');
+  const [knownCustomer, setKnownCustomer] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [canceling, setCanceling] = useState(false);
+  const [emailTarget, setEmailTarget] = useState(null);
+  const emailReturnFocusRef = useRef(null);
   const cancelTitleId = useId();
   // Depois de cancelar, o item do menu some: o foco vai para o aviso do resultado (#64).
   const [notice, setNotice] = useState(null);
@@ -466,6 +532,13 @@ const OrdersPage = () => {
   useEffect(() => {
     if (notice) noticeRef.current?.focus();
   }, [notice]);
+
+  useEffect(() => {
+    if (emailTarget || !emailReturnFocusRef.current) return;
+    const target = emailReturnFocusRef.current;
+    emailReturnFocusRef.current = null;
+    if (target.isConnected) target.focus();
+  }, [emailTarget]);
 
   const orderMatch = useMatch('/admin/orders/:id');
   const selectedId = orderMatch?.params?.id ?? null;
@@ -487,9 +560,18 @@ const OrdersPage = () => {
     const items = [
       {
         label: 'Ver detalhes',
-        to: `/admin/orders/${order.id}`,
+        to: `/admin/orders/${order.id}${locationSearch}`,
       },
     ];
+
+    if (canSendOrderEmail(order)) {
+      items.push({
+        label: 'Enviar e-mail ao cliente',
+        icon: 'mail',
+        title: order.email_unsubscribed ? 'O cliente pediu para não receber e-mails.' : undefined,
+        onClick: () => setEmailTarget({ order }),
+      });
+    }
 
     if (order.status === 'AWAITING_PAYMENT') {
       items.push(
@@ -518,7 +600,7 @@ const OrdersPage = () => {
         body: JSON.stringify({ status: 'CANCELED' }),
       });
       if (!response.ok) throw new Error('Falha ao cancelar o pedido.');
-      setNotice({ text: `Pedido ${shortId(cancelTarget.id)} cancelado.` });
+      setNotice({ text: `Pedido ${shortOrderId(cancelTarget.id)} cancelado.` });
       refetch();
     } catch (err) {
       setActionError(err.message);
@@ -535,10 +617,7 @@ const OrdersPage = () => {
 
     const allOrders = Array.isArray(ordersData) ? ordersData : ordersData?.results ?? [];
     const orders = search.trim()
-      ? allOrders.filter((o) =>
-        o.id.includes(search) ||
-        o.customer_name?.toLowerCase().includes(search.toLowerCase())
-      )
+      ? allOrders.filter((o) => matchesSearch(o, search))
       : allOrders;
 
     if (orders.length === 0) return <div className="p-10 text-center text-shio-muted">Nenhum pedido encontrado.</div>;
@@ -550,7 +629,7 @@ const OrdersPage = () => {
         {orders.map((order) => (
           <li key={order.id} className={`flex items-start gap-3 py-4 pl-4 pr-2 ${selectedId === order.id ? 'bg-[#f9f9f9]' : ''}`}>
             <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-semibold text-black">{shortId(order.id)}</p>
+              <p className="text-[15px] font-semibold text-black">{shortOrderId(order.id)}</p>
               <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[13px]">
                 <dt className="text-shio-muted">Cliente</dt>
                 <dd className="break-words text-black">{order.customer_name || '—'}</dd>
@@ -563,7 +642,7 @@ const OrdersPage = () => {
               </dl>
               <OrderBadges order={order} />
             </div>
-            <ActionMenu label={`Ações para o pedido ${shortId(order.id)}`} items={getOrderMenuItems(order)} />
+            <ActionMenu label={`Ações para o pedido ${shortOrderId(order.id)}`} items={getOrderMenuItems(order)} />
           </li>
         ))}
       </ul>
@@ -584,7 +663,7 @@ const OrdersPage = () => {
             {orders.map((order) => (
               <tr key={order.id} className={selectedId === order.id ? 'bg-[#f9f9f9]' : ''}>
                 <td className="px-10 py-8 text-[20px] font-semibold text-black">
-                  {shortId(order.id)}
+                  {shortOrderId(order.id)}
                 </td>
                 <td className="px-10 py-8 text-[20px] text-shio-muted">{order.customer_name}</td>
                 <td className="px-10 py-8 text-[20px] text-shio-muted">{formatDate(order.created_at)}</td>
@@ -595,7 +674,7 @@ const OrdersPage = () => {
                 </td>
                 <td className="px-10 py-8 text-right">
                   <ActionMenu
-                    label={`Ações para o pedido ${shortId(order.id)}`}
+                    label={`Ações para o pedido ${shortOrderId(order.id)}`}
                     items={getOrderMenuItems(order)}
                   />
                 </td>
@@ -606,6 +685,32 @@ const OrdersPage = () => {
       </div>
       </>
     );
+  };
+
+  const allOrders = Array.isArray(ordersData) ? ordersData : ordersData?.results ?? [];
+  // A lista já vem filtrada pelo cliente: o nome sai do primeiro pedido. Fica guardado para o
+  // chip não perder o nome quando reembolso/troca esvaziam a lista. Durante o carregamento a
+  // lista ainda pode ser a do cliente anterior, então só vale com a resposta já chegada.
+  const listedName = customerId && !loading ? allOrders[0]?.customer_name : null;
+  if (listedName && (knownCustomer?.id !== customerId || knownCustomer.name !== listedName)) {
+    setKnownCustomer({ id: customerId, name: listedName });
+  }
+  const customerName = listedName || (knownCustomer?.id === customerId ? knownCustomer.name : null);
+
+  const clearCustomerFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('customer');
+    setSearchParams(next);
+    // O chip some junto com o botão: o foco vai para a busca (#64).
+    searchInputRef.current?.focus();
+  };
+
+  // Mesmos filtros da tela: o arquivo traz o que o admin está vendo.
+  const exportParams = {
+    ...(customerId ? { customer: customerId } : {}),
+    ...(refundFilter ? { refund_status: refundFilter } : {}),
+    ...(exchangeFilter ? { exchange_status: exchangeFilter } : {}),
+    ...(search.trim() ? { search: search.trim() } : {}),
   };
 
   return (
@@ -624,6 +729,7 @@ const OrdersPage = () => {
           <label className="flex h-12 min-w-0 max-w-[675px] flex-1 basis-56 items-center gap-4 rounded-full border border-black/20 px-5 text-shio-muted">
             <Icon name="search" className="h-5 w-5 shrink-0" />
             <input
+              ref={searchInputRef}
               type="search"
               aria-label="Buscar pedidos por ID ou cliente"
               value={search}
@@ -663,7 +769,7 @@ const OrdersPage = () => {
 
             <ExportButton
               endpoint="/api/orders/admin/export/"
-              params={search.trim() ? { search: search.trim() } : {}}
+              params={exportParams}
               fallbackFilename="pedidos"
             />
 
@@ -685,11 +791,45 @@ const OrdersPage = () => {
             </button>
           </div>
         </div>
+        {customerId && (
+          <div className="px-5 pb-4">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#f0f0f0] pl-4 text-black">
+              <span>{customerName ? `Pedidos de ${customerName}` : 'Pedidos do cliente selecionado'}</span>
+              <button
+                type="button"
+                aria-label="Limpar filtro de cliente"
+                onClick={clearCustomerFilter}
+                // shrink-0: com nome longo no celular o botão encolhia para ~14px de largura.
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold hover:bg-black/10"
+              >
+                ×
+              </button>
+            </span>
+          </div>
+        )}
         {renderContent()}
       </AdminPanel>
 
       {selectedId && (
-        <OrderDetailDrawer id={selectedId} onChanged={refetch} />
+        <OrderDetailDrawer
+          id={selectedId}
+          onChanged={refetch}
+          onOpenEmailModal={(order, refreshDrawer, triggerEl) => {
+            emailReturnFocusRef.current = triggerEl ?? null;
+            setEmailTarget({ order, onSent: refreshDrawer });
+          }}
+        />
+      )}
+
+      {emailTarget && (
+        <OrderEmailModal
+          order={emailTarget.order}
+          onClose={() => setEmailTarget(null)}
+          onSent={() => {
+            emailTarget.onSent?.();
+            refetch();
+          }}
+        />
       )}
 
       {cancelTarget && (
@@ -698,7 +838,7 @@ const OrdersPage = () => {
           onClose={() => !canceling && setCancelTarget(null)}
           className="w-full max-w-md rounded-[18px] bg-white p-6"
         >
-          <h2 id={cancelTitleId} className="text-[20px] font-bold text-black">Cancelar pedido {shortId(cancelTarget.id)}?</h2>
+          <h2 id={cancelTitleId} className="text-[20px] font-bold text-black">Cancelar pedido {shortOrderId(cancelTarget.id)}?</h2>
           <p className="mt-2 text-[14px] text-shio-muted">O pedido ainda aguarda pagamento. Esta ação não pode ser desfeita.</p>
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <button
