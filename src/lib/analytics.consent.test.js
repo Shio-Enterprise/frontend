@@ -4,7 +4,10 @@ import {
   CONSENT_DENIED,
   CONSENT_GRANTED,
   CONSENT_KEY,
+  CONSENT_VERSION_KEY,
+  CURRENT_CONSENT_VERSION,
   registerAnalyticsConsent,
+  refreshAnalyticsConsentVersion,
   setAnalyticsConsent,
   syncAnalyticsConsent,
 } from './analytics';
@@ -31,7 +34,7 @@ describe('registerAnalyticsConsent', () => {
     vi.unstubAllGlobals();
   });
 
-  it('visitante que aceita registra a escolha com o identificador anônimo', async () => {
+  it('visitante que aceita registra a escolha com o identificador anônimo e a versão', async () => {
     await registerAnalyticsConsent(CONSENT_GRANTED);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -44,6 +47,7 @@ describe('registerAnalyticsConsent', () => {
       anonymous_id: localStorage.getItem(ANONYMOUS_ID_KEY),
     });
     expect(localStorage.getItem(CONSENT_KEY)).toBe(CONSENT_GRANTED);
+    expect(localStorage.getItem(CONSENT_VERSION_KEY)).toBe(CURRENT_CONSENT_VERSION);
   });
 
   it('recusa envia o identificador anônimo existente e depois o apaga do navegador', async () => {
@@ -59,22 +63,27 @@ describe('registerAnalyticsConsent', () => {
     expect(localStorage.getItem(CONSENT_KEY)).toBe(CONSENT_DENIED);
   });
 
-  it('visitante sem identificador anônimo que recusa não envia nada', async () => {
+  it('visitante sem identificador anônimo que recusa gera um id, registra e depois o apaga', async () => {
     await registerAnalyticsConsent(CONSENT_DENIED);
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.choice).toBe(CONSENT_DENIED);
+    expect(body.anonymous_id).toBeTruthy();
     expect(localStorage.getItem(CONSENT_KEY)).toBe(CONSENT_DENIED);
     expect(localStorage.getItem(ANONYMOUS_ID_KEY)).toBeNull();
   });
 
-  it('usuário logado envia o token, mesmo sem identificador anônimo', async () => {
+  it('usuário logado envia o token junto com o identificador anônimo', async () => {
     localStorage.setItem('accessToken', 'token-teste');
 
     await registerAnalyticsConsent(CONSENT_DENIED);
 
     const [, options] = fetchMock.mock.calls[0];
     expect(options.headers.Authorization).toBe('Bearer token-teste');
-    expect(JSON.parse(options.body)).toEqual({ choice: CONSENT_DENIED });
+    const body = JSON.parse(options.body);
+    expect(body.choice).toBe(CONSENT_DENIED);
+    expect(body.anonymous_id).toBeTruthy();
   });
 
   it('mantém a escolha local e não rejeita quando o backend falha', async () => {
@@ -124,6 +133,7 @@ describe('syncAnalyticsConsent', () => {
     await syncAnalyticsConsent();
 
     expect(localStorage.getItem(CONSENT_KEY)).toBe(CONSENT_GRANTED);
+    expect(localStorage.getItem(CONSENT_VERSION_KEY)).toBe('1');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -138,6 +148,20 @@ describe('syncAnalyticsConsent', () => {
     expect(localStorage.getItem(ANONYMOUS_ID_KEY)).toBeNull();
   });
 
+  it('recusa local prevalece sobre aceite remoto da conta', async () => {
+    setAnalyticsConsent(CONSENT_DENIED);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse(serverConsent(CONSENT_GRANTED)))
+      .mockImplementationOnce(() => Promise.resolve({ ok: true }));
+
+    await syncAnalyticsConsent();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][1].method).toBe('POST');
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).choice).toBe(CONSENT_DENIED);
+    expect(localStorage.getItem(CONSENT_KEY)).toBe(CONSENT_DENIED);
+  });
+
   it('apaga a escolha local quando a versão aceita está desatualizada', async () => {
     setAnalyticsConsent(CONSENT_GRANTED);
     fetchMock.mockImplementation(() =>
@@ -149,7 +173,7 @@ describe('syncAnalyticsConsent', () => {
     expect(localStorage.getItem(CONSENT_KEY)).toBeNull();
   });
 
-  it('registra no backend a escolha local quando não há registro', async () => {
+  it('registra no backend a escolha local vigente quando não há registro', async () => {
     setAnalyticsConsent(CONSENT_GRANTED);
     localStorage.setItem(ANONYMOUS_ID_KEY, 'navegador-1');
 
@@ -163,6 +187,19 @@ describe('syncAnalyticsConsent', () => {
       choice: CONSENT_GRANTED,
       anonymous_id: 'navegador-1',
     });
+  });
+
+  it('não promove aceite local de versão antiga a prova da versão atual', async () => {
+    localStorage.setItem(CONSENT_KEY, CONSENT_GRANTED);
+    localStorage.setItem(CONSENT_VERSION_KEY, '1');
+    fetchMock.mockImplementation(() =>
+      jsonResponse(serverConsent(null, { currentVersion: '2' })),
+    );
+
+    await syncAnalyticsConsent();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(CONSENT_KEY)).toBeNull();
   });
 
   it('não registra nada quando não há escolha local nem no backend', async () => {
@@ -181,6 +218,30 @@ describe('syncAnalyticsConsent', () => {
     fetchMock.mockImplementation(response);
 
     await expect(syncAnalyticsConsent()).resolves.toBeUndefined();
+
+    expect(localStorage.getItem(CONSENT_KEY)).toBe(CONSENT_GRANTED);
+  });
+});
+
+describe('refreshAnalyticsConsentVersion', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('apaga a escolha local quando a versão do texto mudou', () => {
+    localStorage.setItem(CONSENT_KEY, CONSENT_GRANTED);
+    localStorage.setItem(CONSENT_VERSION_KEY, '0');
+
+    refreshAnalyticsConsentVersion();
+
+    expect(localStorage.getItem(CONSENT_KEY)).toBeNull();
+    expect(localStorage.getItem(CONSENT_VERSION_KEY)).toBeNull();
+  });
+
+  it('mantém a escolha quando a versão é a vigente', () => {
+    setAnalyticsConsent(CONSENT_GRANTED);
+
+    refreshAnalyticsConsentVersion();
 
     expect(localStorage.getItem(CONSENT_KEY)).toBe(CONSENT_GRANTED);
   });

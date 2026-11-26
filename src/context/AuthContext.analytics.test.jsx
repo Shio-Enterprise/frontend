@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './AuthContext';
+import apiClient from '../lib/axios';
 
 vi.mock('../lib/axios', () => ({ default: { post: vi.fn() } }));
 
@@ -12,6 +13,8 @@ describe('AuthProvider e consentimento de navegação', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    apiClient.post.mockReset();
+    apiClient.post.mockResolvedValue({ status: 204 });
     fetchMock = vi.fn((url) =>
       Promise.resolve({
         ok: true,
@@ -43,5 +46,24 @@ describe('AuthProvider e consentimento de navegação', () => {
     expect(fetchMock.mock.calls[0][0]).toMatch(/\/api\/analytics\/consent\/\?anonymous_id=navegador-1$/);
     expect(fetchMock.mock.calls[1][0]).toMatch(/\/api\/analytics\/link\/$/);
     expect(localStorage.getItem('analyticsConsent')).toBe('granted');
+  });
+
+  it('no logout, apaga a escolha local e o identificador anônimo', async () => {
+    const access = makeToken(Math.floor(Date.now() / 1000) + 3600);
+    localStorage.setItem('analyticsConsent', 'granted');
+    localStorage.setItem('analyticsConsentVersion', '1');
+    localStorage.setItem('analyticsAnonymousId', 'navegador-1');
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      result.current.login({ access, refresh: access, user: { id: 'u1' } });
+    });
+    await act(async () => {
+      await result.current.logout();
+    });
+
+    expect(localStorage.getItem('analyticsConsent')).toBeNull();
+    expect(localStorage.getItem('analyticsConsentVersion')).toBeNull();
+    expect(localStorage.getItem('analyticsAnonymousId')).toBeNull();
   });
 });

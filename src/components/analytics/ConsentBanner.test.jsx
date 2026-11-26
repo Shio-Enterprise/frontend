@@ -2,7 +2,14 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ConsentBanner from './ConsentBanner';
-import { ANONYMOUS_ID_KEY, CONSENT_KEY, getAnonymousId, setAnalyticsConsent } from '../../lib/analytics';
+import {
+  ANONYMOUS_ID_KEY,
+  CONSENT_KEY,
+  CONSENT_VERSION_KEY,
+  getAnonymousId,
+  setAnalyticsConsent,
+} from '../../lib/analytics';
+
 
 const callsTo = (fetchMock, pattern) =>
   fetchMock.mock.calls.filter(([url]) => pattern.test(url));
@@ -79,14 +86,19 @@ describe('ConsentBanner', () => {
     );
   });
 
-  it('ao recusar, grava a recusa, some e não envia nada', () => {
+  it('ao recusar, grava a recusa, some, registra no backend e não envia evento', async () => {
     renderBanner();
 
     fireEvent.click(screen.getByRole('button', { name: 'Recusar' }));
 
     expect(localStorage.getItem(CONSENT_KEY)).toBe('denied');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toMatch(/\/api\/analytics\/consent\/$/);
+    expect(JSON.parse(options.body).choice).toBe('denied');
+    expect(JSON.parse(options.body).anonymous_id).toBeTruthy();
+    expect(callsTo(fetchMock, /\/api\/analytics\/events\/$/)).toHaveLength(0);
   });
 
   it('ao recusar com identificador anônimo, registra a recusa no backend e não envia evento', async () => {
@@ -100,6 +112,16 @@ describe('ConsentBanner', () => {
     expect(url).toMatch(/\/api\/analytics\/consent\/$/);
     expect(JSON.parse(options.body)).toEqual({ choice: 'denied', anonymous_id: anonymousId });
     expect(callsTo(fetchMock, /\/api\/analytics\/events\/$/)).toHaveLength(0);
+  });
+
+  it('reaparece quando a versão local do texto do banner está desatualizada', () => {
+    localStorage.setItem(CONSENT_KEY, 'granted');
+    localStorage.setItem(CONSENT_VERSION_KEY, '0');
+
+    renderBanner();
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(localStorage.getItem(CONSENT_KEY)).toBeNull();
   });
 
   it('reaparece quando a escolha local é apagada', () => {

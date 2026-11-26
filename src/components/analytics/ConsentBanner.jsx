@@ -5,18 +5,25 @@ import {
   CONSENT_GRANTED,
   CONSENT_DENIED,
   EVENT_TYPES,
-  getAnalyticsConsent,
+  isAnalyticsConsentCurrent,
   registerAnalyticsConsent,
+  refreshAnalyticsConsentVersion,
   trackEvent,
 } from '../../lib/analytics';
 
 // Pede a escolha do visitante uma única vez. Enquanto não houver resposta, nada é rastreado.
 const ConsentBanner = () => {
-  const [decided, setDecided] = useState(() => getAnalyticsConsent() !== null);
+  const [decided, setDecided] = useState(() => {
+    refreshAnalyticsConsentVersion();
+    return isAnalyticsConsentCurrent();
+  });
   const { pathname } = useLocation();
 
   useEffect(() => {
-    const syncDecided = () => setDecided(getAnalyticsConsent() !== null);
+    const syncDecided = () => {
+      refreshAnalyticsConsentVersion();
+      setDecided(isAnalyticsConsentCurrent());
+    };
     window.addEventListener(CONSENT_CHANGE_EVENT, syncDecided);
     return () => window.removeEventListener(CONSENT_CHANGE_EVENT, syncDecided);
   }, []);
