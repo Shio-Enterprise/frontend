@@ -13,9 +13,14 @@ export const EVENT_TYPES = {
 };
 
 export const CONSENT_KEY = 'analyticsConsent';
+export const CONSENT_VERSION_KEY = 'analyticsConsentVersion';
 export const ANONYMOUS_ID_KEY = 'analyticsAnonymousId';
 export const CONSENT_GRANTED = 'granted';
 export const CONSENT_DENIED = 'denied';
+
+// Precisa acompanhar ANALYTICS_CONSENT_VERSION do backend.
+export const CURRENT_CONSENT_VERSION =
+  import.meta.env.VITE_ANALYTICS_CONSENT_VERSION || '1';
 
 const MAX_PATH_LENGTH = 255;
 
@@ -46,12 +51,125 @@ const removeStorage = (key) => {
   }
 };
 
+export const CONSENT_CHANGE_EVENT = 'analyticsconsentchange';
+
 export const getAnalyticsConsent = () => readStorage(CONSENT_KEY);
 
+export const getAnalyticsConsentVersion = () => readStorage(CONSENT_VERSION_KEY);
+
+export const isAnalyticsConsentCurrent = () => {
+  const choice = getAnalyticsConsent();
+  if (choice !== CONSENT_GRANTED && choice !== CONSENT_DENIED) return false;
+  return getAnalyticsConsentVersion() === CURRENT_CONSENT_VERSION;
+};
+
 // Ao recusar, o identificador anônimo também é apagado: nada mais fica guardado no navegador.
-export const setAnalyticsConsent = (value) => {
-  writeStorage(CONSENT_KEY, value);
+// Com `null`, a escolha local é apagada e o banner volta a aparecer.
+export const setAnalyticsConsent = (value, version = CURRENT_CONSENT_VERSION) => {
+  if (value === null) {
+    removeStorage(CONSENT_KEY);
+    removeStorage(CONSENT_VERSION_KEY);
+  } else {
+    writeStorage(CONSENT_KEY, value);
+    writeStorage(CONSENT_VERSION_KEY, version);
+  }
   if (value !== CONSENT_GRANTED) removeStorage(ANONYMOUS_ID_KEY);
+  window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT));
+};
+
+const authHeaders = () => {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+};
+
+/**
+ * Grava a escolha no navegador e a registra no backend.
+ * A promessa sempre resolve, mesmo se o backend falhar.
+ */
+export const registerAnalyticsConsent = (value) => {
+  // A recusa também gera identificador: sem ele o backend não registra a escolha.
+  const anonymousId = getAnonymousId();
+  setAnalyticsConsent(value);
+  const payload = { choice: value, anonymous_id: anonymousId };
+  return fetch(`${API_BASE_URL}/api/analytics/consent/`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  })
+    .then(() => {})
+    .catch(() => {});
+};
+
+const applyRemoteConsent = (consent) => {
+  if (consent.version !== consent.current_version) {
+    setAnalyticsConsent(null);
+    return;
+  }
+  setAnalyticsConsent(consent.choice, consent.version);
+};
+
+/**
+ * Após o login, alinha a escolha local com a da conta.
+ * Recusa local prevalece sobre aceite remoto. Aceite local só vira prova da
+ * versão vigente se a versão guardada no navegador for a atual.
+ */
+export const syncAnalyticsConsent = async () => {
+  if (!getAccessToken()) return;
+  const anonymousId = readStorage(ANONYMOUS_ID_KEY);
+  const query = anonymousId ? `?anonymous_id=${encodeURIComponent(anonymousId)}` : '';
+
+  let consent;
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/analytics/consent/${query}`, {
+      headers: authHeaders(),
+    });
+    if (!response.ok) return;
+    consent = await response.json();
+  } catch {
+    return;
+  }
+  if (!consent || !('choice' in consent)) return;
+
+  const local = getAnalyticsConsent();
+  const localVersion = getAnalyticsConsentVersion();
+  const currentVersion = consent.current_version || CURRENT_CONSENT_VERSION;
+
+  if (local === CONSENT_DENIED) {
+    if (localVersion === currentVersion) {
+      await registerAnalyticsConsent(CONSENT_DENIED);
+    } else {
+      setAnalyticsConsent(null);
+    }
+    return;
+  }
+
+  if (consent.choice !== null) {
+    applyRemoteConsent(consent);
+    return;
+  }
+
+  if (local === CONSENT_GRANTED && localVersion === currentVersion) {
+    await registerAnalyticsConsent(CONSENT_GRANTED);
+    return;
+  }
+
+  if (local !== null && localVersion !== currentVersion) {
+    setAnalyticsConsent(null);
+  }
+};
+
+/**
+ * Visitante: se a versão local do texto do banner mudou, limpa a escolha
+ * para o banner aparecer de novo.
+ */
+export const refreshAnalyticsConsentVersion = () => {
+  const choice = getAnalyticsConsent();
+  if (choice === null) return;
+  if (getAnalyticsConsentVersion() !== CURRENT_CONSENT_VERSION) {
+    setAnalyticsConsent(null);
+  }
 };
 
 export const getAnonymousId = () => {
@@ -93,6 +211,7 @@ export const linkAnonymousEvents = () => {
  */
 export const trackEvent = (eventType, { productId, variationId, path } = {}) => {
   if (getAnalyticsConsent() !== CONSENT_GRANTED) return;
+  if (!isAnalyticsConsentCurrent()) return;
 
   const currentPath = path ?? window.location.pathname;
   if (isAdminPath(currentPath)) return;

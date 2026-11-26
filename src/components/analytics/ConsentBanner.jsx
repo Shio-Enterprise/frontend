@@ -1,26 +1,41 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
+  CONSENT_CHANGE_EVENT,
   CONSENT_GRANTED,
   CONSENT_DENIED,
   EVENT_TYPES,
-  getAnalyticsConsent,
-  setAnalyticsConsent,
+  isAnalyticsConsentCurrent,
+  registerAnalyticsConsent,
+  refreshAnalyticsConsentVersion,
   trackEvent,
 } from '../../lib/analytics';
 
 // Pede a escolha do visitante uma única vez. Enquanto não houver resposta, nada é rastreado.
 const ConsentBanner = () => {
-  const [decided, setDecided] = useState(() => getAnalyticsConsent() !== null);
+  const [decided, setDecided] = useState(() => {
+    refreshAnalyticsConsentVersion();
+    return isAnalyticsConsentCurrent();
+  });
   const { pathname } = useLocation();
+
+  useEffect(() => {
+    const syncDecided = () => {
+      refreshAnalyticsConsentVersion();
+      setDecided(isAnalyticsConsentCurrent());
+    };
+    window.addEventListener(CONSENT_CHANGE_EVENT, syncDecided);
+    return () => window.removeEventListener(CONSENT_CHANGE_EVENT, syncDecided);
+  }, []);
 
   if (decided) return null;
 
   const decide = (value) => {
-    setAnalyticsConsent(value);
+    // A página atual foi carregada antes da resposta, então ela é registrada depois do aceite.
+    registerAnalyticsConsent(value).then(() => {
+      if (value === CONSENT_GRANTED) trackEvent(EVENT_TYPES.PAGE_VIEW, { path: pathname });
+    });
     setDecided(true);
-    // A página atual foi carregada antes da resposta, então ela é registrada agora, se aceita.
-    if (value === CONSENT_GRANTED) trackEvent(EVENT_TYPES.PAGE_VIEW, { path: pathname });
   };
 
   return (
