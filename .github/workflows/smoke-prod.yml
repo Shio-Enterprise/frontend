@@ -1,0 +1,35 @@
+name: Smoke Test Produção
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke-prod:
+    name: Smoke Test Produção (Frontend)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verificar URL pública de produção
+        env:
+          PROD_SITE_URL: ${{ vars.PROD_SITE_URL }}
+        run: |
+          if [ -z "$PROD_SITE_URL" ]; then
+            echo "::notice::Variável PROD_SITE_URL não configurada em Settings > Variables > Actions. Smoke test ignorado."
+            exit 0
+          fi
+
+          BASE_URL="${PROD_SITE_URL%/}"
+          echo "Verificando $BASE_URL/..."
+          for i in $(seq 1 18); do
+            BODY=$(curl -fsS --max-time 10 "$BASE_URL/" || true)
+            if echo "$BODY" | grep -qi "<html"; then
+              echo "Frontend respondeu HTTP 200 com HTML válido."
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "::error::Smoke test falhou para $BASE_URL/"
+          exit 1
