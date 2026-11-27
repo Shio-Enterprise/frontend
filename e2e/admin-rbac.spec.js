@@ -30,7 +30,7 @@ test('non-admin customer is blocked from /admin and seeded admin can manage prod
   await expect(page.getByTestId('admin-panel-link')).toBeVisible();
   await page.goto('/admin/products');
   await expect(page.getByRole('heading', { name: 'Produtos' })).toBeVisible();
-  await expect(page.getByText('Camiseta Shio E2E Tee').first()).toBeVisible();
+  await expect(page.getByRole('table').getByText('Camiseta Shio E2E Tee')).toBeVisible();
 
   guards.assertNoErrors();
 });

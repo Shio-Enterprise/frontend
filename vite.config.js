@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite'
+import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
@@ -24,6 +24,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/tests/setup.js',
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     execArgv: nodeMajor >= 25 ? ['--no-experimental-webstorage'] : [],
   },
 })
